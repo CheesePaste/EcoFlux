@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew compileJava --no-configuration-cache)",
+      "Bash(./gradlew compileJava --offline)",
+      "Bash(./gradlew build *)"
+    ]
+  }
+}

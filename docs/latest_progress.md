@@ -198,6 +198,34 @@
 - 目前的自动模式仍是原型级调度，还没有做更细的负载控制和更广泛的数据同步设计
 - 当前 biome 转化仍然是“整块直接切换”，边界混合尚未开始做
 
+## 2026-06-07：从原型中提取正式服务层
+
+### 变更概要
+
+- 从 `PrototypeChunkController`（原 827 行）中提取核心逻辑到 6 个新服务类
+- `PrototypeChunkController` 瘦身为 ~175 行，仅保留 10 秒加速演示模式
+
+### 新建文件
+
+| 类 | 包 | 职责 |
+|---|---|---|
+| `ChunkSamplingHelper` | `world/` | 群系/气候采样、生成位置查找、放置规则校验 |
+| `PlantSpawner` | `plant/` | 植物队列管理、加权抽取、种植、过期清理 |
+| `SuccessionTargetResolver` | `succession/` | 区块初始化：采样 + 配置匹配 + 数据填充 |
+| `SuccessionEvaluator` | `succession/` | 进度评估（衰老门控 + consuming 对比） |
+| `BiomeTransitionService` | `succession/` | 群系替换 + 树木种植 + 状态重置 |
+| `SuccessionService` | `succession/` | 编排入口：step、processChunkTick、单步调试方法 |
+
+### 修改文件
+
+- `PrototypeChunkController` — 仅保留 `accelerate()`、`processAcceleratedTick()` 及加速专用私有方法，其余委托给新服务
+- `ModChunkEvents` — `isPrototypeChunk` 泛化为 `SuccessionService.hasActivePath`（现在任何有激活演替路径的区块都可参与自动 tick）
+- `ModCommands` — 标准操作调用 `SuccessionService`，加速操作保留 `PrototypeChunkController`
+
+### 关键泛化
+
+`isPrototypeChunk`（硬编码 `plains_to_forest`）→ `hasActivePath(chunkData)`（检查是否有任何激活的演替路径 ID），使自动 tick 系统对所有配置路径生效。
+
 ## 建议的下一步
 
 - 优先把 `vegetationRecords` 积分接入区块进度结算，补完真正的生命周期 -> 演替积分闭环

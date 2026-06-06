@@ -7,6 +7,7 @@ import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.VegetationTracker;
 import com.s.ecoflux.prototype.PrototypeChunkController;
+import com.s.ecoflux.succession.SuccessionService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
@@ -88,24 +89,24 @@ public final class ModCommands {
         LevelChunk chunk = level.getChunkAt(player.blockPosition());
         String message = switch (action) {
             case INIT -> {
-                PrototypeChunkController.initializeChunkData(chunk);
+                SuccessionService.initializeChunk(chunk);
                 ModChunkEvents.syncChunkTracking(level, chunk);
-                yield "已重新初始化当前区块。 " + PrototypeChunkController.describeChunk(chunk);
+                yield "已重新初始化当前区块。 " + SuccessionService.describeChunk(chunk);
             }
-            case STATUS -> PrototypeChunkController.describeChunk(chunk);
-            case PRUNE -> PrototypeChunkController.pruneTrackedPlants(level, chunk) + " " + PrototypeChunkController.describeChunk(chunk);
-            case SPAWN -> PrototypeChunkController.spawnOnce(level, chunk) + " " + PrototypeChunkController.describeChunk(chunk);
-            case EVALUATE -> PrototypeChunkController.evaluateNow(level, chunk) + " " + PrototypeChunkController.describeChunk(chunk);
-            case STEP -> PrototypeChunkController.step(level, chunk) + " " + PrototypeChunkController.describeChunk(chunk);
+            case STATUS -> SuccessionService.describeChunk(chunk);
+            case PRUNE -> SuccessionService.pruneChunk(level, chunk) + " " + SuccessionService.describeChunk(chunk);
+            case SPAWN -> SuccessionService.spawnInChunk(level, chunk) + " " + SuccessionService.describeChunk(chunk);
+            case EVALUATE -> SuccessionService.evaluateChunk(level, chunk) + " " + SuccessionService.describeChunk(chunk);
+            case STEP -> SuccessionService.step(level, chunk) + " " + SuccessionService.describeChunk(chunk);
             case ACCELERATE -> {
                 String result = PrototypeChunkController.accelerate(level, chunk);
                 ModChunkEvents.syncChunkTracking(level, chunk);
-                yield result + " " + PrototypeChunkController.describeChunk(chunk);
+                yield result + " " + SuccessionService.describeChunk(chunk);
             }
             case TRANSITION -> {
-                String result = PrototypeChunkController.forceTransition(level, chunk);
+                String result = SuccessionService.forceTransition(level, chunk);
                 ModChunkEvents.syncChunkTracking(level, chunk);
-                yield result + " " + PrototypeChunkController.describeChunk(chunk);
+                yield result + " " + SuccessionService.describeChunk(chunk);
             }
         };
 
@@ -190,19 +191,19 @@ public final class ModCommands {
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
 
         if (chunkData.getCurrentBiome().isEmpty()) {
-            PrototypeChunkController.initializeChunkData(chunk);
+            SuccessionService.initializeChunk(chunk);
         }
 
         ModChunkEvents.syncChunkTracking(level, chunk);
         ModChunkEvents.setAutomaticProcessingEnabled(true);
         String bootstrap = String.join(
                 " ",
-                PrototypeChunkController.pruneTrackedPlants(level, chunk),
-                PrototypeChunkController.spawnOnce(level, chunk),
+                SuccessionService.pruneChunk(level, chunk),
+                SuccessionService.spawnInChunk(level, chunk),
                 VegetationTracker.INSTANCE.observeChunk(level, chunk),
                 "已跳过首次评估，以保留可见生长过程。");
         source.sendSuccess(
-                () -> Component.literal("Ecoflux 完整自动演替已开启。 " + bootstrap + " " + PrototypeChunkController.describeChunk(chunk)),
+                () -> Component.literal("Ecoflux 完整自动演替已开启。 " + bootstrap + " " + SuccessionService.describeChunk(chunk)),
                 true);
         return 1;
     }

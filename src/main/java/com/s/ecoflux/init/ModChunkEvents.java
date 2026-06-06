@@ -2,6 +2,7 @@ package com.s.ecoflux.init;
 
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.prototype.PrototypeChunkController;
+import com.s.ecoflux.succession.SuccessionService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -41,7 +42,7 @@ public final class ModChunkEvents {
 
     public static void syncChunkTracking(ServerLevel level, ChunkAccess chunk) {
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-        updateTrackedChunk(level, chunk.getPos().toLong(), PrototypeChunkController.isPrototypeChunk(chunkData));
+        updateTrackedChunk(level, chunk.getPos().toLong(), SuccessionService.hasActivePath(chunkData));
     }
 
     public static void startAcceleratedTransition(ServerLevel level, LevelChunk chunk) {
@@ -59,7 +60,7 @@ public final class ModChunkEvents {
         ChunkAccess chunk = event.getChunk();
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
         if (chunkData.getCurrentBiome().isEmpty()) {
-            PrototypeChunkController.initializeChunkData(chunk);
+            SuccessionService.initializeChunk(chunk);
         }
 
         syncChunkTracking(serverLevel, chunk);
@@ -109,13 +110,13 @@ public final class ModChunkEvents {
             }
 
             SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-            if (!PrototypeChunkController.isPrototypeChunk(chunkData)) {
+            if (!SuccessionService.hasActivePath(chunkData)) {
                 trackedChunks.remove(chunkPosLong);
                 continue;
             }
 
-            PrototypeChunkController.processAutoTick(serverLevel, chunk);
-            if (!PrototypeChunkController.isPrototypeChunk(chunkData)) {
+            SuccessionService.processChunkTick(serverLevel, chunk);
+            if (!SuccessionService.hasActivePath(chunkData)) {
                 trackedChunks.remove(chunkPosLong);
             }
         }

@@ -1,7 +1,7 @@
 ## Project Overview
 
 Ecoflux is a **NeoForge 1.21.1** Minecraft mod implementing chunk-scale ecological succession. Each 16×16 chunk undergoes biome evolution driven by plant life: plants grow, age, die, and their collective "points" determine whether the chunk's biome progresses (e.g., plains → forest) or regresses. The system is data-driven via JSON configuration files.
-
+1
 - **Language**: Java 21
 - **Build**: Gradle 9.2.1 via `gradlew` (wrapper)
 - **Mod loader**: NeoForge 21.1.227
@@ -37,15 +37,26 @@ The codebase is in `src/main/java/com/s/ecoflux/`. Key architectural layers:
 - `ActiveVegetationRecord` — Vegetation lifecycle record: adapter type, category, stage, point value, birth/age/expiry times
 - `PlantQueueEntry` — Pre-generated plant to spawn: plant_id, point_value, weight, max_age
 
-### Plant lifecycle system (`plant/`)
+### Succession service layer (`succession/`)
+Extracted from `PrototypeChunkController`. Follows the architecture.md design:
+- `SuccessionService` — Main orchestration entry point. `initializeChunk()`, `step()`, `processChunkTick()`, `pruneChunk()`, `spawnInChunk()`, `evaluateChunk()`, `forceTransition()`, `hasActivePath()`, `describeChunk()`
+- `SuccessionTargetResolver` — Chunk initialization: samples biome/climate, matches config via `SuccessionConfigRegistry`, populates `SuccessionChunkData`
+- `SuccessionEvaluator` — Progress evaluation with aging gate (`hasAgingVegetation`). Compares vegetation points vs consuming, accumulates progress
+- `BiomeTransitionService` — Biome replacement via `ChunkAccess.fillBiomesFromNoise()`, broadcasts `ClientboundChunksBiomesPacket`, plants trees on completion, resets chunk state
+
+### World utilities (`world/`)
+- `ChunkSamplingHelper` — Static utilities: `sampleChunkCenterBiome()`, `sampleChunkClimate()`, `sampleSurfaceY()`, `findSpawnPos()`, `canPlantAt()`, `isAllowedBaseBlock()`, `countNearbyTrackedPlants()`, `toBiomeKey()`
+
+### Plant system (`plant/`)
 The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `VegetationTypeAdapter` — Core interface: `matches(BlockState)`, `captureBirth(BlockState)`, `observe(record, gameTime)`, `visualState(record, gameTime)`
 - `VegetationTracker` — Singleton that tracks/observes/syncs all vegetation. Key methods: `trackAt()`, `observeTracked()`, `observeChunk()`
 - Adapters: `SimplePlantAdapter` (flowers, grass, ferns, mushrooms), `SaplingAdapter` (tree saplings → tree transformation), `TreeStructureAdapter` (mature trees)
 - `VegetationTransformation` — Descriptor for sapling→tree conversion
+- `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`
 
 ### Prototype controller (`prototype/`)
-- `PrototypeChunkController` (827 lines) — **Monolithic working prototype** that ties everything together. Handles: chunk init, plant spawning, lifecycle observation via `VegetationTracker`, progress evaluation, biome replacement via `ChunkAccess.fillBiomesFromNoise()`, accelerated 10-second demo mode. This is the reference implementation that a future clean `succession/` package should extract from
+- `PrototypeChunkController` (~175 lines) — Slimmed down to only the **accelerated 10-second demo mode**. All standard succession operations have been extracted to the `succession/`, `world/`, and `plant/` service classes. Calls into `SuccessionService`, `PlantSpawner`, `BiomeTransitionService` for shared operations
 
 ### Client visual layer (`client/visual/`)
 - `VisualLifecycleClientRuntime` — Client singleton receiving visual state from server
@@ -75,14 +86,13 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 3. **Adapter-based plant recognition**: Rather than hardcoding plant types, `VegetationTypeAdapter` implementations match against `BlockState` and handle lifecycle logic. Current adapters cover small flowers, grass/ferns, saplings, mushrooms, and trees.
 
-4. **Prototype-first approach**: `PrototypeChunkController` is a monolithic working implementation proving the full loop. The `architecture.md` envisions extracting it into a cleaner `succession/` package (`SuccessionService`, `SuccessionEvaluator`, `BiomeTransitionService`, etc.) but this extraction has not yet been done.
+4. **Prototype-first → service extraction**: The full succession loop was first proven in the monolithic `PrototypeChunkController`, then extracted into clean `succession/` service classes (`SuccessionService`, `SuccessionTargetResolver`, `SuccessionEvaluator`, `BiomeTransitionService`). The prototype now only houses the accelerated 10-second demo mode. Utilities live in `world/ChunkSamplingHelper` and `plant/PlantSpawner`.
 
 5. **Two tracking systems coexist**: `activePlants` (original prototype plant tracking) and `vegetationRecords` (newer lifecycle-based tracking via `VegetationTracker`). Progress evaluation currently checks `vegetationRecords` with an aging gate (`hasAgingVegetation`).
 
 ## Current Development State
 
-- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo
-- **In prototype, needs extraction**: Production-grade succession service, proper evaluation scheduling (currently piggybacks on the prototype), multi-plant queue integration
+- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, **service layer extraction from prototype → `succession/`/`world/`/`plant/` packages**
 - **Not yet started**: Player planting/destruction events → `VegetationTracker`, Dynamic Trees compatibility, chunk boundary blending, formal progress using `vegetationRecords` point values (currently uses aging gate only)
 - **Known gap**: `vegetationRecords` point integration into chunk progress settlement is not yet complete — progress evaluation advances when aging vegetation exists, not based on actual point totals vs consuming
 
@@ -104,3 +114,5 @@ All design docs are in `docs/`, written in Chinese:
 - Java records are preferred for data objects (see config records, attachment records)
 - Logging goes through `EcofluxConstants.LOGGER` (SLF4J via NeoForge)
 - The repo directory is still named `Succession` (historical); the mod itself is `Ecoflux`
+- **CRITICAL**: After any significant code changes (new packages, extracted classes, new features, changed architecture), immediately update `CLAUDE.md` and the relevant files in `docs/` (`latest_progress.md`, `todolist.md`, etc.) to reflect the new state. Stale documentation is worse than no documentation
+- **

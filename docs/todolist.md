@@ -100,7 +100,21 @@
 ## 当前最先建议执行的 5 项
 
 1. [x] 设计第一版 `succession_paths` JSON。
-2. [ ] 把 `SuccessionChunkData` 接入真实区块初始化流程。
-3. [ ] 增加最小调试输出或命令，便于观察附件状态。
+2. [x] 把 `SuccessionChunkData` 接入真实区块初始化流程。
+3. [x] 增加最小调试输出或命令，便于观察附件状态。
 4. [x] 做一个“单植物 + 单路径 + 单区块进度”的最小可运行原型。
-5. [ ] 再补 `data/ecoflux/` 示例数据与加载器。
+5. [x] 再补 `data/ecoflux/` 示例数据与加载器。
+
+## 2026-06-07 更新：服务层提取已完成
+
+以下工作已在 `another-try` 分支完成：
+
+- [x] 从 `PrototypeChunkController` 提取正式服务层：`succession/SuccessionService`、`SuccessionTargetResolver`、`SuccessionEvaluator`、`BiomeTransitionService`
+- [x] 提取通用工具：`world/ChunkSamplingHelper`、`plant/PlantSpawner`
+- [x] `isPrototypeChunk` 泛化为 `hasActivePath`，自动 tick 对所有配置路径生效
+- [x] `PrototypeChunkController` 瘦身为 ~175 行（仅保留加速演示模式）
+
+当前最优先的下一步：
+- [ ] 把 `vegetationRecords` 积分接入区块进度结算（目前仅用衰老门控）
+- [ ] 把玩家放置/破坏事件接入 `VegetationTracker`
+- [ ] 多植物队列与权重抽取（原型仅测了单植物 dandelion）
