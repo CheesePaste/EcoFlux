@@ -2,8 +2,10 @@ import { useEditorStore } from "../../store/editorStore";
 import { NodeProperties } from "./NodeProperties";
 import { PathProperties } from "./PathProperties";
 import { NoSelection } from "./NoSelection";
+import { useT } from "../../i18n/I18nContext";
 
 export function PropertyPanel() {
+  const { t } = useT();
   const selectedId = useEditorStore((s) => s.selectedId);
   const nodes = useEditorStore((s) => s.nodes);
   const edges = useEditorStore((s) => s.edges);
@@ -37,10 +39,10 @@ export function PropertyPanel() {
         }}
       >
         {selectedEdge
-          ? `📝 Edge: ${selectedEdge.data!.pathId.replace("ecoflux:", "")}`
+          ? t("panel.titleEdge").replace("{pathId}", selectedEdge.data!.pathId.replace("ecoflux:", ""))
           : selectedNode
-            ? `📍 Node: ${selectedNode.data.biomeMeta?.displayName ?? selectedNode.data.biomeId}`
-            : "📋 Properties"}
+            ? t("panel.titleNode").replace("{name}", selectedNode.data.biomeMeta?.displayName ?? selectedNode.data.biomeId)
+            : t("panel.titleNone")}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>

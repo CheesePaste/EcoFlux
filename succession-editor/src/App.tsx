@@ -4,6 +4,8 @@ import { BiomePalette } from "./components/palette/BiomePalette";
 import { GraphCanvas } from "./components/canvas/GraphCanvas";
 import { PropertyPanel } from "./components/panel/PropertyPanel";
 import { PlantDatalists } from "./components/panel/editors/PlantTableEditor";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { I18nProvider } from "./i18n/I18nContext";
 import { useEditorStore } from "./store/editorStore";
 import { useEffect } from "react";
 import "./App.css";
@@ -11,11 +13,6 @@ import "./App.css";
 function KeyboardHandler() {
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
-  const removeNode = useEditorStore((s) => s.removeNode);
-  const removeEdge = useEditorStore((s) => s.removeEdge);
-  const selectedId = useEditorStore((s) => s.selectedId);
-  const nodes = useEditorStore((s) => s.nodes);
-  const edges = useEditorStore((s) => s.edges);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -37,14 +34,6 @@ function KeyboardHandler() {
         e.preventDefault();
         redo();
       }
-      if (e.key === "Delete" || e.key === "Backspace") {
-        if (selectedId) {
-          const isNode = nodes.some((n) => n.id === selectedId);
-          const isEdge = edges.some((ed) => ed.id === selectedId);
-          if (isNode) removeNode(selectedId);
-          else if (isEdge) removeEdge(selectedId);
-        }
-      }
       if (e.key === "Escape") {
         useEditorStore.getState().setSelectedId(null);
       }
@@ -52,24 +41,28 @@ function KeyboardHandler() {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [undo, redo, removeNode, removeEdge, selectedId, nodes, edges]);
+  }, [undo, redo]);
 
   return null;
 }
 
 export default function App() {
   return (
-    <ReactFlowProvider>
-      <PlantDatalists />
-      <KeyboardHandler />
-      <div className="app-container">
-        <Toolbar />
-        <div className="main-content">
-          <BiomePalette />
-          <GraphCanvas />
-          <PropertyPanel />
+    <ErrorBoundary>
+      <I18nProvider>
+        <ReactFlowProvider>
+        <PlantDatalists />
+        <KeyboardHandler />
+        <div className="app-container">
+          <Toolbar />
+          <div className="main-content">
+            <BiomePalette />
+            <GraphCanvas />
+            <PropertyPanel />
+          </div>
         </div>
-      </div>
-    </ReactFlowProvider>
+      </ReactFlowProvider>
+      </I18nProvider>
+    </ErrorBoundary>
   );
 }

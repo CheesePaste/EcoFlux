@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useEditorStore } from "../../../store/editorStore";
 import type { PathGraphEdge, PlantDefinition } from "../../../model/types";
 import { SpawnRulesEditor } from "./SpawnRulesEditor";
+import { useT } from "../../../i18n/I18nContext";
 
 interface Props {
   edge: PathGraphEdge;
@@ -49,6 +50,7 @@ const COMMON_PLANTS = [
 ];
 
 export function PlantTableEditor({ edge }: Props) {
+  const { t } = useT();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedPlant, setExpandedPlant] = useState<number | null>(null);
   const addPlant = useEditorStore((s) => s.addPlant);
@@ -65,8 +67,8 @@ export function PlantTableEditor({ edge }: Props) {
         onClick={() => setCollapsed(!collapsed)}
         style={{ cursor: "pointer", display: "flex", justifyContent: "space-between" }}
       >
-        <span>{collapsed ? "▶" : "▼"} Plants ({plants.length})</span>
-        <span style={{ fontSize: 10, color: "#888" }}>total weight: {totalWeight}</span>
+        <span>{collapsed ? "▶" : "▼"} {t("path.plants")} ({plants.length})</span>
+        <span style={{ fontSize: 10, color: "#888" }}>{t("path.totalWeight").replace("{total}", String(totalWeight))}</span>
       </div>
 
       {!collapsed && (
@@ -76,12 +78,12 @@ export function PlantTableEditor({ edge }: Props) {
             <table className="plant-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
               <thead>
                 <tr style={{ color: "#888", textAlign: "left" }}>
-                  <th style={{ padding: "3px 4px", width: 28 }}>#</th>
-                  <th style={{ padding: "3px 4px" }}>Plant ID</th>
-                  <th style={{ padding: "3px 4px", width: 50 }}>Wt</th>
-                  <th style={{ padding: "3px 4px", width: 40 }}>Pts</th>
-                  <th style={{ padding: "3px 4px", width: 50 }}>Age</th>
-                  <th style={{ padding: "3px 4px", width: 28 }}></th>
+                  <th style={{ padding: "3px 4px", width: 28 }}>{t("plant.headerIndex")}</th>
+                  <th style={{ padding: "3px 4px" }}>{t("plant.headerId")}</th>
+                  <th style={{ padding: "3px 4px", width: 50 }}>{t("plant.headerWeight")}</th>
+                  <th style={{ padding: "3px 4px", width: 40 }}>{t("plant.headerPoints")}</th>
+                  <th style={{ padding: "3px 4px", width: 50 }}>{t("plant.headerAge")}</th>
+                  <th style={{ padding: "3px 4px", width: 28 }}>{t("plant.headerActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -104,7 +106,7 @@ export function PlantTableEditor({ edge }: Props) {
 
           {plants.length === 0 && (
             <div style={{ color: "#666", fontSize: 12, textAlign: "center", padding: 8 }}>
-              No plants yet. Add one below.
+              {t("path.noPlants")}
             </div>
           )}
 
@@ -124,7 +126,7 @@ export function PlantTableEditor({ edge }: Props) {
               fontSize: 12,
             }}
           >
-            + Add Plant
+            {t("path.addPlant")}
           </button>
         </>
       )}
@@ -142,6 +144,7 @@ interface PlantRowProps {
 }
 
 function PlantRow({ plant, index, isExpanded, onToggleExpand, onUpdate, onRemove }: PlantRowProps) {
+  const { t } = useT();
   return (
     <>
       <tr
@@ -206,7 +209,7 @@ function PlantRow({ plant, index, isExpanded, onToggleExpand, onUpdate, onRemove
               fontSize: 14,
               padding: 0,
             }}
-            title="Remove plant"
+            title={t("plant.removeHint")}
           >
             ✕
           </button>
@@ -217,7 +220,7 @@ function PlantRow({ plant, index, isExpanded, onToggleExpand, onUpdate, onRemove
           <td colSpan={6} style={{ padding: "4px 8px 8px", background: "#1e1e32" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 11 }}>
               <div>
-                <label style={{ color: "#888", fontSize: 10 }}>Category</label>
+                <label style={{ color: "#888", fontSize: 10 }}>{t("plant.category")}</label>
                 <input
                   type="text"
                   value={plant.category}
@@ -228,7 +231,7 @@ function PlantRow({ plant, index, isExpanded, onToggleExpand, onUpdate, onRemove
                 />
               </div>
               <div>
-                <label style={{ color: "#888", fontSize: 10 }}>Max Age (ticks)</label>
+                <label style={{ color: "#888", fontSize: 10 }}>{t("plant.maxAgeTicks")}</label>
                 <input
                   type="number"
                   value={plant.maxAgeTicks}

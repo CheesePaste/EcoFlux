@@ -3,8 +3,10 @@ import { useEditorStore } from "../../store/editorStore";
 import { exportPaths, downloadJson } from "../../serialization/exportJson";
 import { readJsonFiles } from "../../serialization/importJson";
 import { resetIdCounters } from "../../store/editorStore";
+import { useT } from "../../i18n/I18nContext";
 
 export function Toolbar() {
+  const { t, lang, toggleLang } = useT();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nodes = useEditorStore((s) => s.nodes);
   const edges = useEditorStore((s) => s.edges);
@@ -40,7 +42,7 @@ export function Toolbar() {
       loadGraph(importedNodes, importedEdges);
       clearValidation();
     } catch (err) {
-      alert(`Import failed: ${err}`);
+      alert(t("msg.importFailed").replace("{error}", String(err)));
     }
 
     // Reset input so the same file can be re-imported
@@ -50,10 +52,9 @@ export function Toolbar() {
   const handleValidate = () => {
     const valid = validate();
     if (valid) {
-      // show a brief toast-like message via alert for now
-      alert("Validation passed! No errors.");
+      alert(t("msg.validationPassed"));
     } else {
-      alert(`${errorCount} error(s), ${warnCount} warning(s). See highlighted items.`);
+      alert(t("msg.validationErrors").replace("{errors}", String(errorCount)).replace("{warnings}", String(warnCount)));
     }
   };
 
@@ -71,12 +72,12 @@ export function Toolbar() {
     >
       {/* Logo */}
       <span style={{ fontWeight: "bold", color: "#4caf50", fontSize: 15, marginRight: 8 }}>
-        🌿 Ecoflux Editor
+        {t("app.title")}
       </span>
 
       {/* Import/Export */}
-      <button className="tb-btn" onClick={handleImport}>📥 Import JSON</button>
-      <button className="tb-btn" onClick={handleExport}>📤 Export JSON</button>
+      <button className="tb-btn" onClick={handleImport}>{t("btn.import")}</button>
+      <button className="tb-btn" onClick={handleExport}>{t("btn.export")}</button>
 
       <div style={{ width: 1, height: 24, background: "#444", margin: "0 4px" }} />
 
@@ -85,24 +86,22 @@ export function Toolbar() {
         className="tb-btn"
         onClick={undo}
         disabled={undoStack.length === 0}
-        title="Undo (Ctrl+Z)"
       >
-        ↩ Undo
+        {t("btn.undo")}
       </button>
       <button
         className="tb-btn"
         onClick={redo}
         disabled={redoStack.length === 0}
-        title="Redo (Ctrl+Y)"
       >
-        ↪ Redo
+        {t("btn.redo")}
       </button>
 
       <div style={{ width: 1, height: 24, background: "#444", margin: "0 4px" }} />
 
       {/* Validate */}
       <button className="tb-btn" onClick={handleValidate}>
-        ✓ Validate
+        {t("btn.validate")}
       </button>
       {errorCount > 0 && (
         <span style={{ color: "#ef5350", fontSize: 12 }}>{errorCount} errors</span>
@@ -113,15 +112,20 @@ export function Toolbar() {
 
       <div style={{ flex: 1 }} />
 
+      {/* Language toggle */}
+      <button className="tb-btn" onClick={toggleLang} title={`Switch to ${lang === "zh" ? "English" : "中文"}`}>
+        {t("btn.lang")}
+      </button>
+
       {/* Clear */}
       <button
         className="tb-btn"
         onClick={() => {
-          if (confirm("Clear the entire graph?")) clearGraph();
+          if (confirm(t("msg.clearConfirm"))) clearGraph();
         }}
         style={{ color: "#ef5350" }}
       >
-        🗑 Clear
+        {t("btn.clear")}
       </button>
 
       {/* Hidden file input */}

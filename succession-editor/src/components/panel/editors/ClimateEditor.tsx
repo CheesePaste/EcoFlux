@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PathGraphEdge, PathEdgeData } from "../../../model/types";
+import { useT } from "../../../i18n/I18nContext";
 
 interface Props {
   edge: PathGraphEdge;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function ClimateEditor({ edge, onChange }: Props) {
+  const { t } = useT();
   const { climate } = edge.data!;
   const [collapsed, setCollapsed] = useState(false);
 
@@ -17,13 +19,13 @@ export function ClimateEditor({ edge, onChange }: Props) {
         onClick={() => setCollapsed(!collapsed)}
         style={{ cursor: "pointer" }}
       >
-        {collapsed ? "▶" : "▼"} Climate Conditions
+        {collapsed ? "▶" : "▼"} {t("path.climate")}
       </div>
 
       {!collapsed && (
         <>
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>🌡 Temperature Range</div>
+            <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>{t("path.tempRange")}</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 type="number"
@@ -42,7 +44,7 @@ export function ClimateEditor({ edge, onChange }: Props) {
                 min={-1}
                 max={2}
               />
-              <span style={{ color: "#666" }}>to</span>
+              <span style={{ color: "#666" }}>{t("path.to")}</span>
               <input
                 type="number"
                 value={climate.temperature.max}
@@ -80,7 +82,7 @@ export function ClimateEditor({ edge, onChange }: Props) {
           </div>
 
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>💧 Downfall Range</div>
+            <div style={{ fontSize: 11, color: "#aaa", marginBottom: 4 }}>{t("path.downfallRange")}</div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 type="number"
@@ -99,7 +101,7 @@ export function ClimateEditor({ edge, onChange }: Props) {
                 min={0}
                 max={1}
               />
-              <span style={{ color: "#666" }}>to</span>
+              <span style={{ color: "#666" }}>{t("path.to")}</span>
               <input
                 type="number"
                 value={climate.downfall.max}
@@ -137,10 +139,10 @@ export function ClimateEditor({ edge, onChange }: Props) {
           </div>
 
           {climate.temperature.min > climate.temperature.max && (
-            <div style={{ color: "#ef5350", fontSize: 11 }}>⚠ Temperature: min &gt; max</div>
+            <div style={{ color: "#ef5350", fontSize: 11 }}>{t("path.climateErrorTemp")}</div>
           )}
           {climate.downfall.min > climate.downfall.max && (
-            <div style={{ color: "#ef5350", fontSize: 11 }}>⚠ Downfall: min &gt; max</div>
+            <div style={{ color: "#ef5350", fontSize: 11 }}>{t("path.climateErrorDownfall")}</div>
           )}
         </>
       )}

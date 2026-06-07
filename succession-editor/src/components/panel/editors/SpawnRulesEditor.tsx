@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PlantSpawnRules } from "../../../model/types";
+import { useT } from "../../../i18n/I18nContext";
 
 interface Props {
   spawnRules: PlantSpawnRules;
@@ -29,6 +30,7 @@ const COMMON_BLOCKS = [
 ];
 
 export function SpawnRulesEditor({ spawnRules, onChange }: Props) {
+  const { t } = useT();
   const [collapsed, setCollapsed] = useState(true);
   const [newBlock, setNewBlock] = useState("");
 
@@ -67,9 +69,12 @@ export function SpawnRulesEditor({ spawnRules, onChange }: Props) {
           marginBottom: collapsed ? 0 : 6,
         }}
       >
-        <span>{collapsed ? "▶" : "▼"} Spawn Rules</span>
+        <span>{collapsed ? "▶" : "▼"} {t("plant.spawnRules")}</span>
         <span style={{ fontSize: 9, color: "#666" }}>
-          {spawnRules.placement} / sky:{spawnRules.requireSky ? "✓" : "✗"} / {spawnRules.allowedBaseBlocks.length} bases
+          {t("plant.spawnSummary")
+            .replace("{placement}", spawnRules.placement)
+            .replace("{sky}", spawnRules.requireSky ? "✓" : "✗")
+            .replace("{blocks}", String(spawnRules.allowedBaseBlocks.length))}
         </span>
       </div>
 
@@ -77,7 +82,7 @@ export function SpawnRulesEditor({ spawnRules, onChange }: Props) {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginBottom: 6 }}>
             <div>
-              <label style={{ color: "#888", fontSize: 10 }}>Placement</label>
+              <label style={{ color: "#888", fontSize: 10 }}>{t("spawn.placement")}</label>
               <select
                 value={spawnRules.placement}
                 onChange={(e) => setField("placement", e.target.value)}
@@ -92,7 +97,7 @@ export function SpawnRulesEditor({ spawnRules, onChange }: Props) {
               </select>
             </div>
             <div>
-              <label style={{ color: "#888", fontSize: 10 }}>Max Local Density</label>
+              <label style={{ color: "#888", fontSize: 10 }}>{t("spawn.density")}</label>
               <input
                 type="number"
                 value={spawnRules.maxLocalDensity}
@@ -111,12 +116,12 @@ export function SpawnRulesEditor({ spawnRules, onChange }: Props) {
                 checked={spawnRules.requireSky}
                 onChange={(e) => setField("requireSky", e.target.checked)}
               />
-              Require Sky Access
+              {t("spawn.requireSky")}
             </label>
           </div>
 
           <div>
-            <label style={{ color: "#888", fontSize: 10 }}>Allowed Base Blocks</label>
+            <label style={{ color: "#888", fontSize: 10 }}>{t("spawn.allowedBase")}</label>
             <div style={{ maxHeight: 100, overflowY: "auto", marginBottom: 4 }}>
               {spawnRules.allowedBaseBlocks.map((block, idx) => (
                 <div
@@ -154,7 +159,7 @@ export function SpawnRulesEditor({ spawnRules, onChange }: Props) {
                 value={newBlock}
                 onChange={(e) => setNewBlock(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addBlock()}
-                placeholder="minecraft:..."
+                placeholder={t("spawn.blockPlaceholder")}
                 className="prop-input mono"
                 style={{ flex: 1, fontSize: 10, padding: "2px 4px" }}
                 list="common-blocks"
@@ -171,7 +176,7 @@ export function SpawnRulesEditor({ spawnRules, onChange }: Props) {
                   fontSize: 10,
                 }}
               >
-                + Add
+                {t("spawn.addBlock")}
               </button>
               <datalist id="common-blocks">
                 {COMMON_BLOCKS.map((id) => (

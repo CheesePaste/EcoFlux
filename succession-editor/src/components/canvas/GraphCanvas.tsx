@@ -5,7 +5,6 @@ import {
   Controls,
   MiniMap,
   type Connection,
-  type Edge,
   BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -28,6 +27,8 @@ function miniMapNodeColor(node: any): string {
 export function GraphCanvas() {
   const nodes = useEditorStore((s) => s.nodes);
   const edges = useEditorStore((s) => s.edges);
+  const onNodesChange = useEditorStore((s) => s.onNodesChange);
+  const onEdgesChange = useEditorStore((s) => s.onEdgesChange);
   const setSelectedId = useEditorStore((s) => s.setSelectedId);
   const addEdge = useEditorStore((s) => s.addEdge);
   const validationErrors = useEditorStore((s) => s.validationErrors);
@@ -67,7 +68,7 @@ export function GraphCanvas() {
       ? { ...n.style, border: "2px solid #f44336", boxShadow: "0 0 10px rgba(244,67,54,0.6)" }
       : n.style,
   }));
-  const edgesWithErrors: Edge[] = edges.map((e) => ({
+  const edgesWithErrors = edges.map((e) => ({
     ...e,
     style: errorIds.has(e.id)
       ? { ...e.style, stroke: "#f44336", strokeWidth: 3 }
@@ -79,6 +80,8 @@ export function GraphCanvas() {
       <ReactFlow
         nodes={nodesWithErrors}
         edges={edgesWithErrors}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
         onEdgeClick={onEdgeClick}

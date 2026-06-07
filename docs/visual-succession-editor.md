@@ -215,8 +215,8 @@ type GraphEdge = Edge<PathEdgeData, "succession">;
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  Toolbar                                                         │
-│  [Import] [Export] [Export All] │ [+ Biome] │ [Undo] [Redo]     │
-│  [Auto Layout] [Fit View] │ [Validate]                           │
+│  [Import] [Export] │ [Undo] [Redo] │ [Validate] │ [🌐 EN/中文]  │
+│  [Clear]                                                  │
 ├───────────────┬──────────────────────────┬───────────────────────┤
 │               │                          │                       │
 │   Biome       │     Graph Canvas         │   Property Panel      │
@@ -294,28 +294,32 @@ type GraphEdge = Edge<PathEdgeData, "succession">;
 
 ## 编辑器功能列表（按 Phase）
 
-### Phase 1：基础编辑器（当前实现）
+### Phase 1：基础编辑器（✅ 已完成）
 
 **目标**：完整覆盖现有 3 条路径的全部可编辑字段，导入/导出兼容现有 JSON。
 
 - [x] 项目脚手架：Vite + React + TypeScript + @xyflow/react + Zustand
-- [ ] 类型定义（`model/types.ts`）
-- [ ] GraphModel（增删节点/连线）
-- [ ] 群系面板（内置 1.21.1 群系列表，按维度分组）
-- [ ] 图画布（BiomeNode 渲染、SuccessionEdge 渲染、拖拽连线）
-- [ ] 属性面板 — 选中连线时：
-  - Path 基本属性（path_id, priority）
-  - Climate 编辑器（温度/湿度滑块）
+- [x] 类型定义（`model/types.ts`）
+- [x] GraphModel（增删节点/连线）
+- [x] 群系面板（内置 1.21.1 群系列表，按维度分组，可搜索）
+- [x] 图画布（BiomeNode 渲染、SuccessionEdge 渲染、拖拽连线）
+- [x] 属性面板 — 选中连线时：
+  - Path 基本属性（path_id, priority, fallback 自动推导）
+  - Climate 编辑器（温度/湿度滑块 + 数值输入）
   - ChunkRules 编辑器（全部 8 个字段）
   - **Plants 表格编辑器**：
-    - 6 列表格：plant_id, category, weight, point_value, max_age_ticks, actions
-    - 展开行显示 spawn_rules 子表单
-    - 添加/删除/复制植物行
-- [ ] JSON 导出（生成标准 schema v1 JSON → 浏览器下载）
-- [ ] JSON 导入（解析现有文件 → 还原为图 + 填充属性）
-- [ ] 校验（pathId 唯一、数值范围、必填字段）+ 错误高亮
-- [ ] 撤销/重做（Zustand temporal middleware）
-- [ ] 画布操作（缩放、平移、自动布局、适应视图）
+    - 6 列表格：plant_id, weight, point_value, max_age_ticks, actions
+    - 展开行显示 category + max_age_ticks + spawn_rules 子表单
+    - 添加/删除植物行
+- [x] JSON 导出（生成标准 schema v1 JSON → 浏览器下载）
+- [x] JSON 导入（解析现有文件 → 还原为图 + 填充属性）
+- [x] 校验（pathId 唯一、数值范围、必填字段）+ 错误高亮（画布 + 属性面板）
+- [x] 撤销/重做（Zustand 自定义 undo/redo stack，Ctrl+Z / Ctrl+Y）
+- [x] 画布操作（缩放、平移、MiniMap、网格吸附、适应视图）
+- [x] 键盘快捷键（Ctrl+Z 撤销、Ctrl+Y 重做、Escape 取消选中、Delete/Backspace 删除）
+- [x] 错误边界（ErrorBoundary 捕获 React 崩溃，显示错误信息 + 重新加载按钮）
+- [x] 中英双语支持（i18n 系统，localStorage 持久化语言偏好，工具栏切换按钮）
+- [x] 节点颜色按温度渐变（冷=蓝，温=绿，热=红）
 
 ### Phase 2：条件分支节点
 
@@ -364,7 +368,7 @@ succession-editor/
   index.html
   src/
     main.tsx                    # 入口
-    App.tsx                     # 主布局
+    App.tsx                     # 主布局 + KeyboardHandler（快捷键）
     App.css                     # 全局样式
 
     model/
@@ -373,105 +377,70 @@ succession-editor/
       biomeData.ts              # Minecraft 1.21.1 完整群系列表 + 元数据
 
     store/
-      editorStore.ts            # Zustand store：图状态 + 选中 + 脏标记
-      useEditorStore.ts         # 导出 hook
+      editorStore.ts            # Zustand store：图状态 + 选中 + undo/redo + 校验
 
     serialization/
       exportJson.ts             # GraphModel → JSON 文件
       importJson.ts             # JSON 文件 → GraphModel
-      schema.ts                 # Zod schema 校验
+
+    i18n/
+      translations.ts           # 中英文翻译表（~90 keys）
+      I18nContext.tsx            # React Context + Provider + useT() hook
 
     components/
-      layout/
-        AppLayout.tsx           # 三栏布局容器
+      ErrorBoundary.tsx         # 全局错误边界（类组件，崩溃恢复）
 
       canvas/
-        GraphCanvas.tsx         # ReactFlow 包装器
-        BiomeNode.tsx           # 自定义群系节点渲染
-        SuccessionEdge.tsx      # 自定义连线渲染 + 标签
+        GraphCanvas.tsx         # ReactFlow 包装器（含 MiniMap + Controls）
+        BiomeNode.tsx           # 自定义群系节点渲染（温度颜色渐变）
+        SuccessionEdge.tsx      # 自定义连线渲染 + pathId 标签
 
       palette/
-        BiomePalette.tsx        # 左侧群系面板
-        BiomePaletteItem.tsx    # 单个群系项
+        BiomePalette.tsx        # 左侧群系面板（按维度分组、可搜索、拖拽/点击添加）
 
       panel/
-        PropertyPanel.tsx       # 右侧属性面板容器
-        NoSelection.tsx         # 无选中时的全局统计
-        NodeProperties.tsx      # 群系节点属性（只读展示）
-        PathProperties.tsx      # 连线属性（全部可编辑字段）
+        PropertyPanel.tsx       # 右侧属性面板容器（按选中类型分发）
+        NoSelection.tsx         # 无选中时的全局统计概览
+        NodeProperties.tsx      # 群系节点属性（只读展示 + 连接统计）
+        PathProperties.tsx      # 连线属性容器
 
         editors/
-          PathIdentityEditor.tsx    # path_id, priority, fallback
-          ClimateEditor.tsx         # 温度/湿度范围
+          PathIdentityEditor.tsx    # path_id, priority, source/target/fallback 展示
+          ClimateEditor.tsx         # 温度/湿度范围（滑块 + 数值输入）
           ChunkRulesEditor.tsx      # 全部 8 个 chunk_rules 字段
-          PlantTableEditor.tsx      # 植物列表表格
-          PlantRowEditor.tsx        # 单行植物编辑
-          SpawnRulesEditor.tsx      # 子表单：生成规则
+          PlantTableEditor.tsx      # 植物列表表格 + PlantDatalists（datalist 元素）
+          SpawnRulesEditor.tsx      # 子表单：生成规则（placement、density、sky、base blocks）
 
       toolbar/
-        Toolbar.tsx             # 导入/导出/添加/撤销/重做
-
-      validation/
-        ValidationPanel.tsx     # 校验结果面板
-
-    utils/
-      validation.ts             # 校验函数
-      idGenerator.ts            # 生成唯一 ID
+        Toolbar.tsx             # 导入/导出/校验/撤销/重做/清空/语言切换
 ```
 
 ---
 
-## Phase 1 实现步骤
+## Phase 1 实现记录
 
-按文件创建顺序，确保每一步都可通过 `npm run dev` 查看进展：
+### 实际实现步骤
 
-### Step 1: 项目基础
-- 安装依赖：`@xyflow/react`, `zustand`, `zod`
-- 清理 Vite 模板默认文件
-- 配置 `vite.config.ts`（如有需要）
+1. **项目基础**：Vite + React 18 + TypeScript 5 + @xyflow/react + Zustand（无 zod 依赖，校验为手写）
+2. **类型系统**：`model/types.ts`（与 Java record 一一对应，`extends Record<string, unknown>` 兼容 ReactFlow）+ `model/defaults.ts` + `model/biomeData.ts`（60+ 群系含默认温度/湿度/分类/维度）
+3. **Store**：`store/editorStore.ts`（Zustand，自定义 undo/redo stack 而非 temporal middleware；`onNodesChange`/`onEdgesChange` 实现 ReactFlow 受控模式；校验逻辑内嵌）
+4. **画布**：`BiomeNode.tsx`（温度颜色渐变）+ `SuccessionEdge.tsx`（pathId 标签）+ `GraphCanvas.tsx`（MiniMap + Controls + 网格吸附 + 错误高亮）
+5. **群系面板**：`BiomePalette.tsx`（按 Overworld/Nether/End 分组、可折叠、搜索过滤、已使用标记、拖拽/点击添加）
+6. **属性面板**：`PropertyPanel.tsx`（按选中类型分发）+ `NodeProperties.tsx`（群系信息 + 出入连接统计）+ `NoSelection.tsx`（全局统计概览：节点/路径/源/目标/植物数/孤立检测）
+7. **连线编辑器**：`PathIdentityEditor.tsx` + `ClimateEditor.tsx`（滑块+数值输入，范围校验警告）+ `ChunkRulesEditor.tsx`（可折叠，8 个字段）+ `PlantTableEditor.tsx`（可展开行，包含 SpawnRulesEditor 子表单、PlantDatalists 提供常见植物下拉）
+8. **序列化**：`exportJson.ts`（GraphModel → schema v1 JSON，浏览器下载）+ `importJson.ts`（JSON → GraphModel，支持批量文件）
+9. **工具栏**：`Toolbar.tsx`（导入/导出/校验/撤销/重做/清空/语言切换）
+10. **错误处理**：`ErrorBoundary.tsx`（类组件，展示错误信息+堆栈+重新加载按钮）
+11. **国际化**：`i18n/translations.ts`（~90 keys 完整中英文翻译表）+ `i18n/I18nContext.tsx`（React Context + Provider + useT() hook，localStorage 持久化语言偏好）
+12. **键盘快捷键**：`App.tsx` 中 `KeyboardHandler` 组件（Ctrl+Z/Y 撤销重做、Escape 取消选中；输入框内不触发）
 
-### Step 2: 类型 + 默认值
-- `model/types.ts`：完整类型定义
-- `model/defaults.ts`：各类型的默认值工厂
-- `model/biomeData.ts`：内置群系列表
+### 关键实现细节
 
-### Step 3: Store
-- `store/editorStore.ts`：统一状态管理
-  - `nodes: GraphNode[]`
-  - `edges: GraphEdge[]`
-  - `selectedId: string | null`
-  - `addBiomeNode(biomeId)`, `removeNode(id)`
-  - `addEdge(source, target)`, `removeEdge(id)`
-  - `updateEdgeData(id, partialData)`
-  - undo/redo via temporal middleware
-
-### Step 4: 画布
-- `BiomeNode.tsx`：自定义 ReactFlow 节点
-- `GraphCanvas.tsx`：ReactFlow + 交互配置
-
-### Step 5: 群系面板
-- `BiomePalette.tsx`：按维度分组的可搜索列表
-
-### Step 6: 属性面板
-- `PropertyPanel.tsx`：选中分发
-- `PathProperties.tsx`：连线编辑主容器
-- `PathIdentityEditor.tsx`
-- `ClimateEditor.tsx`
-- `ChunkRulesEditor.tsx`
-- `PlantTableEditor.tsx`（含展开行 SpawnRulesEditor）
-
-### Step 7: 导入/导出
-- `serialization/exportJson.ts`
-- `serialization/importJson.ts`
-- `serialization/schema.ts`
-
-### Step 8: 工具栏 + 校验
-- `Toolbar.tsx`
-- `ValidationPanel.tsx`
-
-### Step 9: 样式 + 完善
-- 美化 UI
-- 处理边界情况
+- **ReactFlow 受控模式**：使用 `onNodesChange`/`onEdgesChange` + `applyNodeChanges`/`applyEdgeChanges` 实现节点拖拽和删除
+- **undo/redo**：自定义 snapshot stack（深拷贝 nodes + edges），非 temporal middleware
+- **Zustand selector 稳定性**：方法若返回新数组会导致无限重渲染，改为订阅原始数组 + `useMemo` 本地过滤（`NodeProperties.tsx` 典型修复）
+- **i18n**：`useT()` 返回 `{ t, lang, setLang, toggleLang }`，`t(key)` 是函数；ErrorBoundary 因是类组件，直接 import translations 对象 + `getSavedLang()`
+- **fallback_biome**：自动推导为源群系 ID，编辑器内只读展示
 
 ---
 

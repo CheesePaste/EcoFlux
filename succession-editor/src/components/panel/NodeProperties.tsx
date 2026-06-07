@@ -1,13 +1,20 @@
+import { useMemo } from "react";
 import { useEditorStore } from "../../store/editorStore";
 import type { BiomeGraphNode } from "../../model/types";
+import { useT } from "../../i18n/I18nContext";
 
 interface Props {
   node: BiomeGraphNode;
 }
 
 export function NodeProperties({ node }: Props) {
+  const { t } = useT();
   const removeNode = useEditorStore((s) => s.removeNode);
-  const connectedEdges = useEditorStore((s) => s.getConnectedEdges(node.id));
+  const edges = useEditorStore((s) => s.edges);
+  const connectedEdges = useMemo(
+    () => edges.filter((e) => e.source === node.id || e.target === node.id),
+    [edges, node.id],
+  );
   const meta = node.data.biomeMeta;
 
   const outEdges = connectedEdges.filter((e) => e.source === node.id);
@@ -17,23 +24,23 @@ export function NodeProperties({ node }: Props) {
     <div style={{ padding: 12 }}>
       {/* Biome info */}
       <div className="prop-section">
-        <div className="prop-section-title">Biome Info</div>
+        <div className="prop-section-title">{t("node.biomeInfo")}</div>
         <div className="prop-row">
-          <label>Biome ID</label>
+          <label>{t("node.biomeId")}</label>
           <code style={{ color: "#a5d6a7" }}>{node.data.biomeId}</code>
         </div>
         {meta && (
           <>
             <div className="prop-row">
-              <label>Category</label>
+              <label>{t("node.category")}</label>
               <span>{meta.category}</span>
             </div>
             <div className="prop-row">
-              <label>Default Temp</label>
+              <label>{t("node.defaultTemp")}</label>
               <span>🌡 {meta.defaultTemp.toFixed(2)}</span>
             </div>
             <div className="prop-row">
-              <label>Default Downfall</label>
+              <label>{t("node.defaultDownfall")}</label>
               <span>💧 {meta.defaultDownfall.toFixed(2)}</span>
             </div>
           </>
@@ -42,13 +49,13 @@ export function NodeProperties({ node }: Props) {
 
       {/* Connection info */}
       <div className="prop-section">
-        <div className="prop-section-title">Connections</div>
+        <div className="prop-section-title">{t("node.connections")}</div>
         <div className="prop-row">
-          <label>Total Edges</label>
+          <label>{t("node.totalEdges")}</label>
           <span>{connectedEdges.length}</span>
         </div>
         <div className="prop-row">
-          <label>Outgoing Paths</label>
+          <label>{t("node.outgoing")}</label>
           <span style={{ color: "#81c784" }}>{outEdges.length} →</span>
         </div>
         {outEdges.map((e) => (
@@ -57,7 +64,7 @@ export function NodeProperties({ node }: Props) {
           </div>
         ))}
         <div className="prop-row">
-          <label>Incoming Paths</label>
+          <label>{t("node.incoming")}</label>
           <span style={{ color: "#64b5f6" }}>← {inEdges.length}</span>
         </div>
         {inEdges.map((e) => (
@@ -82,7 +89,7 @@ export function NodeProperties({ node }: Props) {
             fontSize: 13,
           }}
         >
-          🗑 Remove Node
+          {t("node.removeNode")}
         </button>
       </div>
     </div>

@@ -4,12 +4,14 @@ import { PathIdentityEditor } from "./editors/PathIdentityEditor";
 import { ClimateEditor } from "./editors/ClimateEditor";
 import { ChunkRulesEditor } from "./editors/ChunkRulesEditor";
 import { PlantTableEditor } from "./editors/PlantTableEditor";
+import { useT } from "../../i18n/I18nContext";
 
 interface Props {
   edge: PathGraphEdge;
 }
 
 export function PathProperties({ edge }: Props) {
+  const { t } = useT();
   const updateEdgeData = useEditorStore((s) => s.updateEdgeData);
   const removeEdge = useEditorStore((s) => s.removeEdge);
 
@@ -34,7 +36,7 @@ export function PathProperties({ edge }: Props) {
             fontSize: 13,
           }}
         >
-          🗑 Remove Path
+          {t("path.removePath")}
         </button>
       </div>
     </div>

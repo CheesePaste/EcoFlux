@@ -1,11 +1,19 @@
 import { useState, useMemo } from "react";
 import { useEditorStore } from "../../store/editorStore";
-import { BIOME_LIST, DIMENSION_LABELS } from "../../model/biomeData";
+import { BIOME_LIST } from "../../model/biomeData";
 import type { BiomeEntry } from "../../model/types";
+import { useT } from "../../i18n/I18nContext";
 
 const DIMENSIONS = ["overworld", "nether", "end"] as const;
 
+const DIM_KEY_MAP: Record<string, string> = {
+  overworld: "dimension.overworld",
+  nether: "dimension.nether",
+  end: "dimension.end",
+};
+
 export function BiomePalette() {
+  const { t } = useT();
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -52,11 +60,11 @@ export function BiomePalette() {
     <div className="biome-palette" style={{ width: 220, borderRight: "1px solid #444", display: "flex", flexDirection: "column", background: "#1a1a2e", height: "100%", overflow: "hidden" }}>
       <div style={{ padding: "8px", borderBottom: "1px solid #444" }}>
         <div style={{ fontWeight: "bold", fontSize: 14, color: "#ccc", marginBottom: 6 }}>
-          🌍 Biome Palette
+          {t("palette.title")}
         </div>
         <input
           type="text"
-          placeholder="Search biomes..."
+          placeholder={t("palette.search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -71,7 +79,7 @@ export function BiomePalette() {
           }}
         />
         <div style={{ marginTop: 4, fontSize: 10, color: "#888" }}>
-          {filtered.length} biomes ({nodes.length} on canvas)
+          {t("palette.biomeCount").replace("{count}", String(filtered.length))} ({t("palette.onCanvas").replace("{count}", String(nodes.length))})
         </div>
       </div>
 
@@ -101,7 +109,7 @@ export function BiomePalette() {
                   zIndex: 1,
                 }}
               >
-                <span>{DIMENSION_LABELS[dim] ?? dim}</span>
+                <span>{t(DIM_KEY_MAP[dim])}</span>
                 <span style={{ fontSize: 10 }}>{isCollapsed ? "▶" : "▼"} {items.length}</span>
               </div>
 
@@ -116,7 +124,7 @@ export function BiomePalette() {
                         onDragStart={(e) => handleDragStart(e, biome.biomeId)}
                         onDragEnd={() => {}}
                         onClick={() => handleAddBiome(biome.biomeId)}
-                        title={`${biome.displayName}\nTemp: ${biome.defaultTemp}  Downfall: ${biome.defaultDownfall}\n${isUsed ? "Already on canvas" : "Click to add"}`}
+                        title={`${biome.displayName}\nTemp: ${biome.defaultTemp}  Downfall: ${biome.defaultDownfall}\n${isUsed ? t("palette.alreadyUsed") : t("palette.clickToAdd")}`}
                         style={{
                           padding: "4px 10px",
                           fontSize: 12,

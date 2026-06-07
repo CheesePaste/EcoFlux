@@ -1,4 +1,5 @@
 import { useEditorStore } from "../../store/editorStore";
+import { useT } from "../../i18n/I18nContext";
 
 interface Props {
   nodeCount: number;
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export function NoSelection({ nodeCount, edgeCount }: Props) {
+  const { t } = useT();
   const nodes = useEditorStore((s) => s.nodes);
   const edges = useEditorStore((s) => s.edges);
 
@@ -20,20 +22,20 @@ export function NoSelection({ nodeCount, edgeCount }: Props) {
   return (
     <div style={{ padding: 16 }}>
       <div style={{ marginBottom: 20 }}>
-        <h3 style={{ margin: "0 0 12px 0", color: "#ccc", fontSize: 15 }}>Graph Overview</h3>
+        <h3 style={{ margin: "0 0 12px 0", color: "#ccc", fontSize: 15 }}>{t("overview.title")}</h3>
         <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <StatBox label="Biome Nodes" value={nodeCount} />
-          <StatBox label="Paths (Edges)" value={edgeCount} />
-          <StatBox label="Source Biomes" value={sourceBiomes.size} />
-          <StatBox label="Target Biomes" value={targetBiomes.size} />
-          <StatBox label="Total Plants" value={totalPlants} />
-          <StatBox label="Unique Plant Types" value={uniquePlants.size} />
+          <StatBox label={t("overview.biomeNodes")} value={nodeCount} />
+          <StatBox label={t("overview.paths")} value={edgeCount} />
+          <StatBox label={t("overview.sourceBiomes")} value={sourceBiomes.size} />
+          <StatBox label={t("overview.targetBiomes")} value={targetBiomes.size} />
+          <StatBox label={t("overview.totalPlants")} value={totalPlants} />
+          <StatBox label={t("overview.uniquePlants")} value={uniquePlants.size} />
         </div>
       </div>
 
       {nodes.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <h3 style={{ margin: "0 0 8px 0", color: "#ccc", fontSize: 15 }}>Biomes on Canvas</h3>
+          <h3 style={{ margin: "0 0 8px 0", color: "#ccc", fontSize: 15 }}>{t("overview.biomesOnCanvas")}</h3>
           <div style={{ maxHeight: 200, overflowY: "auto" }}>
             {nodes.map((node) => {
               const connEdges = edges.filter(
@@ -65,7 +67,7 @@ export function NoSelection({ nodeCount, edgeCount }: Props) {
                   </span>
                   <span style={{ fontSize: 10, color: "#666" }}>
                     {hasOut ? "→" : ""} {hasIn ? "←" : ""}
-                    {!hasOut && !hasIn ? "isolated" : ""}
+                    {!hasOut && !hasIn ? t("overview.isolated") : ""}
                   </span>
                 </div>
               );
@@ -76,7 +78,7 @@ export function NoSelection({ nodeCount, edgeCount }: Props) {
 
       {edges.length > 0 && (
         <div>
-          <h3 style={{ margin: "0 0 8px 0", color: "#ccc", fontSize: 15 }}>Paths</h3>
+          <h3 style={{ margin: "0 0 8px 0", color: "#ccc", fontSize: 15 }}>{t("overview.pathsList")}</h3>
           <div style={{ maxHeight: 200, overflowY: "auto" }}>
             {edges.map((edge) => {
               const srcNode = nodes.find((n) => n.id === edge.source);
@@ -95,7 +97,7 @@ export function NoSelection({ nodeCount, edgeCount }: Props) {
                   {srcNode?.data.biomeId.replace("minecraft:", "") ?? "?"} →{" "}
                   {tgtNode?.data.biomeId.replace("minecraft:", "") ?? "?"}
                   <span style={{ color: "#666", marginLeft: 6 }}>
-                    ({edge.data?.plants.length ?? 0} plants)
+                    ({edge.data?.plants.length ?? 0}{t("overview.plantsSuffix")})
                   </span>
                 </div>
               );
@@ -106,7 +108,7 @@ export function NoSelection({ nodeCount, edgeCount }: Props) {
 
       {nodes.length === 0 && (
         <div style={{ color: "#666", fontSize: 13, textAlign: "center", marginTop: 40 }}>
-          Add biomes from the left palette and connect them to create succession paths.
+          {t("overview.emptyHint")}
         </div>
       )}
     </div>

@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import type { NodeChange, EdgeChange } from "@xyflow/react";
+import { applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
 import type { BiomeGraphNode, PathGraphEdge, PathEdgeData, ValidationError, PlantDefinition } from "../model/types";
 import { getBiomeMeta } from "../model/biomeData";
 import { defaultEdgeData, defaultPlant } from "../model/defaults";
@@ -35,6 +37,9 @@ interface EditorState {
   undo: () => void;
   redo: () => void;
   pushHistory: () => void;
+
+  onNodesChange: (changes: NodeChange<BiomeGraphNode>[]) => void;
+  onEdgesChange: (changes: EdgeChange<PathGraphEdge>[]) => void;
 
   addBiomeNode: (biomeId: string) => string;
   removeNode: (nodeId: string) => void;
@@ -99,6 +104,30 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       edges: next.edges,
       selectedId: null,
     });
+  },
+
+  onNodesChange(changes) {
+    const { nodes } = get();
+    const nextNodes = applyNodeChanges(changes, nodes) as BiomeGraphNode[];
+    set({ nodes: nextNodes });
+
+    // Handle removals from ReactFlow (e.g., Delete key)
+    const removedIds = changes
+      .filter((c) => c.type === "remove")
+      .map((c) => c.id);
+    if (removedIds.length > 0) {
+      const { edges } = get();
+      const removedSet = new Set(removedIds);
+      set({
+        edges: edges.filter((e) => !removedSet.has(e.source) && !removedSet.has(e.target)),
+      });
+    }
+  },
+
+  onEdgesChange(changes) {
+    const { edges } = get();
+    const nextEdges = applyEdgeChanges(changes, edges) as PathGraphEdge[];
+    set({ edges: nextEdges });
   },
 
   addBiomeNode(biomeId) {
