@@ -15,6 +15,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class SuccessionService {
+    private static final int PRUNE_INTERVAL_TICKS = 10;
+
     private SuccessionService() {
     }
 
@@ -126,13 +128,19 @@ public final class SuccessionService {
 
         SuccessionPathDefinition path = pathOptional.get();
         long gameTime = level.getGameTime();
+
+        int pruned = 0;
+        if (gameTime % PRUNE_INTERVAL_TICKS == 0L) {
+            pruned = PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
+        }
+
         if (gameTime % path.chunkRules().processingIntervalTicks() != 0L) {
-            return "自动演替跳过区块 " + chunk.getPos() + "：等待处理间隔。";
+            return pruned > 0
+                    ? "已清理 " + pruned + " 个植物。"
+                    : "自动演替跳过区块 " + chunk.getPos() + "：等待处理间隔。";
         }
 
         List<String> messages = new ArrayList<>();
-
-        int pruned = PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
         messages.add("已清理 " + pruned + " 个植物。");
 
         PlantSpawner.ensureQueue(chunkData, path);

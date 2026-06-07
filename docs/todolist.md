@@ -145,9 +145,10 @@
 - 原版随机刻导致的植物生长/死亡
 - 其他 mod 或原版机制替换方块（如村民踩踏耕地）
 
-- [ ] 监听 `NeighborBlockEvent` 或等效事件：当追踪位置的方块被替换为非匹配方块时，自动移除追踪
-- [ ] 或者：在 `prune` 时逐位置检查 `BlockState` 是否仍然匹配 adapter（当前只在 `ActivePlantRecord` 层面检查，`vegetationRecords` 的 prune 不完整）
-- [ ] `VegetationTracker.observeChunk()` 中已经检查 `observation.present()` 并移除消失的植被——确认这是否覆盖了所有情况
+- [x] `pruneInvalidPlants` 逐位置检查 `BlockState` 是否匹配 adapter：`state.isAir() || findAdapter(state).isEmpty()` → 移除
+- [x] `VegetationTracker.observeChunk()` 检查 `observation.present()` 并在植物消失时移除
+- [x] prune 从 `processingIntervalTicks` 拆出，以独立 10-tick 间隔运行（`SuccessionService.PRUNE_INTERVAL_TICKS`），非玩家破坏最多 0.5 秒延迟
+- [x] 结论：NeoForge 1.21.1 没有覆盖非玩家方块移除的统一事件（`BreakEvent` 仅玩家触发）；快速 prune 轮询是最实用的方案，无需额外事件订阅
 
 ### D. 区块边界混合
 
