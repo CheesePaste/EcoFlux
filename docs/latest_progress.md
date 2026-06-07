@@ -320,12 +320,41 @@
 - 游戏内测试：被追踪树苗使用骨粉不会瞬间长成树，日志输出拦截信息
 - 未被追踪的树苗（untrack 后）正常生长为树
 
+## 2026-06-07：树生命周期 Phase 2 — 渐进式树木生长系统
+
+### 变更概要
+
+- 新增 `TreeGrowthProfile` 接口 — 定义树种生长参数（阶段数、阶段间隔、空间检查、方块放置）
+- 新增 `OakGrowthProfile` — 橡树 5 阶段渐进生长：每阶段延伸 1 格树干 + 扩展半径树叶 + 顶部冠层
+- `TreeGrowthHandler` 新增 `tickAll()` / `onGrowthComplete()` / `resolveProfile()` — 树苗→原木替换 + 自动追踪为 TreeStructure
+- `ModChunkEvents` 新增 `processTreeGrowth()` — 每 20 tick 驱动树生长，独立于 succession auto 模式
+- 修复：`treeTickCounter` 多维度共享 bug，改为 `gameTime % 20` 每维度独立
+
+### 新增文件
+
+- `plant/tree/TreeGrowthProfile.java` — 树种生长参数接口
+- `plant/tree/profiles/OakGrowthProfile.java` — 橡树 5 阶段渐进生长
+
+### 修改文件
+
+- `plant/tree/TreeGrowthHandler.java` — tickAll / onGrowthComplete / resolveProfile
+- `init/ModChunkEvents.java` — processTreeGrowth 每 20 tick 驱动
+
+### 验证结果
+
+- 游戏内测试：树苗→5阶段渐进生长→完成替换为原木，全流程日志可见
+
+### 已知限制
+
+- 树形较规整，后续计划用噪声随机去除部分树叶 + 枝干分叉
+- 完成时替换树苗的 log 类型硬编码 OAK_LOG，多树种时需改为从 profile 获取
+- 生长 session 仅存内存，区块卸载后丢失（下次 random tick 触发重新创建）
+
 ## 建议的下一步
 
 详见 `todolist.md` 底部「下一步计划」章节，以及 `docs/tree-lifecycle-implementation.md` 树生命周期完整方案。
 
-1. **树生命周期 Phase 2** — 渐进式树木生长系统（TreeGrowthProfile + OakGrowthProfile + 分阶段放置方块）
-2. **C. 非玩家方块变更事件** — 水/岩浆/随机刻导致植被消失时同步清理追踪
-3. **D. 区块边界混合** — 缓解群系切换的生硬边界
-4. **E. 演替路径可视化编辑器** — 已移至 `visual-editor` 分支，详见 `docs/visual-succession-editor.md`
-5. **F. GameTest / 可重复验证步骤**
+1. **树生命周期 Phase 3** — 多树种支持（Birch/Spruce/Jungle/DarkOak GrowthProfile）
+2. **树生命周期 Phase 4** — 树木死亡腐烂（AGING→DEAD→DECAYING 阶段）
+3. **C. 非玩家方块变更事件** — 水/岩浆/随机刻导致植被消失时同步清理追踪
+4. **D. 区块边界混合** — 缓解群系切换的生硬边界

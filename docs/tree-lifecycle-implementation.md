@@ -323,19 +323,21 @@ public final class TreeDecayHandler {
 
 按优先级排列，每个子任务完成后可独立验证：
 
-### Step 1: Mixin 拦截 ✅ 预计 3-4h
-- [ ] 确认 NeoForge 1.21.1 中 SaplingBlock 是否有可用的 Forge 事件
-- [ ] 如果没有，编写 `SaplingBlockMixin`
-- [ ] 注册到 `ecoflux.mixins.json`
-- [ ] 测试：验证被追踪的树苗不会瞬间生长
-- [ ] 验证：未被追踪的树苗保持原版行为
+### Step 1: Mixin 拦截 ✅ 已完成
+- [x] 确认 NeoForge 1.21.1 中 SaplingBlock 是否有可用的 Forge 事件 → 无，使用 Mixin
+- [x] 编写 `SaplingBlockMixin`
+- [x] 注册到 `ecoflux.mixins.json`
+- [x] 测试：验证被追踪的树苗不会瞬间生长
+- [x] 验证：未被追踪的树苗保持原版行为
 
-### Step 2: 生长会话系统 ✅ 预计 4-6h
-- [ ] 实现 `TreeGrowthSession` + NBT 序列化
-- [ ] 实现 `TreeGrowthProfile` 接口
-- [ ] 实现 `OakGrowthProfile`（第一个树种，验证用）
-- [ ] 实现 `TreeGrowthHandler` 核心逻辑
-- [ ] 测试：一个橡树树苗 10 分钟内分 5 阶段长成
+### Step 2: 生长会话系统 ✅ 已完成
+- [x] 实现 `TreeGrowthSession` + NBT 序列化
+- [x] 实现 `TreeGrowthProfile` 接口
+- [x] 实现 `OakGrowthProfile`（5 阶段渐进生长）
+- [x] 实现 `TreeGrowthHandler.tickAll()` / `onGrowthComplete()` / `resolveProfile()`
+- [x] `ModChunkEvents.processTreeGrowth()` 每 20 tick 驱动
+- [x] 测试：橡树树苗分 5 阶段渐进长成，树苗→原木替换
+- [x] 修复：多维度共享 counter bug → `gameTime % 20`
 
 ### Step 3: 多树种支持 ✅ 预计 3-4h
 - [ ] `BirchGrowthProfile`
@@ -392,3 +394,19 @@ public final class TreeDecayHandler {
 - [ ] 根系土壤肥力机制
 - [ ] Dynamic Trees 完整兼容层
 - [ ] 树种间杂交/变异
+
+---
+
+## 已实现阶段的改进想法
+
+### 树形自然化（噪声 + 不规则枝干）
+
+当前 OakGrowthProfile 每阶段放置的树叶是规则的环形（方形半径），树木看起来很人工。改进方向：
+
+1. **噪声去叶** — 在 `growStage()` 放置树叶时，用 `level.random` 或基于位置的 simplex noise 决定每个候选叶子位置是否真正放置。例如 30% 概率跳过叶子放置，形成自然缺口
+2. **枝干分叉** — 不是在每阶段只放一根垂直原木，而是在一定阶段（如 stage 3+）有一定概率在侧面生成 1-2 格长的斜向枝干（原木方块），然后在枝干末端放置小簇树叶
+3. **树冠形状差异化** — 不同树种用不同噪声参数：橡树偏圆形冠、白桦偏锥形、云杉偏柱形
+4. **生长阶段随机波动** — 每阶段的间隔加入 ±20% 的随机浮动，避免多棵树同步生长
+5. **受光照/空间影响** — `canGrowStage()` 检查上方树叶密度，光照不足时跳过扩展或改变生长方向
+
+所有这些都通过 `TreeGrowthProfile` 接口的 `growStage()` 方法内部实现，不改变外围框架。

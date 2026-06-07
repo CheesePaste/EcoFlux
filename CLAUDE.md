@@ -97,8 +97,8 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Current Development State
 
-- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, service layer extraction from prototype → `succession/`/`world/`/`plant/` packages, vegetationRecords point-based progress evaluation, player place/break → VegetationTracker auto-tracking, multi-plant weighted queue with queue_fill_factor, **negative regression → fallback biome**, **activePlants retired — unified to vegetationRecords**, **tree lifecycle Phase 1: Mixin intercepts sapling instant growth** (SaplingBlockMixin + TreeGrowthHandler + TreeGrowthSession)
-- **In progress**: Tree lifecycle Phase 2+ (gradual tree construction, death/decay, succession integration)
+- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, service layer extraction from prototype → `succession/`/`world/`/`plant/` packages, vegetationRecords point-based progress evaluation, player place/break → VegetationTracker auto-tracking, multi-plant weighted queue with queue_fill_factor, **negative regression → fallback biome**, **activePlants retired — unified to vegetationRecords**, **tree lifecycle Phase 1: Mixin intercepts sapling instant growth** (SaplingBlockMixin + TreeGrowthHandler + TreeGrowthSession), **tree lifecycle Phase 2: gradual tree construction** (TreeGrowthProfile + OakGrowthProfile + tickAll with 20-tick throttle)
+- **In progress**: Tree lifecycle Phase 3+ (multi-species profiles, death/decay, succession integration)
 - **Not yet started**: Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 

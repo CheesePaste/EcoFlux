@@ -1,6 +1,7 @@
 package com.s.ecoflux.init;
 
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import com.s.ecoflux.prototype.PrototypeChunkController;
 import com.s.ecoflux.succession.SuccessionService;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ public final class ModChunkEvents {
     private static final Map<ResourceKey<Level>, LinkedHashSet<Long>> TRACKED_CHUNKS = new HashMap<>();
     private static final Map<ResourceKey<Level>, Map<Long, Long>> ACCELERATED_CHUNKS = new HashMap<>();
     private static final int ACCELERATED_TRANSITION_TICKS = 200;
+    private static final int TREE_GROWTH_TICK_INTERVAL = 20;
     private static volatile boolean automaticProcessingEnabled;
 
     private ModChunkEvents() {
@@ -87,6 +89,7 @@ public final class ModChunkEvents {
         }
 
         processAcceleratedChunks(serverLevel);
+        processTreeGrowth(serverLevel);
         if (!automaticProcessingEnabled) {
             return;
         }
@@ -157,6 +160,13 @@ public final class ModChunkEvents {
         if (acceleratedChunks.isEmpty()) {
             ACCELERATED_CHUNKS.remove(level.dimension());
         }
+    }
+
+    private static void processTreeGrowth(ServerLevel level) {
+        if (level.getGameTime() % TREE_GROWTH_TICK_INTERVAL != 0) {
+            return;
+        }
+        TreeGrowthHandler.INSTANCE.tickAll(level);
     }
 
     private static void updateTrackedChunk(ServerLevel level, long chunkPosLong, boolean tracked) {
