@@ -157,14 +157,12 @@
 - [ ] 过渡期间（progress 0.8~1.0）在区块边缘逐步混合目标群系
 - [ ] 评估 1.21.1 中 `fillBiomesFromNoise` 的参数是否支持逐列 biome 设置
 
-### E. 补充更多演替路径 JSON
+### E. 演替路径可视化编辑器 → 已移至 `visual-editor` 分支
 
-目前只有 3 条路径，覆盖的源群系很少。实际测试中大部分区块都无法匹配到路径。
+原计划手动补充更多演替路径 JSON，现已升级为构建专用的**可视化节点-连线编辑器**（React + TypeScript + ReactFlow），覆盖 Ecoflux 全部可配置内容（路径图、植物定义、区块规则、气候条件）。
 
-- [ ] 补充反向路径：`forest_to_plains`（森林退化回平原）
-- [ ] 补充更多源群系路径：`taiga_to_forest`、`swamp_to_forest` 等
-- [ ] 为每条路径配不同的气候条件，使不同区域的同源群系有不同演替方向
-- [ ] 考虑添加无演替路径时 chunk 行为（静默跳过 vs 日志警告）
+> **此工作已在 `visual-editor` 分支独立进行**，详见 `docs/visual-succession-editor.md` 设计文档。
+> `another-try` 分支不再跟踪此项。
 
 ### F. GameTest / 可重复验证步骤
 
