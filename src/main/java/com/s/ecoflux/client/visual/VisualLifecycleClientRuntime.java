@@ -367,10 +367,10 @@ public final class VisualLifecycleClientRuntime {
                     adapter.get().typeId(),
                     BuiltInRegistries.BLOCK.getKey(state.getBlock()),
                     entry.pos().immutable(),
-                    level.getGameTime(),
+                    entry.birthGameTime(),
                     adapter.get().createProfile(state),
                     null,
-                    new VisualLifecycleExternalState(mapVegetationStage(entry.stage()), entry.stageProgress()),
+                    new VisualLifecycleExternalState(mapVegetationStage(entry.stage()), entry.stageProgress(), level.getGameTime()),
                     VisualLifecycleTrackingSource.VEGETATION_SYSTEM);
             trackedInstances.put(key(level, entry.pos()), instance);
             trackedInstancesByPos.put(entry.pos().asLong(), instance);

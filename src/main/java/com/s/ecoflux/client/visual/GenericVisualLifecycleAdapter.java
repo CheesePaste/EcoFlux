@@ -24,10 +24,10 @@ public final class GenericVisualLifecycleAdapter implements VisualLifecycleAdapt
     @Override
     public VisualLifecycleProfile createProfile(BlockState state) {
         return new VisualLifecycleProfile(
-                40,
-                120,
-                180,
-                140,
+                200,
+                1000,
+                46800,
+                24000,
                 0.35F,
                 1.0F,
                 0.90F,

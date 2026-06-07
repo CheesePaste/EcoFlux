@@ -123,7 +123,7 @@ public final class VegetationTracker {
             }
 
             VegetationVisualState visualState = adapter.get().visualState(record, gameTime);
-            entries.add(new VegetationVisualSyncEntry(record.position(), visualState.stage(), visualState.stageProgress()));
+            entries.add(new VegetationVisualSyncEntry(record.position(), visualState.stage(), visualState.stageProgress(), record.birthGameTime()));
         }
         return List.copyOf(entries);
     }

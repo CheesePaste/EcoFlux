@@ -1,5 +1,6 @@
 package com.s.ecoflux.client.visual;
 
+import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.config.VisualLifecycleClientConfig;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
@@ -29,7 +30,46 @@ public interface VisualLifecycleAdapter {
             VisualLifecycleExternalState externalState = instance.externalState();
             if (externalState != null) {
                 stage = externalState.stage();
-                progress = externalState.stageProgress();
+                float accumulated = externalState.stageProgress();
+                long remaining = Math.max(0L, gameTime - externalState.syncGameTime());
+                while (remaining > 0 && stage != null) {
+                    int duration = switch (stage) {
+                        case BORN -> profile.bornTicks();
+                        case GROWING -> profile.growingTicks();
+                        case MATURE -> profile.matureTicks();
+                        case AGING -> profile.agingTicks();
+                    };
+                    if (duration <= 0) {
+                        break;
+                    }
+                    float remainingInStage = 1.0F - accumulated;
+                    long ticksToComplete = (long) (remainingInStage * duration);
+                    if (remaining >= ticksToComplete) {
+                        remaining -= ticksToComplete;
+                        accumulated = 0.0F;
+                        stage = switch (stage) {
+                            case BORN -> VisualLifecycleStage.GROWING;
+                            case GROWING -> VisualLifecycleStage.MATURE;
+                            case MATURE -> VisualLifecycleStage.AGING;
+                            case AGING -> VisualLifecycleStage.AGING;
+                        };
+                    } else {
+                        accumulated += (float) remaining / duration;
+                        remaining = 0;
+                    }
+                }
+                if (stage == null) {
+                    stage = VisualLifecycleStage.AGING;
+                }
+                progress = accumulated;
+
+                long age = Math.max(0L, gameTime - instance.startGameTime());
+                VisualLifecycleStage ageStage = resolveStageByAge(profile, age);
+                if (ageStage != stage) {
+                    EcofluxConstants.LOGGER.warn(
+                            "视觉生命周期 {} 阶段不一致：服务端外推={} 客户端年龄={} age={} ticks",
+                            instance.pos(), stage, ageStage, age);
+                }
             } else {
                 long age = Math.max(0L, gameTime - instance.startGameTime());
                 if (age < profile.bornTicks()) {
@@ -73,6 +113,19 @@ public interface VisualLifecycleAdapter {
 
     private static float clamp01(float value) {
         return Math.max(0.0F, Math.min(1.0F, value));
+    }
+
+    private static VisualLifecycleStage resolveStageByAge(VisualLifecycleProfile profile, long age) {
+        if (age < profile.bornTicks()) {
+            return VisualLifecycleStage.BORN;
+        }
+        if (age < profile.bornTicks() + profile.growingTicks()) {
+            return VisualLifecycleStage.GROWING;
+        }
+        if (age < profile.bornTicks() + profile.growingTicks() + profile.matureTicks()) {
+            return VisualLifecycleStage.MATURE;
+        }
+        return VisualLifecycleStage.AGING;
     }
 
     private static int shiftColor(int baseColor, VisualLifecycleProfile profile, float progress) {

@@ -28,10 +28,10 @@ public final class FlowerVisualLifecycleAdapter implements VisualLifecycleAdapte
     @Override
     public VisualLifecycleProfile createProfile(BlockState state) {
         return new VisualLifecycleProfile(
-                30,
-                100,
-                180,
-                120,
+                200,
+                1000,
+                46800,
+                24000,
                 0.30F,
                 1.0F,
                 0.86F,

@@ -6,14 +6,15 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.util.Mth;
 
-public record VegetationVisualSyncEntry(BlockPos pos, VegetationLifecycleStage stage, float stageProgress) {
+public record VegetationVisualSyncEntry(BlockPos pos, VegetationLifecycleStage stage, float stageProgress, long birthGameTime) {
     public static final StreamCodec<RegistryFriendlyByteBuf, VegetationVisualSyncEntry> STREAM_CODEC = new StreamCodec<>() {
         @Override
         public VegetationVisualSyncEntry decode(RegistryFriendlyByteBuf buf) {
             return new VegetationVisualSyncEntry(
                     buf.readBlockPos(),
                     buf.readEnum(VegetationLifecycleStage.class),
-                    Mth.clamp(buf.readFloat(), 0.0F, 1.0F));
+                    Mth.clamp(buf.readFloat(), 0.0F, 1.0F),
+                    buf.readVarLong());
         }
 
         @Override
@@ -21,6 +22,7 @@ public record VegetationVisualSyncEntry(BlockPos pos, VegetationLifecycleStage s
             buf.writeBlockPos(value.pos());
             buf.writeEnum(value.stage());
             buf.writeFloat(Mth.clamp(value.stageProgress(), 0.0F, 1.0F));
+            buf.writeVarLong(value.birthGameTime());
         }
     };
 }
