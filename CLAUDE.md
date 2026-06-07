@@ -106,6 +106,7 @@ All design docs are in `docs/`, written in Chinese:
 - `plant-lifecycle-system.md` — Vegetation adapter design
 - `visual-lifecycle-layer.md` — Client visual rendering design
 - `succession-path-format.md` — JSON path format spec
+- `visual-succession-editor.md` — Visual node-edge editor for designing succession paths (web tool, phased plan)
 
 ## Important Conventions
 

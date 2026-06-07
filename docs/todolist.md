@@ -157,14 +157,27 @@
 - [ ] 过渡期间（progress 0.8~1.0）在区块边缘逐步混合目标群系
 - [ ] 评估 1.21.1 中 `fillBiomesFromNoise` 的参数是否支持逐列 biome 设置
 
-### E. 补充更多演替路径 JSON
+### E. 演替路径可视化编辑器
 
-目前只有 3 条路径，覆盖的源群系很少。实际测试中大部分区块都无法匹配到路径。
+见 `docs/visual-succession-editor.md` 完整设计文档。
 
+原计划是手动补充更多演替路径 JSON（目前只有 3 条路径，覆盖源群系很少）。重新评估后，改为构建一个**可视化节点-连线编辑器**，从根本上解决路径配置的效率问题。
+
+**Phase 1（当前）**：Web 编辑器（React + ReactFlow），支持群系节点 + 演替连线绘制，导出标准 JSON
+- [ ] 项目脚手架（Vite + React + TS + ReactFlow）
+- [ ] BiomeNode 创建与渲染
+- [ ] SuccessionEdge 连线交互
+- [ ] 属性编辑面板（chunkRules / plants / climate）
+- [ ] JSON 导入/导出（兼容现有 schema v1）
+- [ ] 撤销/重做、校验
+
+**Phase 2**：条件分支节点（温度/湿度判定 → 不同目标群系）
+**Phase 3**：优先级路由、植物池复用、全局 DAG 预览
+**Phase 4**：游戏内 HTTP 集成（可选，推送配置热加载）
+
+此外，短期手动补充的路径仍可直接编辑 JSON 文件：
 - [ ] 补充反向路径：`forest_to_plains`（森林退化回平原）
 - [ ] 补充更多源群系路径：`taiga_to_forest`、`swamp_to_forest` 等
-- [ ] 为每条路径配不同的气候条件，使不同区域的同源群系有不同演替方向
-- [ ] 考虑添加无演替路径时 chunk 行为（静默跳过 vs 日志警告）
 
 ### F. GameTest / 可重复验证步骤
 
