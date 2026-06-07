@@ -6,7 +6,18 @@
       "Bash(./gradlew build *)",
       "Bash(./gradlew compileJava)",
       "Bash(./gradlew clean *)",
-      "Bash(./gradlew createMinecraftArtifacts runClient)"
+      "Bash(./gradlew createMinecraftArtifacts runClient)",
+      "Bash(git checkout *)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(gh repo *)",
+      "Bash(cd /d C:\\\\Users\\\\huhai\\\\Desktop\\\\Java-mcmod\\\\Succession)",
+      "Bash(./gradlew dependencies *)",
+      "Bash(javap -public -p -cp \"/c/Users/huhai/.gradle/caches/modules-2/files-2.1/net.neoforged/neoforge/21.1.227/3183dd3c5d69205a5c46e2f22a20fc6960be8601/neoforge-21.1.227-userdev.jar\" net.minecraft.world.level.block.SaplingBlock)",
+      "Bash(jar tf *)",
+      "Bash(javap -public \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\"\\\\!/net/minecraft/world/level/block/SaplingBlock.class)",
+      "Bash(javap -public -cp \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\" net.minecraft.world.level.block.SaplingBlock)",
+      "Bash(jar -tf \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\")"
     ]
   }
 }

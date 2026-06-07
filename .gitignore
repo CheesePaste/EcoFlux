@@ -40,3 +40,4 @@ repo/
 !**/src/**/repo/
 gradle/
 .gradle-user-home
+succession-editor
