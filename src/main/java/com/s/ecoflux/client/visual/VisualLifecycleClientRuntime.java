@@ -1,6 +1,7 @@
 package com.s.ecoflux.client.visual;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +25,13 @@ public final class VisualLifecycleClientRuntime {
 
     private final Map<String, VisualLifecycleInstance> trackedInstances = new ConcurrentHashMap<>();
     private final Map<Long, VisualLifecycleInstance> trackedInstancesByPos = new ConcurrentHashMap<>();
+    private final Map<Long, Integer> baseColorCache = new ConcurrentHashMap<>();
     private final ThreadLocal<Boolean> manualWorldRenderPass = ThreadLocal.withInitial(() -> false);
+    private volatile List<VisualLifecycleInstance> cachedTrackedList = List.of();
+    private volatile boolean trackedListDirty = true;
+    private volatile boolean disabled = false;
+    private long lastRenderStateFrame = -1L;
+    private final Map<Long, VisualLifecycleRenderState> frameRenderStateCache = new HashMap<>();
 
     private VisualLifecycleClientRuntime() {
     }
@@ -55,6 +62,7 @@ public final class VisualLifecycleClientRuntime {
                 VisualLifecycleTrackingSource.MANUAL);
         trackedInstances.put(key(level, pos), instance);
         trackedInstancesByPos.put(pos.asLong(), instance);
+        invalidateTrackedList();
         markDirty(pos);
         return "已在 " + pos + " 为 " + instance.blockId() + " 启动视觉生命周期。";
     }
@@ -67,6 +75,8 @@ public final class VisualLifecycleClientRuntime {
 
         VisualLifecycleInstance removed = trackedInstances.remove(key(level, pos));
         trackedInstancesByPos.remove(pos.asLong());
+        baseColorCache.remove(pos.asLong());
+        invalidateTrackedList();
         markDirty(pos);
         return removed == null
                 ? "视觉生命周期跳过停止：" + pos + " 没有追踪对象。"
@@ -88,6 +98,7 @@ public final class VisualLifecycleClientRuntime {
         VisualLifecycleInstance updated = instance.withForcedStage(stage);
         trackedInstances.put(key, updated);
         trackedInstancesByPos.put(pos.asLong(), updated);
+        invalidateTrackedList();
         markDirty(pos);
         return "已将 " + pos + " 的视觉生命周期强制为阶段 " + stage + "。";
     }
@@ -146,22 +157,38 @@ public final class VisualLifecycleClientRuntime {
     public String clear() {
         trackedInstances.clear();
         trackedInstancesByPos.clear();
+        baseColorCache.clear();
+        invalidateTrackedList();
         refreshAll();
         return "视觉生命周期追踪已清空。";
     }
 
     public List<VisualLifecycleInstance> trackedInCurrentLevel() {
+        if (disabled) {
+            return List.of();
+        }
         ClientLevel level = currentLevel();
         if (level == null || trackedInstances.isEmpty()) {
             return List.of();
         }
 
+        if (!trackedListDirty) {
+            return cachedTrackedList;
+        }
+
         String dimensionPrefix = level.dimension().location() + "|";
-        return trackedInstances.entrySet().stream()
+        List<VisualLifecycleInstance> list = trackedInstances.entrySet().stream()
                 .filter(entry -> entry.getKey().startsWith(dimensionPrefix))
                 .map(Map.Entry::getValue)
                 .sorted(Comparator.comparing(instance -> instance.pos().asLong()))
                 .toList();
+        cachedTrackedList = list;
+        trackedListDirty = false;
+        return list;
+    }
+
+    private void invalidateTrackedList() {
+        trackedListDirty = true;
     }
 
     public void refreshAll() {
@@ -176,6 +203,8 @@ public final class VisualLifecycleClientRuntime {
         if (level == null) {
             trackedInstances.clear();
             trackedInstancesByPos.clear();
+            baseColorCache.clear();
+            invalidateTrackedList();
             return;
         }
 
@@ -183,6 +212,7 @@ public final class VisualLifecycleClientRuntime {
             return;
         }
 
+        boolean[] removed = {false};
         trackedInstances.entrySet().removeIf(entry -> {
             VisualLifecycleInstance instance = entry.getValue();
             BlockState state = level.getBlockState(instance.pos());
@@ -190,23 +220,19 @@ public final class VisualLifecycleClientRuntime {
             boolean remove = adapter.isEmpty() || !adapter.get().typeId().equals(instance.adapterId());
             if (remove) {
                 trackedInstancesByPos.remove(instance.pos().asLong());
+                baseColorCache.remove(instance.pos().asLong());
                 markDirty(instance.pos());
-            } else {
-                trackedInstancesByPos.put(instance.pos().asLong(), instance);
-                markDirty(instance.pos());
+                removed[0] = true;
             }
             return remove;
         });
+        if (removed[0]) {
+            invalidateTrackedList();
+        }
     }
 
     public VisualLifecycleRenderState getRenderState(BlockPos pos, BlockState state) {
-        VisualLifecycleInstance instance = trackedInstancesByPos.get(pos.asLong());
-        if (instance == null) {
-            return null;
-        }
-
-        Optional<VisualLifecycleAdapter> adapter = VisualLifecycleRegistry.INSTANCE.find(state);
-        if (adapter.isEmpty() || !adapter.get().typeId().equals(instance.adapterId())) {
+        if (disabled) {
             return null;
         }
 
@@ -215,15 +241,48 @@ public final class VisualLifecycleClientRuntime {
             return null;
         }
 
-        return adapter.get().resolveState(instance, level.getGameTime(), defaultColor(level, pos, state));
+        long gameTime = level.getGameTime();
+        if (gameTime != lastRenderStateFrame) {
+            frameRenderStateCache.clear();
+            lastRenderStateFrame = gameTime;
+        }
+
+        Long posKey = pos.asLong();
+        if (frameRenderStateCache.containsKey(posKey)) {
+            return frameRenderStateCache.get(posKey);
+        }
+
+        VisualLifecycleInstance instance = trackedInstancesByPos.get(posKey);
+        if (instance == null) {
+            frameRenderStateCache.put(posKey, null);
+            return null;
+        }
+
+        Optional<VisualLifecycleAdapter> adapter = VisualLifecycleRegistry.INSTANCE.find(state);
+        if (adapter.isEmpty() || !adapter.get().typeId().equals(instance.adapterId())) {
+            frameRenderStateCache.put(posKey, null);
+            return null;
+        }
+
+        int baseColor = baseColorCache.computeIfAbsent(posKey,
+                k -> defaultColor(level, pos, state));
+        VisualLifecycleRenderState result = adapter.get().resolveState(instance, gameTime, baseColor);
+        frameRenderStateCache.put(posKey, result);
+        return result;
     }
 
     public int adjustTint(BlockState state, BlockPos pos, int baseColor) {
+        if (disabled) {
+            return baseColor;
+        }
         VisualLifecycleRenderState renderState = getRenderState(pos, state);
         return renderState == null ? baseColor : renderState.tintedColor();
     }
 
     public boolean isTrackedForCurrentVisualPass(BlockPos pos, BlockState state) {
+        if (disabled) {
+            return false;
+        }
         return getRenderState(pos, state) != null;
     }
 
@@ -273,6 +332,7 @@ public final class VisualLifecycleClientRuntime {
             incomingPositions.add(entry.pos().asLong());
         }
 
+        boolean[] changed = {false};
         trackedInstances.entrySet().removeIf(entry -> {
             VisualLifecycleInstance instance = entry.getValue();
             if (instance.source() != VisualLifecycleTrackingSource.VEGETATION_SYSTEM) {
@@ -286,7 +346,9 @@ public final class VisualLifecycleClientRuntime {
             }
 
             trackedInstancesByPos.remove(instance.pos().asLong());
+            baseColorCache.remove(instance.pos().asLong());
             markDirty(instance.pos());
+            changed[0] = true;
             return true;
         });
 
@@ -313,6 +375,10 @@ public final class VisualLifecycleClientRuntime {
             trackedInstances.put(key(level, entry.pos()), instance);
             trackedInstancesByPos.put(entry.pos().asLong(), instance);
             markDirty(entry.pos());
+            changed[0] = true;
+        }
+        if (changed[0]) {
+            invalidateTrackedList();
         }
     }
 

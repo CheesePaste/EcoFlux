@@ -57,8 +57,11 @@ public final class ModClientVisualLifecycle {
                     if (getter == null || pos == null) {
                         return 0xFFFFFF;
                     }
-                    int baseColor = defaultTintColor(state, getter, pos);
-                    return VisualLifecycleClientRuntime.INSTANCE.adjustTint(state, pos, baseColor);
+                    VisualLifecycleRenderState renderState = VisualLifecycleClientRuntime.INSTANCE.getRenderState(pos, state);
+                    if (renderState != null) {
+                        return renderState.tintedColor();
+                    }
+                    return defaultTintColor(state, getter, pos);
                 },
                 VisualLifecycleRegistry.INSTANCE.colorHandledBlocks());
     }
