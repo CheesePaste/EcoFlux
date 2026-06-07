@@ -59,11 +59,11 @@
 
 ## P4：积分与进度系统
 
-- [ ] 为不同植物定义 `pointValue`。
-- [ ] 根据路径配置提供 `consumingValue`。
-- [ ] 实现低频评估调度（3~7 游戏日）。
-- [ ] 实现进度增长、衰减和回退逻辑。
-- [ ] 设计调试命令或日志，便于观察区块进度变化。
+- [x] 为不同植物定义 `pointValue`。
+- [x] 根据路径配置提供 `consumingValue`。
+- [x] 实现低频评估调度（3~7 游戏日）。
+- [x] 实现进度增长、衰减和回退逻辑。
+- [x] 设计调试命令或日志，便于观察区块进度变化。
 
 验收标准：
 
@@ -115,6 +115,61 @@
 - [x] `PrototypeChunkController` 瘦身为 ~175 行（仅保留加速演示模式）
 
 当前最优先的下一步：
-- [ ] 把 `vegetationRecords` 积分接入区块进度结算（目前仅用衰老门控）
-- [ ] 把玩家放置/破坏事件接入 `VegetationTracker`
-- [ ] 多植物队列与权重抽取（原型仅测了单植物 dandelion）
+- [x] 把 `vegetationRecords` 积分接入区块进度结算（目前仅用衰老门控）
+- [x] 把玩家放置/破坏事件接入 `VegetationTracker`
+- [x] 多植物队列与权重抽取（原型仅测了单植物 dandelion）
+
+---
+
+## 下一步计划（2026-06-07 更新，排除 Dynamic Trees 兼容）
+
+### A. 负向回退 → Fallback 群系切换 ✅
+
+- [x] `BiomeTransitionService` 支持反向切换：读取 `previousBiome` 或 `fallbackBiome`，执行群系回退
+- [x] `SuccessionEvaluator` 在进度 ≤ -1.0 时触发反向过渡
+- [x] 回退完成后重置进度和队列
+- [x] 用 `/ecoflux prototype evaluate` 循环可验证：贡献积分不足时应能观测到进度持续下降，最终触发群系回退
+
+### B. activePlants 退役，统一到 vegetationRecords ✅
+
+- [x] `trySpawnPlant` 不再写入 `activePlants`，仅依赖 `VegetationTracker.trackAt()`
+- [x] `pruneInvalidPlants` 改为基于 `vegetationRecords` 的过期/消失检查
+- [x] 移除 `SuccessionChunkData` 中的 `activePlants`、`ActivePlantRecord`、`getTotalPlantPoints()` 等遗留字段和方法
+- [x] 确认所有引用 `activePlants` 的地方已迁移（`PrototypeChunkController`、`ChunkSamplingHelper`、`BiomeTransitionService`、NBT 序列化等）
+- [x] 删除 `ActivePlantRecord.java`
+
+### C. 非玩家方块变更事件接入 VegetationTracker
+
+当前 `ModPlayerEvents` 只处理玩家放置/破坏。以下自然事件会导致植被记录与实际世界不一致：
+- 水流/岩浆冲走方块
+- 原版随机刻导致的植物生长/死亡
+- 其他 mod 或原版机制替换方块（如村民踩踏耕地）
+
+- [ ] 监听 `NeighborBlockEvent` 或等效事件：当追踪位置的方块被替换为非匹配方块时，自动移除追踪
+- [ ] 或者：在 `prune` 时逐位置检查 `BlockState` 是否仍然匹配 adapter（当前只在 `ActivePlantRecord` 层面检查，`vegetationRecords` 的 prune 不完整）
+- [ ] `VegetationTracker.observeChunk()` 中已经检查 `observation.present()` 并移除消失的植被——确认这是否覆盖了所有情况
+
+### D. 区块边界混合
+
+当前群系替换是整块直接切换（`fillBiomesFromNoise` 写入统一 biome），相邻不同群系的区块之间边界非常生硬。
+
+- [ ] 在 `BiomeTransitionService` 中实现 border-blend：使用邻近区块的 biome 作为插值源
+- [ ] 过渡期间（progress 0.8~1.0）在区块边缘逐步混合目标群系
+- [ ] 评估 1.21.1 中 `fillBiomesFromNoise` 的参数是否支持逐列 biome 设置
+
+### E. 补充更多演替路径 JSON
+
+目前只有 3 条路径，覆盖的源群系很少。实际测试中大部分区块都无法匹配到路径。
+
+- [ ] 补充反向路径：`forest_to_plains`（森林退化回平原）
+- [ ] 补充更多源群系路径：`taiga_to_forest`、`swamp_to_forest` 等
+- [ ] 为每条路径配不同的气候条件，使不同区域的同源群系有不同演替方向
+- [ ] 考虑添加无演替路径时 chunk 行为（静默跳过 vs 日志警告）
+
+### F. GameTest / 可重复验证步骤
+
+当前只能手动进游戏敲命令测试。需要一套可重复的验证流程。
+
+- [ ] 编写 GameTest：验证 `plains_to_forest` 的完整闭环（init → spawn → observe → evaluate → transition）
+- [ ] 或编写一套命令脚本（`/ecoflux prototype ...` 的固定序列），文档化预期结果
+- [ ] 验证点至少覆盖：队列多样性、积分正确累加、进度正/负向变化、群系切换前后状态

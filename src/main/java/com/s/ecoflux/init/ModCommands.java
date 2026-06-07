@@ -4,7 +4,9 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.SuccessionConfigRegistry;
 import com.s.ecoflux.network.ModNetworking;
+import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.plant.VegetationTracker;
 import com.s.ecoflux.prototype.PrototypeChunkController;
 import com.s.ecoflux.succession.SuccessionService;
@@ -66,7 +68,10 @@ public final class ModCommands {
                 .then(Commands.literal("evaluate").executes(context -> runPrototype(context.getSource(), PrototypeAction.EVALUATE)))
                 .then(Commands.literal("step").executes(context -> runPrototype(context.getSource(), PrototypeAction.STEP)))
                 .then(Commands.literal("accelerate").executes(context -> runPrototype(context.getSource(), PrototypeAction.ACCELERATE)))
-                .then(Commands.literal("transition").executes(context -> runPrototype(context.getSource(), PrototypeAction.TRANSITION)));
+                .then(Commands.literal("transition").executes(context -> runPrototype(context.getSource(), PrototypeAction.TRANSITION)))
+                .then(Commands.literal("queue").executes(context -> runPrototype(context.getSource(), PrototypeAction.QUEUE)))
+                .then(Commands.literal("plants").executes(context -> runPrototype(context.getSource(), PrototypeAction.PLANTS)))
+                .then(Commands.literal("refill").executes(context -> runPrototype(context.getSource(), PrototypeAction.REFILL)));
     }
 
     private static RequiredArgumentBuilder<CommandSourceStack, Integer> positionArguments(LifecycleAction action) {
@@ -107,6 +112,28 @@ public final class ModCommands {
                 String result = SuccessionService.forceTransition(level, chunk);
                 ModChunkEvents.syncChunkTracking(level, chunk);
                 yield result + " " + SuccessionService.describeChunk(chunk);
+            }
+            case QUEUE -> PlantSpawner.getQueueSummary(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA));
+            case PLANTS -> {
+                var pathOpt = SuccessionConfigRegistry.getPath(
+                        chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA).getActivePathId().orElse(null));
+                yield pathOpt.map(path -> {
+                    int totalWeight = path.plants().stream().mapToInt(p -> p.weight()).sum();
+                    String list = path.plants().stream()
+                            .map(p -> p.plantId() + "(w=" + p.weight() + ",pts=" + p.pointValue() + ")")
+                            .reduce((a, b) -> a + " " + b)
+                            .orElse("无");
+                    return "路径=" + path.pathId() + " 植物总数=" + path.plants().size()
+                            + " 总权重=" + totalWeight + " [" + list + "]";
+                }).orElse("当前区块没有激活的演替路径。");
+            }
+            case REFILL -> {
+                var pathOpt = SuccessionConfigRegistry.getPath(
+                        chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA).getActivePathId().orElse(null));
+                yield pathOpt.map(path -> {
+                    PlantSpawner.forceRefillQueue(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA), path);
+                    return "已强制重新填充队列。 " + PlantSpawner.getQueueSummary(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA));
+                }).orElse("当前区块没有激活的演替路径。");
             }
         };
 
@@ -216,7 +243,10 @@ public final class ModCommands {
         EVALUATE,
         STEP,
         ACCELERATE,
-        TRANSITION
+        TRANSITION,
+        QUEUE,
+        PLANTS,
+        REFILL
     }
 
     private enum LifecycleAction {

@@ -4,6 +4,7 @@ import com.s.ecoflux.config.VisualLifecycleClientConfig;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.init.ModChunkEvents;
 import com.s.ecoflux.init.ModCommands;
+import com.s.ecoflux.init.ModPlayerEvents;
 import com.s.ecoflux.init.ModReloadListeners;
 import com.s.ecoflux.network.ModNetworking;
 import net.neoforged.bus.api.IEventBus;
@@ -17,6 +18,7 @@ public final class EcofluxMod {
         ModAttachments.register(modEventBus);
         ModNetworking.register(modEventBus);
         ModChunkEvents.register();
+        ModPlayerEvents.register();
         ModCommands.register();
         ModReloadListeners.register();
         modContainer.registerConfig(ModConfig.Type.CLIENT, VisualLifecycleClientConfig.SPEC, "ecoflux-client.toml");

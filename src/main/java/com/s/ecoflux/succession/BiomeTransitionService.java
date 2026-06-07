@@ -11,6 +11,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.biome.Biome;
@@ -22,6 +23,57 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class BiomeTransitionService {
     private BiomeTransitionService() {
+    }
+
+    public static String applyRegression(
+            ServerLevel level,
+            LevelChunk chunk,
+            SuccessionChunkData chunkData,
+            com.s.ecoflux.config.SuccessionPathDefinition path) {
+        ResourceKey<Biome> fallbackKey = chunkData.getPreviousBiome().orElse(null);
+        if (path.fallbackBiome() != null) {
+            ResourceLocation fallbackId = path.fallbackBiome();
+            fallbackKey = ResourceKey.create(Registries.BIOME, fallbackId);
+        }
+
+        if (fallbackKey == null) {
+            return "区块 " + chunk.getPos() + " 跳过群系回退：没有回退目标群系。";
+        }
+
+        Holder<Biome> biomeHolder = level.registryAccess()
+                .lookupOrThrow(Registries.BIOME)
+                .getOrThrow(fallbackKey);
+        chunk.fillBiomesFromNoise(
+                (x, y, z, sampler) -> biomeHolder,
+                level.getChunkSource().randomState().sampler());
+        chunk.setUnsaved(true);
+        level.getServer()
+                .getPlayerList()
+                .broadcastAll(
+                        ClientboundChunksBiomesPacket.forChunks(List.of(chunk)),
+                        level.dimension());
+
+        ResourceKey<Biome> oldBiome = chunkData.getCurrentBiome().orElse(null);
+        chunkData.setPreviousBiome(oldBiome);
+        chunkData.setCurrentBiome(fallbackKey);
+        chunkData.setActivePathId(null);
+        chunkData.setTargetBiome(null);
+        chunkData.setConsumingValue(0);
+        chunkData.setMaxPlantCount(0);
+        chunkData.setProgress(0.0D);
+        chunkData.setLastEvaluationGameTime(level.getGameTime());
+        chunkData.replacePlantQueue(List.of());
+        chunkData.clearVegetationRecords();
+        ModNetworking.syncChunkToTracking(level, chunk);
+
+        EcofluxConstants.LOGGER.info(
+                "区块 {} 演替回退：{} -> {}",
+                chunk.getPos(),
+                oldBiome == null ? "未知" : oldBiome.location(),
+                fallbackKey.location());
+        return "区块 " + chunk.getPos() + " 已从 "
+                + (oldBiome == null ? "未知" : oldBiome.location())
+                + " 回退到 " + fallbackKey.location() + "。";
     }
 
     public static String applyTransition(ServerLevel level, LevelChunk chunk, SuccessionChunkData chunkData) {
@@ -55,7 +107,6 @@ public final class BiomeTransitionService {
         data.setProgress(0.0D);
         data.setLastEvaluationGameTime(level.getGameTime());
         data.replacePlantQueue(List.of());
-        data.clearTrackedPlants();
         data.clearVegetationRecords();
         ModNetworking.syncChunkToTracking(level, chunk);
 

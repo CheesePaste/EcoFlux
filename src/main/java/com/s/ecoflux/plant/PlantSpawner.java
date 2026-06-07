@@ -1,7 +1,6 @@
 package com.s.ecoflux.plant;
 
 import com.s.ecoflux.EcofluxConstants;
-import com.s.ecoflux.attachment.ActivePlantRecord;
 import com.s.ecoflux.attachment.PlantQueueEntry;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.PlantDefinition;
@@ -69,13 +68,6 @@ public final class PlantSpawner {
             return "区块 " + chunk.getPos() + " 生成失败：世界拒绝在 " + pos + " 放置。";
         }
 
-        chunkData.trackPlant(new ActivePlantRecord(
-                nextEntry.get().plantId(),
-                pos.immutable(),
-                nextEntry.get().pointValue(),
-                gameTime,
-                gameTime + nextEntry.get().maxAgeTicks(),
-                chunkData.getCurrentBiome().map(ResourceKey::location).orElse(null)));
         VegetationTracker.INSTANCE.trackAt(
                 level,
                 chunk,
@@ -92,13 +84,13 @@ public final class PlantSpawner {
     }
 
     public static int pruneInvalidPlants(ServerLevel level, SuccessionChunkData chunkData, long gameTime) {
-        List<ActivePlantRecord> snapshot = List.copyOf(chunkData.getActivePlants().values());
+        var snapshot = List.copyOf(chunkData.getVegetationRecords().values());
         int removed = 0;
-        for (ActivePlantRecord record : snapshot) {
+        for (var record : snapshot) {
             BlockState state = level.getBlockState(record.position());
-            ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
             boolean expired = gameTime >= record.expireGameTime();
-            boolean missing = state.isAir() || !record.plantId().equals(blockId);
+            boolean missing = state.isAir()
+                    || VegetationTracker.INSTANCE.findAdapter(state).isEmpty();
             if (!expired && !missing) {
                 continue;
             }
@@ -107,7 +99,6 @@ public final class PlantSpawner {
                 level.removeBlock(record.position(), false);
             }
 
-            chunkData.removeTrackedPlant(record.position());
             chunkData.removeVegetation(record.position());
             removed++;
         }
@@ -119,7 +110,8 @@ public final class PlantSpawner {
             return;
         }
 
-        chunkData.replacePlantQueue(buildWeightedQueue(path, chunkData.getMaxPlantCount(), new Random()));
+        int capacity = path.chunkRules().queueCapacity();
+        chunkData.replacePlantQueue(buildWeightedQueue(path, capacity, new Random()));
     }
 
     public static void fillPlants(
@@ -174,6 +166,30 @@ public final class PlantSpawner {
 
     public static PlantQueueEntry toQueueEntry(PlantDefinition plant) {
         return new PlantQueueEntry(plant.plantId(), plant.pointValue(), plant.weight(), plant.maxAgeTicks());
+    }
+
+    public static void forceRefillQueue(SuccessionChunkData chunkData, SuccessionPathDefinition path) {
+        int capacity = path.chunkRules().queueCapacity();
+        chunkData.replacePlantQueue(buildWeightedQueue(path, capacity, new Random()));
+    }
+
+    public static String getQueueSummary(SuccessionChunkData chunkData) {
+        var queue = chunkData.getPlantQueue();
+        if (queue.isEmpty()) {
+            return "队列=空";
+        }
+
+        var counts = new java.util.LinkedHashMap<ResourceLocation, Integer>();
+        for (PlantQueueEntry entry : queue) {
+            counts.merge(entry.plantId(), 1, Integer::sum);
+        }
+
+        String breakdown = counts.entrySet().stream()
+                .map(e -> e.getKey() + "x" + e.getValue())
+                .reduce((a, b) -> a + "," + b)
+                .orElse("");
+        int totalWeight = queue.stream().mapToInt(PlantQueueEntry::weight).sum();
+        return String.format("队列=%d项(总权重=%d)[%s]", queue.size(), totalWeight, breakdown);
     }
 
     public static PlantDefinition pickWeightedPlant(List<PlantDefinition> plants, int totalWeight, Random random) {

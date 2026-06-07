@@ -3,7 +3,10 @@
     "allow": [
       "Bash(./gradlew compileJava --no-configuration-cache)",
       "Bash(./gradlew compileJava --offline)",
-      "Bash(./gradlew build *)"
+      "Bash(./gradlew build *)",
+      "Bash(./gradlew compileJava)",
+      "Bash(./gradlew clean *)",
+      "Bash(./gradlew createMinecraftArtifacts runClient)"
     ]
   }
 }

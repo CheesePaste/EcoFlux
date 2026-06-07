@@ -1,7 +1,6 @@
 package com.s.ecoflux.prototype;
 
 import com.s.ecoflux.EcofluxConstants;
-import com.s.ecoflux.attachment.ActivePlantRecord;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionConfigRegistry;
@@ -112,17 +111,6 @@ public final class PrototypeChunkController {
         AcceleratedVisualStage visualStage = acceleratedVisualStage(totalProgress);
         long syntheticAge = visualStage.syntheticAge();
         long syntheticBirthTime = Math.max(0L, gameTime - syntheticAge);
-        List<ActivePlantRecord> plantSnapshot = List.copyOf(chunkData.getActivePlants().values());
-        for (ActivePlantRecord record : plantSnapshot) {
-            chunkData.trackPlant(new ActivePlantRecord(
-                    record.plantId(),
-                    record.position(),
-                    record.pointValue(),
-                    syntheticBirthTime,
-                    syntheticBirthTime + SIMPLE_PLANT_EXPIRE_TICKS,
-                    record.sourceBiomeId()));
-        }
-
         List<ActiveVegetationRecord> vegetationSnapshot = List.copyOf(chunkData.getVegetationRecords().values());
         for (ActiveVegetationRecord record : vegetationSnapshot) {
             chunkData.trackVegetation(new ActiveVegetationRecord(

@@ -191,8 +191,8 @@
 
 - 当前仍然是原型实现，不是正式玩法版本
 - 当前只重点保证 `plains_to_forest` 的最小闭环
-- 当前区块进度结算仍然使用 `activePlants` 点数，**还没有切到 `vegetationRecords` 的积分闭环**
-- 玩家手动种下的植物还没有自动计入 `activePlants`
+- 当前区块进度结算已经使用 `vegetationRecords` 的贡献积分（GROWING/MATURE/AGING 阶段）与 consuming 对比
+- 玩家放置/破坏方块会触发 `VegetationTracker` 的自动追踪/取消追踪
 - 当前视觉层负责表现，不负责真实出生/死亡来源判定
 - 对任意 tracked 方块都能保证 scale 效果，但颜色衰老效果只会在可着色植物上更明显
 - 目前的自动模式仍是原型级调度，还没有做更细的负载控制和更广泛的数据同步设计
@@ -226,10 +226,78 @@
 
 `isPrototypeChunk`（硬编码 `plains_to_forest`）→ `hasActivePath(chunkData)`（检查是否有任何激活的演替路径 ID），使自动 tick 系统对所有配置路径生效。
 
+## 2026-06-07：vegetationRecords 积分接入进度结算
+
+### 变更概要
+
+- `SuccessionEvaluator` 不再使用 `hasAgingVegetation` 衰老门控
+- 改为统计 GROWING/MATURE/AGING 阶段的植被作为"贡献植被"
+- 贡献植被的 `currentPointValue` 总和与 `consumingValue` 对比决定进度方向
+- `SuccessionChunkData` 新增 `getContributingVegetationPoints()`、`hasContributingVegetation()`、`countContributingVegetation()`
+- `describeChunk` 输出新增贡献积分和贡献植被数
+
+### 评估逻辑
+
+1. 无贡献植被（所有植被均处于 BORN 阶段）→ 进度不变，等待植被成长
+2. 贡献积分 ≥ 消耗阈值 → 进度正向推进
+3. 贡献积分 < 消耗阈值 → 进度回退
+
+## 2026-06-07：玩家放置/破坏事件接入 VegetationTracker
+
+### 变更概要
+
+- 新建 `ModPlayerEvents` 监听 `BlockEvent.EntityPlaceEvent` 和 `BlockEvent.BreakEvent`
+- 玩家放置匹配植被适配器的方块时，自动调用 `VegetationTracker.trackAt()` 逻辑并同步客户端
+- 玩家破坏已被追踪的植被方块时，自动从 `vegetationRecords` 中移除并同步客户端
+- 在 `EcofluxMod` 中注册新的事件处理器
+
+### 新增文件
+
+- `init/ModPlayerEvents.java` — 玩家方块放置/破坏事件 → VegetationTracker
+
+## 2026-06-07：多植物队列与权重抽取完成
+
+### 变更概要
+
+- 修复 `ensureQueue` 忽略配置中 `queue_fill_factor` 的 bug，现在使用 `ChunkRules.queueCapacity()` (= maxPlantCount × queueFillFactor)
+- `plains_to_forest` 队列容量从 8 → 16，显著提高多植物多样性
+- 新增 `getQueueSummary()` — 按植物类型分组展示队列内容
+- 新增 `forceRefillQueue()` — 强制重新填充队列
+- `describeChunk` 输出现在包含队列摘要（类型分布）
+- 新增调试命令：
+  - `/ecoflux prototype queue` — 查看当前队列分布
+  - `/ecoflux prototype plants` — 查看当前路径下所有配置植物及权重
+  - `/ecoflux prototype refill` — 强制重新填充队列
+
+### 修改/新增文件
+
+- `plant/PlantSpawner.java` — 修复 queueCapacity，新增 getQueueSummary / forceRefillQueue
+- `init/ModCommands.java` — 新增 queue / plants / refill 子命令
+- `succession/SuccessionService.java` — describeChunk 输出包含队列摘要
+
+## 2026-06-07：负向回退 + activePlants 退役
+
+### A. 负向回退 → Fallback 群系切换
+
+- `SuccessionEvaluator` 新增 `shouldRegress()` — 进度 ≤ -1.0 时返回 true
+- `BiomeTransitionService` 新增 `applyRegression()` — 将群系切换到 `fallbackBiome` 或 `previousBiome`，重置状态（不种树）
+- `SuccessionService.step()` / `evaluateChunk()` / `processChunkTick()` — 评估后检查 regression 条件并触发
+
+### B. activePlants 退役
+
+- `SuccessionChunkData` — 移除 `activePlants`、`ActivePlantRecord` 引用、`trackPlant()`、`removeTrackedPlant()`、`clearTrackedPlants()`、`getActivePlants()`、`getTotalPlantPoints()`、`currentPlantCount` 字段；`getCurrentPlantCount()` 现在返回 `vegetationRecords.size()`；NBT 序列化不再写入 ACTIVE_PLANTS
+- `PlantSpawner.trySpawnPlant()` — 移除 `trackPlant()` 调用，仅依赖 `VegetationTracker.trackAt()`
+- `PlantSpawner.pruneInvalidPlants()` — 改为基于 `vegetationRecords` 遍历，用 adapter 匹配检查方块是否仍然有效
+- `ChunkSamplingHelper.countNearbyTrackedPlants()` — 改用 `vegetationRecords`
+- `PrototypeChunkController.setAcceleratedVegetationStage()` — 移除 activePlants 迭代块
+- `BiomeTransitionService.applyTransition()` — 移除 `clearTrackedPlants()` 调用
+- 删除 `ActivePlantRecord.java`
+
 ## 建议的下一步
 
-- 优先把 `vegetationRecords` 积分接入区块进度结算，补完真正的生命周期 -> 演替积分闭环
-- 再把玩家放置 / 原版自然生长 / 消失事件正式接到 `VegetationTracker`
-- 保留当前视觉生命周期抽象层，不要把它和演替积分逻辑揉在一起
-- 在自动模式稳定后，再扩回多植物队列与权重抽取
-- 然后再考虑更完整的网络同步、边界处理和兼容层
+详见 `todolist.md` 底部「下一步计划」章节，剩余按优先级排列：
+
+1. **C. 非玩家方块变更事件** — 水/岩浆/随机刻导致植被消失时同步清理追踪
+2. **D. 区块边界混合** — 缓解群系切换的生硬边界
+3. **E. 补充更多演替路径 JSON** — 扩大可匹配的群系范围
+4. **F. GameTest / 可重复验证步骤**

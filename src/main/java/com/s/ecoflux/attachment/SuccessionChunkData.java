@@ -1,11 +1,13 @@
 package com.s.ecoflux.attachment;
 
+import com.s.ecoflux.plant.VegetationLifecycleStage;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
@@ -30,8 +32,13 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private static final String CURRENT_PLANT_COUNT = "current_plant_count";
     private static final String LAST_EVALUATION_GAME_TIME = "last_evaluation_game_time";
     private static final String PLANT_QUEUE = "plant_queue";
-    private static final String ACTIVE_PLANTS = "active_plants";
     private static final String VEGETATION_RECORDS = "vegetation_records";
+    private static final String ACTIVE_PLANTS = "active_plants";
+
+    private static final Set<VegetationLifecycleStage> CONTRIBUTING_STAGES = Set.of(
+            VegetationLifecycleStage.GROWING,
+            VegetationLifecycleStage.MATURE,
+            VegetationLifecycleStage.AGING);
 
     private final ChunkAccess owner;
     private @Nullable ResourceKey<Biome> currentBiome;
@@ -41,10 +48,8 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private double progress;
     private int consumingValue;
     private int maxPlantCount;
-    private int currentPlantCount;
     private long lastEvaluationGameTime;
     private final Deque<PlantQueueEntry> plantQueue = new ArrayDeque<>();
-    private final Map<BlockPos, ActivePlantRecord> activePlants = new LinkedHashMap<>();
     private final Map<BlockPos, ActiveVegetationRecord> vegetationRecords = new LinkedHashMap<>();
 
     public SuccessionChunkData(ChunkAccess owner) {
@@ -115,12 +120,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     }
 
     public int getCurrentPlantCount() {
-        return currentPlantCount;
-    }
-
-    public void setCurrentPlantCount(int currentPlantCount) {
-        this.currentPlantCount = currentPlantCount;
-        markDirty();
+        return vegetationRecords.size();
     }
 
     public long getLastEvaluationGameTime() {
@@ -155,14 +155,6 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         return Optional.ofNullable(entry);
     }
 
-    public Map<BlockPos, ActivePlantRecord> getActivePlants() {
-        return activePlants;
-    }
-
-    public int getTotalPlantPoints() {
-        return activePlants.values().stream().mapToInt(ActivePlantRecord::pointValue).sum();
-    }
-
     public Map<BlockPos, ActiveVegetationRecord> getVegetationRecords() {
         return vegetationRecords;
     }
@@ -171,25 +163,22 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         return vegetationRecords.values().stream().mapToInt(ActiveVegetationRecord::currentPointValue).sum();
     }
 
-    public void trackPlant(ActivePlantRecord record) {
-        activePlants.put(record.position(), record);
-        currentPlantCount = activePlants.size();
-        markDirty();
+    public int getContributingVegetationPoints() {
+        return vegetationRecords.values().stream()
+                .filter(record -> CONTRIBUTING_STAGES.contains(record.lifeStage()))
+                .mapToInt(ActiveVegetationRecord::currentPointValue)
+                .sum();
     }
 
-    public @Nullable ActivePlantRecord removeTrackedPlant(BlockPos pos) {
-        ActivePlantRecord removed = activePlants.remove(pos);
-        if (removed != null) {
-            currentPlantCount = activePlants.size();
-            markDirty();
-        }
-        return removed;
+    public boolean hasContributingVegetation() {
+        return vegetationRecords.values().stream()
+                .anyMatch(record -> CONTRIBUTING_STAGES.contains(record.lifeStage()));
     }
 
-    public void clearTrackedPlants() {
-        activePlants.clear();
-        currentPlantCount = 0;
-        markDirty();
+    public long countContributingVegetation() {
+        return vegetationRecords.values().stream()
+                .filter(record -> CONTRIBUTING_STAGES.contains(record.lifeStage()))
+                .count();
     }
 
     public void trackVegetation(ActiveVegetationRecord record) {
@@ -213,10 +202,8 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     public void clearRuntimeState() {
         activePathId = null;
         progress = 0.0D;
-        currentPlantCount = 0;
         lastEvaluationGameTime = 0L;
         plantQueue.clear();
-        activePlants.clear();
         vegetationRecords.clear();
         markDirty();
     }
@@ -233,7 +220,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         tag.putDouble(PROGRESS, progress);
         tag.putInt(CONSUMING_VALUE, consumingValue);
         tag.putInt(MAX_PLANT_COUNT, maxPlantCount);
-        tag.putInt(CURRENT_PLANT_COUNT, currentPlantCount);
+        tag.putInt(CURRENT_PLANT_COUNT, vegetationRecords.size());
         tag.putLong(LAST_EVALUATION_GAME_TIME, lastEvaluationGameTime);
 
         ListTag queueTag = new ListTag();
@@ -241,12 +228,6 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
             queueTag.add(entry.toTag());
         }
         tag.put(PLANT_QUEUE, queueTag);
-
-        ListTag activePlantTag = new ListTag();
-        for (ActivePlantRecord record : activePlants.values()) {
-            activePlantTag.add(record.toTag());
-        }
-        tag.put(ACTIVE_PLANTS, activePlantTag);
 
         ListTag vegetationTag = new ListTag();
         for (ActiveVegetationRecord record : vegetationRecords.values()) {
@@ -266,20 +247,12 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         progress = tag.getDouble(PROGRESS);
         consumingValue = tag.getInt(CONSUMING_VALUE);
         maxPlantCount = tag.getInt(MAX_PLANT_COUNT);
-        currentPlantCount = tag.getInt(CURRENT_PLANT_COUNT);
         lastEvaluationGameTime = tag.getLong(LAST_EVALUATION_GAME_TIME);
 
         plantQueue.clear();
         ListTag queueTag = tag.getList(PLANT_QUEUE, Tag.TAG_COMPOUND);
         for (Tag entryTag : queueTag) {
             plantQueue.addLast(PlantQueueEntry.fromTag((CompoundTag) entryTag));
-        }
-
-        activePlants.clear();
-        ListTag activePlantTag = tag.getList(ACTIVE_PLANTS, Tag.TAG_COMPOUND);
-        for (Tag recordTag : activePlantTag) {
-            ActivePlantRecord record = ActivePlantRecord.fromTag((CompoundTag) recordTag);
-            activePlants.put(record.position(), record);
         }
 
         vegetationRecords.clear();
@@ -289,7 +262,6 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
             vegetationRecords.put(record.position(), record);
         }
 
-        currentPlantCount = activePlants.isEmpty() ? currentPlantCount : activePlants.size();
         markDirty();
     }
 

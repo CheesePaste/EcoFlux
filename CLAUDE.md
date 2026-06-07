@@ -88,13 +88,13 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 4. **Prototype-first → service extraction**: The full succession loop was first proven in the monolithic `PrototypeChunkController`, then extracted into clean `succession/` service classes (`SuccessionService`, `SuccessionTargetResolver`, `SuccessionEvaluator`, `BiomeTransitionService`). The prototype now only houses the accelerated 10-second demo mode. Utilities live in `world/ChunkSamplingHelper` and `plant/PlantSpawner`.
 
-5. **Two tracking systems coexist**: `activePlants` (original prototype plant tracking) and `vegetationRecords` (newer lifecycle-based tracking via `VegetationTracker`). Progress evaluation currently checks `vegetationRecords` with an aging gate (`hasAgingVegetation`).
+5. **Single tracking system**: Plant tracking is now unified under `vegetationRecords` via `VegetationTracker`. The legacy `activePlants` / `ActivePlantRecord` system has been removed.
 
 ## Current Development State
 
-- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, **service layer extraction from prototype → `succession/`/`world/`/`plant/` packages**
-- **Not yet started**: Player planting/destruction events → `VegetationTracker`, Dynamic Trees compatibility, chunk boundary blending, formal progress using `vegetationRecords` point values (currently uses aging gate only)
-- **Known gap**: `vegetationRecords` point integration into chunk progress settlement is not yet complete — progress evaluation advances when aging vegetation exists, not based on actual point totals vs consuming
+- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, service layer extraction from prototype → `succession/`/`world/`/`plant/` packages, vegetationRecords point-based progress evaluation, player place/break → VegetationTracker auto-tracking, multi-plant weighted queue with queue_fill_factor, **negative regression → fallback biome**, **activePlants retired — unified to vegetationRecords**
+- **Not yet started**: Dynamic Trees compatibility, chunk boundary blending
+- **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 
 ## Documentation
 

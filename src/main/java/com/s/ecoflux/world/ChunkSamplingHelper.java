@@ -1,6 +1,6 @@
 package com.s.ecoflux.world;
 
-import com.s.ecoflux.attachment.ActivePlantRecord;
+import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.PlantDefinition;
 import com.s.ecoflux.config.PlantSpawnRules;
@@ -115,7 +115,7 @@ public final class ChunkSamplingHelper {
     public static int countNearbyTrackedPlants(SuccessionChunkData chunkData, BlockPos center, int radius) {
         int radiusSquared = radius * radius;
         int count = 0;
-        for (ActivePlantRecord record : chunkData.getActivePlants().values()) {
+        for (ActiveVegetationRecord record : chunkData.getVegetationRecords().values()) {
             if (record.position().distSqr(center) <= radiusSquared) {
                 count++;
             }

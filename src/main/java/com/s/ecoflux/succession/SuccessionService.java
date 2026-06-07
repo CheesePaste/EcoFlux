@@ -29,18 +29,17 @@ public final class SuccessionService {
     public static String describeChunk(LevelChunk chunk) {
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
         return String.format(
-                "区块=%s 当前群系=%s 演替路径=%s 目标群系=%s 进度=%.2f 原型植物积分=%d 植被积分=%d 消耗阈值=%d 队列=%d 原型植物=%d 已追踪植被=%d",
+                "区块=%s 当前群系=%s 演替路径=%s 目标群系=%s 进度=%.2f 贡献积分=%d/%d 贡献植被=%d/%d %s",
                 chunk.getPos(),
                 chunkData.getCurrentBiome().map(key -> key.location().toString()).orElse("未设置"),
                 chunkData.getActivePathId().map(ResourceLocation::toString).orElse("无"),
                 chunkData.getTargetBiome().map(key -> key.location().toString()).orElse("无"),
                 chunkData.getProgress(),
-                chunkData.getTotalPlantPoints(),
-                chunkData.getTotalVegetationPoints(),
+                chunkData.getContributingVegetationPoints(),
                 chunkData.getConsumingValue(),
-                chunkData.getPlantQueue().size(),
-                chunkData.getActivePlants().size(),
-                chunkData.getVegetationRecords().size());
+                chunkData.countContributingVegetation(),
+                chunkData.getVegetationRecords().size(),
+                PlantSpawner.getQueueSummary(chunkData));
     }
 
     public static String step(ServerLevel level, LevelChunk chunk) {
@@ -68,6 +67,8 @@ public final class SuccessionService {
 
         if (chunkData.getProgress() >= 1.0D) {
             messages.add(BiomeTransitionService.applyTransition(level, chunk, chunkData));
+        } else if (SuccessionEvaluator.shouldRegress(chunkData)) {
+            messages.add(BiomeTransitionService.applyRegression(level, chunk, chunkData, path));
         }
 
         return String.join(" ", messages);
@@ -100,9 +101,12 @@ public final class SuccessionService {
             return "区块 " + chunk.getPos() + " 没有激活的演替路径。";
         }
 
-        String result = SuccessionEvaluator.evaluate(chunkData, pathOptional.get(), level.getGameTime(), true);
+        SuccessionPathDefinition path = pathOptional.get();
+        String result = SuccessionEvaluator.evaluate(chunkData, path, level.getGameTime(), true);
         if (chunkData.getProgress() >= 1.0D) {
             result = result + " " + BiomeTransitionService.applyTransition(level, chunk, chunkData);
+        } else if (SuccessionEvaluator.shouldRegress(chunkData)) {
+            result = result + " " + BiomeTransitionService.applyRegression(level, chunk, chunkData, path);
         }
         return "已评估区块 " + chunk.getPos() + "：" + result;
     }
@@ -141,6 +145,8 @@ public final class SuccessionService {
 
         if (chunkData.getProgress() >= 1.0D) {
             messages.add(BiomeTransitionService.applyTransition(level, chunk, chunkData));
+        } else if (SuccessionEvaluator.shouldRegress(chunkData)) {
+            messages.add(BiomeTransitionService.applyRegression(level, chunk, chunkData, path));
         }
 
         return String.join(" ", messages);
