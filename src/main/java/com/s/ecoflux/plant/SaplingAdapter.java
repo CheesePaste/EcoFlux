@@ -13,7 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class SaplingAdapter implements VegetationTypeAdapter {
     public static final SaplingAdapter INSTANCE = new SaplingAdapter();
-    private static final ResourceLocation TYPE_ID = EcofluxConstants.id("sapling");
+    public static final ResourceLocation TYPE_ID = EcofluxConstants.id("sapling");
 
     private SaplingAdapter() {
     }

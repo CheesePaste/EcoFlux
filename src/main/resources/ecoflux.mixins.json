@@ -3,6 +3,9 @@
   "minVersion": "0.8",
   "package": "com.s.ecoflux.mixin",
   "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "SaplingBlockMixin"
+  ],
   "client": [
     "client.BlockRenderDispatcherMixin"
   ],

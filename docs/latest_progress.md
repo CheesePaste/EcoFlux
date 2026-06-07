@@ -293,11 +293,39 @@
 - `BiomeTransitionService.applyTransition()` — 移除 `clearTrackedPlants()` 调用
 - 删除 `ActivePlantRecord.java`
 
+## 2026-06-07：树生命周期 Phase 1 — Mixin 拦截原版树苗生长
+
+### 变更概要
+
+- 新增 `SaplingBlockMixin`，拦截 `SaplingBlock.advanceTree()` 阻止被追踪树苗的原版瞬间生长
+- 新增 `TreeGrowthHandler`（单例，管理活跃生长会话）和 `TreeGrowthSession`（每棵树生长状态，支持 NBT）
+- `SaplingAdapter.TYPE_ID` 改为 public 供 Mixin 引用
+- 玩家放置树苗自动追踪（`ModPlayerEvents`），未被追踪的树苗完全保持原版行为
+- STAGE 0→1 放行（树苗视觉成熟），STAGE 1→树生成 拦截（Mixin 取消 + 创建生长会话）
+
+### 新增文件
+
+- `mixin/SaplingBlockMixin.java` — 服务端 Mixin，拦截 SaplingBlock.advanceTree()
+- `plant/tree/TreeGrowthHandler.java` — 生长管理器，维护活跃生长会话 Map
+- `plant/tree/TreeGrowthSession.java` — 生长会话状态（位置、树种、阶段、时间）
+
+### 修改文件
+
+- `plant/SaplingAdapter.java` — TYPE_ID 改为 public
+- `ecoflux.mixins.json` — 注册 SaplingBlockMixin 到 mixins 数组
+
+### 验证结果
+
+- 编译通过
+- 游戏内测试：被追踪树苗使用骨粉不会瞬间长成树，日志输出拦截信息
+- 未被追踪的树苗（untrack 后）正常生长为树
+
 ## 建议的下一步
 
-详见 `todolist.md` 底部「下一步计划」章节，剩余按优先级排列：
+详见 `todolist.md` 底部「下一步计划」章节，以及 `docs/tree-lifecycle-implementation.md` 树生命周期完整方案。
 
-1. **C. 非玩家方块变更事件** — 水/岩浆/随机刻导致植被消失时同步清理追踪
-2. **D. 区块边界混合** — 缓解群系切换的生硬边界
-3. **E. 演替路径可视化编辑器** — 已移至 `visual-editor` 分支，详见 `docs/visual-succession-editor.md`
-4. **F. GameTest / 可重复验证步骤**
+1. **树生命周期 Phase 2** — 渐进式树木生长系统（TreeGrowthProfile + OakGrowthProfile + 分阶段放置方块）
+2. **C. 非玩家方块变更事件** — 水/岩浆/随机刻导致植被消失时同步清理追踪
+3. **D. 区块边界混合** — 缓解群系切换的生硬边界
+4. **E. 演替路径可视化编辑器** — 已移至 `visual-editor` 分支，详见 `docs/visual-succession-editor.md`
+5. **F. GameTest / 可重复验证步骤**

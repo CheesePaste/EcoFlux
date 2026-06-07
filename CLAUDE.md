@@ -54,6 +54,12 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - Adapters: `SimplePlantAdapter` (flowers, grass, ferns, mushrooms), `SaplingAdapter` (tree saplings → tree transformation), `TreeStructureAdapter` (mature trees)
 - `VegetationTransformation` — Descriptor for sapling→tree conversion
 - `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`
+- `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted
+- `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, timing), NBT-serializable
+
+### Mixins (`mixin/`)
+- `client/BlockRenderDispatcherMixin` — Client-side: suppresses vanilla block render for visually-tracked blocks with non-1.0 scale
+- `SaplingBlockMixin` — Server-side: intercepts `SaplingBlock.advanceTree()`, cancels vanilla instant tree growth for Ecoflux-tracked saplings (delegates to `TreeGrowthHandler`)
 
 ### Prototype controller (`prototype/`)
 - `PrototypeChunkController` (~175 lines) — Slimmed down to only the **accelerated 10-second demo mode**. All standard succession operations have been extracted to the `succession/`, `world/`, and `plant/` service classes. Calls into `SuccessionService`, `PlantSpawner`, `BiomeTransitionService` for shared operations
@@ -62,7 +68,6 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `VisualLifecycleClientRuntime` — Client singleton receiving visual state from server
 - `VisualLifecycleWorldRenderer` — Renders visual overlays (scale, aging tint) for tracked plants
 - `VisualLifecycleAdapter` interface + per-type adapters (Flower, Grass, Sapling, Generic)
-- `BlockRenderDispatcherMixin` — Client-side mixin hooking block rendering to suppress vanilla render for visually-tracked blocks
 
 ### Networking (`network/`)
 - `ModNetworking` — NeoForge Payload-based packet registration. `syncChunkToTracking()` sends vegetation visual state to clients watching a chunk
@@ -92,7 +97,8 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Current Development State
 
-- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, service layer extraction from prototype → `succession/`/`world/`/`plant/` packages, vegetationRecords point-based progress evaluation, player place/break → VegetationTracker auto-tracking, multi-plant weighted queue with queue_fill_factor, **negative regression → fallback biome**, **activePlants retired — unified to vegetationRecords**
+- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, service layer extraction from prototype → `succession/`/`world/`/`plant/` packages, vegetationRecords point-based progress evaluation, player place/break → VegetationTracker auto-tracking, multi-plant weighted queue with queue_fill_factor, **negative regression → fallback biome**, **activePlants retired — unified to vegetationRecords**, **tree lifecycle Phase 1: Mixin intercepts sapling instant growth** (SaplingBlockMixin + TreeGrowthHandler + TreeGrowthSession)
+- **In progress**: Tree lifecycle Phase 2+ (gradual tree construction, death/decay, succession integration)
 - **Not yet started**: Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 
@@ -106,6 +112,7 @@ All design docs are in `docs/`, written in Chinese:
 - `plant-lifecycle-system.md` — Vegetation adapter design
 - `visual-lifecycle-layer.md` — Client visual rendering design
 - `succession-path-format.md` — JSON path format spec
+- `tree-lifecycle-implementation.md` — Tree lifecycle implementation plan (6 phases)
 
 ## Important Conventions
 
