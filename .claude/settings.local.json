@@ -17,7 +17,11 @@
       "Bash(jar tf *)",
       "Bash(javap -public \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\"\\\\!/net/minecraft/world/level/block/SaplingBlock.class)",
       "Bash(javap -public -cp \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\" net.minecraft.world.level.block.SaplingBlock)",
-      "Bash(jar -tf \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\")"
+      "Bash(jar -tf \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\")",
+      "Bash(unzip -l \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\")",
+      "Bash(unzip *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
