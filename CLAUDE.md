@@ -56,6 +56,9 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`
 - `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted
 - `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, timing), NBT-serializable
+- `tree/TreeGrowthProfile` — Interface: per-species growth parameters (totalStages, ticksPerStage, canGrowStage, growStage)
+- `tree/animation/BlockDisplayAnimator` — Spawns BlockDisplay entities with scale animations during tree growth; replaces them with real blocks upon completion. Uses reflection to access Display's private EntityDataAccessor fields
+- `tree/animation/AnimationStyle` — Enum: TRUNK_EXTRUDE, LEAF_INFLATE, LEAF_CLUSTER with start/target scales and duration
 
 ### Mixins (`mixin/`)
 - `client/BlockRenderDispatcherMixin` — Client-side: suppresses vanilla block render for visually-tracked blocks with non-1.0 scale
@@ -95,9 +98,11 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 5. **Single tracking system**: Plant tracking is now unified under `vegetationRecords` via `VegetationTracker`. The legacy `activePlants` / `ActivePlantRecord` system has been removed.
 
+6. **BlockDisplay-based growth animations**: Tree growth stages spawn temporary BlockDisplay entities with smooth scale interpolation (extrude for logs, inflate for leaves) instead of instantly placing blocks. The Display entity's built-in interpolation system handles client-side animation; the server tracks completion and replaces entities with real blocks. Reflection is used to access private EntityDataAccessor fields since Mojang did not expose public setters for Display transformation data.
+
 ## Current Development State
 
-- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, service layer extraction from prototype → `succession/`/`world/`/`plant/` packages, vegetationRecords point-based progress evaluation, player place/break → VegetationTracker auto-tracking, multi-plant weighted queue with queue_fill_factor, **negative regression → fallback biome**, **activePlants retired — unified to vegetationRecords**, **tree lifecycle Phase 1: Mixin intercepts sapling instant growth** (SaplingBlockMixin + TreeGrowthHandler + TreeGrowthSession), **tree lifecycle Phase 2: gradual tree construction** (TreeGrowthProfile + OakGrowthProfile + tickAll with 20-tick throttle)
+- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, service layer extraction from prototype → `succession/`/`world/`/`plant/` packages, vegetationRecords point-based progress evaluation, player place/break → VegetationTracker auto-tracking, multi-plant weighted queue with queue_fill_factor, **negative regression → fallback biome**, **activePlants retired — unified to vegetationRecords**, **tree lifecycle Phase 1: Mixin intercepts sapling instant growth** (SaplingBlockMixin + TreeGrowthHandler + TreeGrowthSession), **tree lifecycle Phase 2: gradual tree construction** (TreeGrowthProfile + OakGrowthProfile + tickAll with 20-tick throttle), **BlockDisplay growth animations** (TRUNK_EXTRUDE + LEAF_INFLATE + LEAF_CLUSTER via BlockDisplayAnimator)
 - **In progress**: Tree lifecycle Phase 3+ (multi-species profiles, death/decay, succession integration)
 - **Not yet started**: Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest

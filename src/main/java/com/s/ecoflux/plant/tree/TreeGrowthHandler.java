@@ -3,6 +3,7 @@ package com.s.ecoflux.plant.tree;
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.init.ModAttachments;
+import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.TreeStructureAdapter;
 import com.s.ecoflux.plant.VegetationTracker;
 import com.s.ecoflux.plant.tree.profiles.OakGrowthProfile;
@@ -42,7 +43,7 @@ public final class TreeGrowthHandler {
         ResourceLocation saplingId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         TreeGrowthProfile profile = resolveProfile(saplingId);
         int stages = profile != null ? profile.totalStages() : 5;
-        int interval = profile != null ? profile.ticksPerStage() : 2400;
+        int interval = profile != null ? profile.ticksPerStage() : 40;
 
         TreeGrowthSession session = new TreeGrowthSession(
                 pos.immutable(),
@@ -53,7 +54,7 @@ public final class TreeGrowthHandler {
         activeGrowths.put(pos.immutable(), session);
 
         EcofluxConstants.LOGGER.info(
-                "[Ecoflux] Intercepted tree growth at {} (type={}), session created. totalStages={}, ticksPerStage={}",
+                "[Ecoflux] Intercepted tree growth at {} (type={}), totalStages={}, ticksPerStage={}",
                 pos, saplingId, stages, interval);
     }
 
@@ -91,7 +92,14 @@ public final class TreeGrowthHandler {
                 continue;
             }
 
-            if (gameTime - session.lastStageTime() < session.ticksPerStage()) {
+            long elapsed = gameTime - session.lastStageTime();
+            if (elapsed < session.ticksPerStage()) {
+                if (elapsed == 1 || elapsed % 20 == 0) {
+                    EcofluxConstants.LOGGER.info(
+                            "[Ecoflux] Tree growth waiting at {}: stage={}/{}, elapsed={}/{}",
+                            pos, session.currentStage(), session.totalStages(),
+                            elapsed, session.ticksPerStage());
+                }
                 continue;
             }
 
@@ -111,12 +119,22 @@ public final class TreeGrowthHandler {
                 continue;
             }
 
-            profile.growStage(level, pos, session.currentStage());
+            List<GrowthPlacement> placed = profile.growStage(level, pos, session.currentStage());
             session.advanceStage(gameTime);
 
+            if (!placed.isEmpty()) {
+                Map<Byte, List<BlockPos>> byType = new HashMap<>();
+                for (GrowthPlacement p : placed) {
+                    byType.computeIfAbsent(p.animType(), k -> new ArrayList<>()).add(p.pos());
+                }
+                for (Map.Entry<Byte, List<BlockPos>> e : byType.entrySet()) {
+                    ModNetworking.sendGrowthAnimation(level, chunk, e.getValue(), e.getKey());
+                }
+            }
+
             EcofluxConstants.LOGGER.info(
-                    "[Ecoflux] Tree growth stage {}/{} at {} (type={})",
-                    session.currentStage(), session.totalStages(), pos, session.treeType());
+                    "[Ecoflux] Tree growth stage {}/{} at {} (type={}), placed {} blocks",
+                    session.currentStage(), session.totalStages(), pos, session.treeType(), placed.size());
 
             if (session.isComplete()) {
                 completed.add(pos);
@@ -134,6 +152,10 @@ public final class TreeGrowthHandler {
         chunkData.removeVegetation(saplingPos);
 
         level.setBlock(saplingPos, Blocks.OAK_LOG.defaultBlockState(), 3);
+
+        // Animate the sapling→log transition on the client
+        ModNetworking.sendGrowthAnimation(level, chunk,
+                List.of(saplingPos.immutable()), (byte) 0); // TRUNK_EXTRUDE
 
         ActiveVegetationRecord treeRecord = TreeStructureAdapter.INSTANCE.captureBirth(
                 level,
