@@ -158,12 +158,34 @@
 - [ ] 过渡期间（progress 0.8~1.0）在区块边缘逐步混合目标群系
 - [ ] 评估 1.21.1 中 `fillBiomesFromNoise` 的参数是否支持逐列 biome 设置
 
-### E. 演替路径可视化编辑器 → 已移至 `visual-editor` 分支
+### E. 演替路径可视化编辑器
 
-原计划手动补充更多演替路径 JSON，现已升级为构建专用的**可视化节点-连线编辑器**（React + TypeScript + ReactFlow），覆盖 Ecoflux 全部可配置内容（路径图、植物定义、区块规则、气候条件）。
+见 `docs/visual-succession-editor.md` 完整设计文档，实现代码在 `succession-editor/`。
 
-> **此工作已在 `visual-editor` 分支独立进行**，详见 `docs/visual-succession-editor.md` 设计文档。
-> `another-try` 分支不再跟踪此项。
+原计划是手动补充更多演替路径 JSON（目前只有 3 条路径，覆盖源群系很少）。重新评估后，改为构建一个**可视化节点-连线编辑器**，从根本上解决路径配置的效率问题。
+
+**Phase 1（已完成）**：Web 编辑器（React + ReactFlow），支持群系节点 + 演替连线绘制，导出标准 JSON
+- [x] 项目脚手架（Vite + React + TS + ReactFlow）
+- [x] BiomeNode 创建与渲染
+- [x] SuccessionEdge 连线交互
+- [x] 属性编辑面板（chunkRules / plants / climate）
+- [x] JSON 导入/导出（兼容现有 schema v1）
+- [x] 撤销/重做、校验
+- [x] 中英双语、错误边界、键盘快捷键
+
+**Phase 2（已完成 2026-06-09）**：条件分支节点 + 植物快速选择
+- [x] ClimateConditionNode 菱形节点（match/no_match 双输出端口）
+- [x] ConditionProperties 编辑器
+- [x] PlantTableEditor quick-add 下拉框（48 种常见植物按 category 分组）
+- [ ] 导出时展平条件分支为独立路径
+- [ ] 导入时自动检测分支还原条件节点
+
+**Phase 3**：优先级路由、植物池复用、全局 DAG 预览
+**Phase 4**：游戏内 HTTP 集成（可选，推送配置热加载）
+
+此外，短期手动补充的路径仍可直接编辑 JSON 文件：
+- [ ] 补充反向路径：`forest_to_plains`（森林退化回平原）
+- [ ] 补充更多源群系路径：`taiga_to_forest`、`swamp_to_forest` 等
 
 ### F. GameTest / 可重复验证步骤
 
@@ -172,3 +194,29 @@
 - [ ] 编写 GameTest：验证 `plains_to_forest` 的完整闭环（init → spawn → observe → evaluate → transition）
 - [ ] 或编写一套命令脚本（`/ecoflux prototype ...` 的固定序列），文档化预期结果
 - [ ] 验证点至少覆盖：队列多样性、积分正确累加、进度正/负向变化、群系切换前后状态
+
+---
+
+## JSON 配置覆盖分析（2026-06-07）
+
+Schema 共 32 个字段。主代码实现率 86%（25/29 完全实现），编辑器可编辑率 83%（24/29）。
+
+### 主代码未接入的字段（2 个）
+
+- [ ] `evaluation_interval_days.max` — `ChunkRules.resolvedEvaluationIntervalTicks()` 只读 `min`，`max` 从未使用。要么在 evaluator 里做随机区间 `[min, max]`，要么从 schema 删掉
+- [ ] `spawn_rules.placement` — 解析存储了但 `ChunkSamplingHelper.findSpawnPos()` 完全忽略，所有植物用同一套列搜索逻辑。应根据 `"surface"` / `"underground"` / `"water"` 等值选不同搜索策略
+
+### 半接入（1 个）
+
+- [ ] `plants[].category` — 存入 `ActiveVegetationRecord` + 日志输出，但不影响任何游戏逻辑（积分、stage 判定均不依赖 category）
+
+### 编辑器不可编辑的字段（3 个）
+
+- [ ] `source_biomes` 不支持多选 — 编辑器图拓扑决定了只能单元素数组，Java 支持一条路径覆盖多个源群系
+- [ ] `fallback_biome` 只读 — 显示但不可编辑，自动设为 source biome，Java 可以设任意 biome
+- [ ] `schema_version` — 硬编码为 1，不暴露（合理）
+
+### 编辑器默认值与 Java 不一致（2 个）
+
+- [ ] `processing_interval_ticks`：Java 默认 20，编辑器默认 100
+- [ ] `positive_progress_step`：Java 默认 0.5，编辑器默认 0.25

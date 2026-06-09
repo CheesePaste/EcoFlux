@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "path_id": "ecoflux:savanna_to_windswept_hills",
+  "priority": 8,
+  "source_biomes": [
+    "minecraft:savanna",
+    "minecraft:savanna_plateau"
+  ],
+  "target_biome": "minecraft:windswept_hills",
+  "fallback_biome": "minecraft:savanna",
+  "climate": {
+    "temperature": {
+      "min": 0.4,
+      "max": 0.9
+    },
+    "downfall": {
+      "min": 0.0,
+      "max": 0.4
+    }
+  },
+  "chunk_rules": {
+    "consuming": 8,
+    "max_plant_count": 14,
+    "queue_fill_factor": 1.5,
+    "evaluation_interval_days": {
+      "min": 4,
+      "max": 7
+    }
+  },
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "category": "ground_cover",
+      "weight": 8,
+      "point_value": 1,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 5,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:stone"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "category": "flower",
+      "weight": 3,
+      "point_value": 2,
+      "max_age_ticks": 60000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 2,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:spruce_sapling",
+      "category": "tree",
+      "weight": 2,
+      "point_value": 4,
+      "max_age_ticks": 168000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 2,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    }
+  ]
+}

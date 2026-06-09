@@ -1,0 +1,10 @@
+/* Base reset — App.css handles all layout */
+body {
+  margin: 0;
+  background: #12122a;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+}

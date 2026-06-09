@@ -6,7 +6,12 @@
       "Bash(./gradlew build *)",
       "Bash(./gradlew compileJava)",
       "Bash(./gradlew clean *)",
-      "Bash(./gradlew createMinecraftArtifacts runClient)"
+      "Bash(./gradlew createMinecraftArtifacts runClient)",
+      "Bash(npm --version)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)"
     ]
   }
 }

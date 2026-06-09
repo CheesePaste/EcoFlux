@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "path_id": "ecoflux:meadow_to_forest",
+  "priority": 10,
+  "source_biomes": [
+    "minecraft:meadow"
+  ],
+  "target_biome": "minecraft:forest",
+  "fallback_biome": "minecraft:meadow",
+  "climate": {
+    "temperature": {
+      "min": 0.5,
+      "max": 0.75
+    },
+    "downfall": {
+      "min": 0.6,
+      "max": 0.9
+    }
+  },
+  "chunk_rules": {
+    "consuming": 15,
+    "max_plant_count": 24,
+    "queue_fill_factor": 2.0,
+    "evaluation_interval_days": {
+      "min": 4,
+      "max": 6
+    }
+  },
+  "plants": [
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "category": "tree",
+      "weight": 5,
+      "point_value": 5,
+      "max_age_ticks": 168000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 4,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:birch_sapling",
+      "category": "tree",
+      "weight": 4,
+      "point_value": 4,
+      "max_age_ticks": 144000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "category": "flower",
+      "weight": 3,
+      "point_value": 2,
+      "max_age_ticks": 72000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:short_grass",
+      "category": "ground_cover",
+      "weight": 6,
+      "point_value": 1,
+      "max_age_ticks": 60000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "category": "flower",
+      "weight": 3,
+      "point_value": 2,
+      "max_age_ticks": 72000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    }
+  ]
+}

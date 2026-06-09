@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "path_id": "ecoflux:taiga_to_old_growth_spruce_taiga",
+  "priority": 10,
+  "source_biomes": [
+    "minecraft:taiga"
+  ],
+  "target_biome": "minecraft:old_growth_spruce_taiga",
+  "fallback_biome": "minecraft:taiga",
+  "climate": {
+    "temperature": {
+      "min": 0.15,
+      "max": 0.45
+    },
+    "downfall": {
+      "min": 0.5,
+      "max": 0.9
+    }
+  },
+  "chunk_rules": {
+    "consuming": 22,
+    "max_plant_count": 32,
+    "queue_fill_factor": 2.2,
+    "evaluation_interval_days": {
+      "min": 6,
+      "max": 10
+    }
+  },
+  "plants": [
+    {
+      "plant_id": "minecraft:spruce_sapling",
+      "category": "tree",
+      "weight": 8,
+      "point_value": 6,
+      "max_age_ticks": 200000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 8,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol",
+          "minecraft:coarse_dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:fern",
+      "category": "ground_cover",
+      "weight": 5,
+      "point_value": 1,
+      "max_age_ticks": 72000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 7,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "category": "mushroom",
+      "weight": 3,
+      "point_value": 2,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 5,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "category": "mushroom",
+      "weight": 2,
+      "point_value": 2,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    }
+  ]
+}

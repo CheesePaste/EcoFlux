@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "path_id": "ecoflux:jungle_to_bamboo_jungle",
+  "priority": 10,
+  "source_biomes": [
+    "minecraft:jungle",
+    "minecraft:sparse_jungle"
+  ],
+  "target_biome": "minecraft:bamboo_jungle",
+  "fallback_biome": "minecraft:jungle",
+  "climate": {
+    "temperature": {
+      "min": 0.9,
+      "max": 1.0
+    },
+    "downfall": {
+      "min": 0.8,
+      "max": 1.0
+    }
+  },
+  "chunk_rules": {
+    "consuming": 24,
+    "max_plant_count": 34,
+    "queue_fill_factor": 2.3,
+    "evaluation_interval_days": {
+      "min": 5,
+      "max": 8
+    }
+  },
+  "plants": [
+    {
+      "plant_id": "minecraft:jungle_sapling",
+      "category": "tree",
+      "weight": 4,
+      "point_value": 6,
+      "max_age_ticks": 200000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 4,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:coarse_dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:fern",
+      "category": "ground_cover",
+      "weight": 6,
+      "point_value": 1,
+      "max_age_ticks": 60000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 10,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "category": "mushroom",
+      "weight": 3,
+      "point_value": 2,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "category": "mushroom",
+      "weight": 3,
+      "point_value": 2,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "category": "tree",
+      "weight": 2,
+      "point_value": 5,
+      "max_age_ticks": 168000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 2,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    }
+  ]
+}

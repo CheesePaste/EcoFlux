@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "path_id": "ecoflux:forest_to_dark_forest",
+  "priority": 25,
+  "source_biomes": [
+    "minecraft:forest"
+  ],
+  "target_biome": "minecraft:dark_forest",
+  "fallback_biome": "minecraft:forest",
+  "climate": {
+    "temperature": {
+      "min": 0.6,
+      "max": 0.8
+    },
+    "downfall": {
+      "min": 0.7,
+      "max": 1.0
+    }
+  },
+  "chunk_rules": {
+    "consuming": 22,
+    "max_plant_count": 32,
+    "queue_fill_factor": 2.2,
+    "evaluation_interval_days": {
+      "min": 5,
+      "max": 8
+    }
+  },
+  "plants": [
+    {
+      "plant_id": "minecraft:dark_oak_sapling",
+      "category": "tree",
+      "weight": 6,
+      "point_value": 6,
+      "max_age_ticks": 200000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:coarse_dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "category": "tree",
+      "weight": 3,
+      "point_value": 5,
+      "max_age_ticks": 168000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "category": "mushroom",
+      "weight": 4,
+      "point_value": 2,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "category": "mushroom",
+      "weight": 4,
+      "point_value": 2,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:fern",
+      "category": "ground_cover",
+      "weight": 5,
+      "point_value": 1,
+      "max_age_ticks": 60000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 8,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    }
+  ]
+}

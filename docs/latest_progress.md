@@ -293,11 +293,46 @@
 - `BiomeTransitionService.applyTransition()` — 移除 `clearTrackedPlants()` 调用
 - 删除 `ActivePlantRecord.java`
 
+## 2026-06-07：演替路径可视化编辑器设计 + Phase 1 实现
+
+### 变更概要
+
+- 新建 `docs/visual-succession-editor.md` 完整设计文档（综合性编辑器，覆盖全部可配置内容）
+- 将 todolist 项 E 从"手动补充 JSON"升级为"构建可视化编辑器"
+- **Phase 1 已实现**：`succession-editor/` 目录下完整的 web 编辑器
+
+### Phase 1 实现内容
+
+- ✅ Vite + React + TypeScript + @xyflow/react + Zustand 项目脚手架
+- ✅ 完整类型定义（与 Java record 一一对应）
+- ✅ Minecraft 1.21.1 完整群系列表（60+ 群系，含默认温湿度）
+- ✅ Zustand store：节点/连线增删改、undo/redo、校验
+- ✅ 三栏布局：左侧群系面板 + 中间图画布 + 右侧属性面板
+- ✅ 自定义 BiomeNode 渲染（按温度着色、显示群系图标/数据）
+- ✅ 自定义 SuccessionEdge 渲染（路径标签、选中高亮）
+- ✅ 属性面板 — Path Identity 编辑器（path_id, priority）
+- ✅ 属性面板 — Climate 编辑器（温度/湿度范围滑块+数值输入）
+- ✅ 属性面板 — ChunkRules 编辑器（全部 8 个字段）
+- ✅ 属性面板 — Plant Table 编辑器（6 列表格、展开行 SpawnRules 子表单）
+- ✅ JSON 导出（兼容现有 schema v1）
+- ✅ JSON 导入（解析现有文件 → 还原为图）
+- ✅ 校验（pathId 唯一、数值范围、必填字段）+ 错误高亮
+- ✅ 撤销/重做、键盘快捷键（Ctrl+Z/Y、Delete、Escape）
+- ✅ 生产构建通过（`npm run build` 成功）
+
+### 启动方式
+
+```bash
+cd succession-editor
+npm run dev     # 开发服务器
+npm run build   # 生产构建
+```
+
 ## 建议的下一步
 
 详见 `todolist.md` 底部「下一步计划」章节，剩余按优先级排列：
 
 1. **C. 非玩家方块变更事件** — 水/岩浆/随机刻导致植被消失时同步清理追踪
 2. **D. 区块边界混合** — 缓解群系切换的生硬边界
-3. **E. 演替路径可视化编辑器** — 已移至 `visual-editor` 分支，详见 `docs/visual-succession-editor.md`
+3. **E. 演替路径可视化编辑器** — 已合并到 `another-try`，详见 `docs/visual-succession-editor.md` 和 `succession-editor/docs/editor-architecture.md`
 4. **F. GameTest / 可重复验证步骤**
