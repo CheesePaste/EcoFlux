@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "path_id": "ecoflux:birch_forest_to_old_growth_birch_forest",
+  "priority": 10,
+  "source_biomes": [
+    "minecraft:birch_forest"
+  ],
+  "target_biome": "minecraft:old_growth_birch_forest",
+  "fallback_biome": "minecraft:birch_forest",
+  "climate": {
+    "temperature": {
+      "min": 0.5,
+      "max": 0.7
+    },
+    "downfall": {
+      "min": 0.5,
+      "max": 0.85
+    }
+  },
+  "chunk_rules": {
+    "consuming": 20,
+    "max_plant_count": 30,
+    "queue_fill_factor": 2.0,
+    "evaluation_interval_days": {
+      "min": 6,
+      "max": 10
+    }
+  },
+  "plants": [
+    {
+      "plant_id": "minecraft:birch_sapling",
+      "category": "tree",
+      "weight": 6,
+      "point_value": 6,
+      "max_age_ticks": 200000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:coarse_dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:peony",
+      "category": "flower",
+      "weight": 3,
+      "point_value": 4,
+      "max_age_ticks": 120000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:fern",
+      "category": "ground_cover",
+      "weight": 5,
+      "point_value": 1,
+      "max_age_ticks": 60000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 8,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:podzol"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:lilac",
+      "category": "flower",
+      "weight": 2,
+      "point_value": 3,
+      "max_age_ticks": 96000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 2,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    }
+  ]
+}

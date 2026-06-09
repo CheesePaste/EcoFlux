@@ -77,12 +77,27 @@ export interface PathEdgeData extends Record<string, unknown> {
   climate: ClimateCondition;
   chunkRules: ChunkRules;
   plants: PlantDefinition[];
+  conditionBranch?: "match" | "no_match";
+  parentConditionId?: string;
+  sourceBiome?: string;
+  targetBiome?: string;
 }
+
+// ===== Condition Node =====
+
+export interface ConditionNodeData extends Record<string, unknown> {
+  type: "condition";
+  label: string;
+  condition: ClimateCondition;
+}
+
+export type ConditionGraphNode = Node<ConditionNodeData, "condition">;
 
 // ReactFlow node/edge types
 import type { Node, Edge } from "@xyflow/react";
 export type BiomeGraphNode = Node<BiomeNodeData, "biome">;
 export type PathGraphEdge = Edge<PathEdgeData, "succession">;
+export type GraphNode = BiomeGraphNode | ConditionGraphNode;
 
 // ===== Biome Palette =====
 export interface BiomeEntry {

@@ -126,6 +126,28 @@ export interface Translations {
   "validation.weightPositive": string;
   "validation.isolatedBiome": string;
 
+  // Plant Quick Add
+  "plant.quickAdd": string;
+  "plant.addCustom": string;
+
+  // Condition Node
+  "condition.title": string;
+  "condition.label": string;
+  "condition.labelHint": string;
+  "condition.climate": string;
+  "condition.matchDesc": string;
+  "condition.noMatchDesc": string;
+  "condition.delete": string;
+  "condition.incomingFrom": string;
+  "condition.outgoingTo": string;
+  "condition.matchBranch": string;
+  "condition.noMatchBranch": string;
+
+  // Palette Branching
+  "palette.branching": string;
+  "palette.conditionNode": string;
+  "palette.conditionDesc": string;
+
   // Error Boundary
   "error.title": string;
   "error.reload": string;
@@ -248,6 +270,25 @@ const zh: Translations = {
   "validation.weightPositive": "植物 #{n}: weight 必须 > 0",
   "validation.isolatedBiome": "孤立的群系: {biome}",
 
+  "plant.quickAdd": "快速添加植物",
+  "plant.addCustom": "+ 自定义植物",
+
+  "condition.title": "🔷 条件: {label}",
+  "condition.label": "标签",
+  "condition.labelHint": "条件节点名称",
+  "condition.climate": "气候条件",
+  "condition.matchDesc": "绿色端口 (左侧): 气候匹配时走向此分支",
+  "condition.noMatchDesc": "红色端口 (右侧): 气候不匹配时走向此分支",
+  "condition.delete": "🗑 删除条件节点",
+  "condition.incomingFrom": "入向连线",
+  "condition.outgoingTo": "出向分支",
+  "condition.matchBranch": "匹配 ✓",
+  "condition.noMatchBranch": "不匹配 ✗",
+
+  "palette.branching": "🔀 分支",
+  "palette.conditionNode": "气候条件",
+  "palette.conditionDesc": "菱形节点，匹配/不匹配双端口",
+
   "error.title": "编辑器崩溃",
   "error.reload": "重新加载编辑器",
 };
@@ -368,6 +409,25 @@ const en: Translations = {
   "validation.plantIdRequired": "Plant #{n}: plant_id is required",
   "validation.weightPositive": "Plant #{n}: weight must be > 0",
   "validation.isolatedBiome": "Isolated biome: {biome}",
+
+  "plant.quickAdd": "Quick Add Plant",
+  "plant.addCustom": "+ Custom Plant",
+
+  "condition.title": "🔷 Condition: {label}",
+  "condition.label": "Label",
+  "condition.labelHint": "Condition node name",
+  "condition.climate": "Climate Conditions",
+  "condition.matchDesc": "Green port (left): if climate matches",
+  "condition.noMatchDesc": "Red port (right): if climate doesn't match",
+  "condition.delete": "🗑 Delete Condition",
+  "condition.incomingFrom": "Incoming Edge",
+  "condition.outgoingTo": "Outgoing Branches",
+  "condition.matchBranch": "Match ✓",
+  "condition.noMatchBranch": "No Match ✗",
+
+  "palette.branching": "🔀 Branching",
+  "palette.conditionNode": "Climate Condition",
+  "palette.conditionDesc": "Diamond node, match/no-match outputs",
 
   "error.title": "Editor Crashed",
   "error.reload": "Reload Editor",

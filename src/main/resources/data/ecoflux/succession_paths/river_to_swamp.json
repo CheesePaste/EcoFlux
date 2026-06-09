@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "path_id": "ecoflux:river_to_swamp",
+  "priority": 10,
+  "source_biomes": [
+    "minecraft:river"
+  ],
+  "target_biome": "minecraft:swamp",
+  "fallback_biome": "minecraft:river",
+  "climate": {
+    "temperature": {
+      "min": 0.7,
+      "max": 1.0
+    },
+    "downfall": {
+      "min": 0.7,
+      "max": 1.0
+    }
+  },
+  "chunk_rules": {
+    "consuming": 14,
+    "max_plant_count": 22,
+    "queue_fill_factor": 2.0,
+    "evaluation_interval_days": {
+      "min": 4,
+      "max": 7
+    }
+  },
+  "plants": [
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "category": "tree",
+      "weight": 4,
+      "point_value": 4,
+      "max_age_ticks": 144000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 4,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:fern",
+      "category": "ground_cover",
+      "weight": 7,
+      "point_value": 1,
+      "max_age_ticks": 60000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 8,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "category": "mushroom",
+      "weight": 3,
+      "point_value": 2,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 5,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "category": "mushroom",
+      "weight": 3,
+      "point_value": 2,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": false,
+        "max_local_density": 5,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "category": "flower",
+      "weight": 2,
+      "point_value": 2,
+      "max_age_ticks": 60000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    }
+  ]
+}

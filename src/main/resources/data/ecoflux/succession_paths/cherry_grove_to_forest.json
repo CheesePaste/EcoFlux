@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "path_id": "ecoflux:cherry_grove_to_forest",
+  "priority": 10,
+  "source_biomes": [
+    "minecraft:cherry_grove"
+  ],
+  "target_biome": "minecraft:forest",
+  "fallback_biome": "minecraft:cherry_grove",
+  "climate": {
+    "temperature": {
+      "min": 0.5,
+      "max": 0.75
+    },
+    "downfall": {
+      "min": 0.6,
+      "max": 0.9
+    }
+  },
+  "chunk_rules": {
+    "consuming": 18,
+    "max_plant_count": 26,
+    "queue_fill_factor": 2.0,
+    "evaluation_interval_days": {
+      "min": 5,
+      "max": 8
+    }
+  },
+  "plants": [
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "category": "tree",
+      "weight": 5,
+      "point_value": 5,
+      "max_age_ticks": 168000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 4,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:birch_sapling",
+      "category": "tree",
+      "weight": 3,
+      "point_value": 4,
+      "max_age_ticks": 144000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:cherry_sapling",
+      "category": "tree",
+      "weight": 2,
+      "point_value": 4,
+      "max_age_ticks": 168000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 2,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:peony",
+      "category": "flower",
+      "weight": 3,
+      "point_value": 4,
+      "max_age_ticks": 120000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:short_grass",
+      "category": "ground_cover",
+      "weight": 5,
+      "point_value": 1,
+      "max_age_ticks": 60000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    }
+  ]
+}

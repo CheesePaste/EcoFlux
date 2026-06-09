@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "path_id": "ecoflux:plains_to_savanna",
+  "priority": 8,
+  "source_biomes": [
+    "minecraft:plains",
+    "minecraft:sunflower_plains"
+  ],
+  "target_biome": "minecraft:savanna",
+  "fallback_biome": "minecraft:plains",
+  "climate": {
+    "temperature": {
+      "min": 1.0,
+      "max": 2.0
+    },
+    "downfall": {
+      "min": 0.0,
+      "max": 0.35
+    }
+  },
+  "chunk_rules": {
+    "consuming": 10,
+    "max_plant_count": 16,
+    "queue_fill_factor": 1.8,
+    "evaluation_interval_days": {
+      "min": 4,
+      "max": 7
+    }
+  },
+  "plants": [
+    {
+      "plant_id": "minecraft:acacia_sapling",
+      "category": "tree",
+      "weight": 4,
+      "point_value": 5,
+      "max_age_ticks": 168000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 3,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:coarse_dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:short_grass",
+      "category": "ground_cover",
+      "weight": 7,
+      "point_value": 1,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "category": "flower",
+      "weight": 2,
+      "point_value": 1,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 2,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "category": "tree",
+      "weight": 2,
+      "point_value": 4,
+      "max_age_ticks": 144000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 1,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    }
+  ]
+}

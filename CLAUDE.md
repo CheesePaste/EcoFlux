@@ -1,7 +1,7 @@
 ## Project Overview
 
 Ecoflux is a **NeoForge 1.21.1** Minecraft mod implementing chunk-scale ecological succession. Each 16×16 chunk undergoes biome evolution driven by plant life: plants grow, age, die, and their collective "points" determine whether the chunk's biome progresses (e.g., plains → forest) or regresses. The system is data-driven via JSON configuration files.
-1
+
 - **Language**: Java 21
 - **Build**: Gradle 9.2.1 via `gradlew` (wrapper)
 - **Mod loader**: NeoForge 21.1.227
@@ -116,4 +116,3 @@ All design docs are in `docs/`, written in Chinese:
 - Logging goes through `EcofluxConstants.LOGGER` (SLF4J via NeoForge)
 - The repo directory is still named `Succession` (historical); the mod itself is `Ecoflux`
 - **CRITICAL**: After any significant code changes (new packages, extracted classes, new features, changed architecture), immediately update `CLAUDE.md` and the relevant files in `docs/` (`latest_progress.md`, `todolist.md`, etc.) to reflect the new state. Stale documentation is worse than no documentation
-- **

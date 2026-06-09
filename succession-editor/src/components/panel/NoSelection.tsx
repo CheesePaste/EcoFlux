@@ -11,8 +11,8 @@ export function NoSelection({ nodeCount, edgeCount }: Props) {
   const nodes = useEditorStore((s) => s.nodes);
   const edges = useEditorStore((s) => s.edges);
 
-  const sourceBiomes = new Set(edges.map((e) => nodes.find((n) => n.id === e.source)?.data.biomeId).filter(Boolean));
-  const targetBiomes = new Set(edges.map((e) => nodes.find((n) => n.id === e.target)?.data.biomeId).filter(Boolean));
+  const sourceBiomes = new Set(edges.map((e) => (nodes.find((n) => n.id === e.source)?.data as any)?.biomeId).filter(Boolean));
+  const targetBiomes = new Set(edges.map((e) => (nodes.find((n) => n.id === e.target)?.data as any)?.biomeId).filter(Boolean));
 
   const totalPlants = edges.reduce((sum, e) => sum + (e.data?.plants.length ?? 0), 0);
   const uniquePlants = new Set(
@@ -37,13 +37,15 @@ export function NoSelection({ nodeCount, edgeCount }: Props) {
         <div style={{ marginBottom: 20 }}>
           <h3 style={{ margin: "0 0 8px 0", color: "#ccc", fontSize: 15 }}>{t("overview.biomesOnCanvas")}</h3>
           <div style={{ maxHeight: 200, overflowY: "auto" }}>
-            {nodes.map((node) => {
+            {nodes.filter((n) => n.data.type === "biome").map((node) => {
               const connEdges = edges.filter(
                 (e) => e.source === node.id || e.target === node.id,
               );
               const hasOut = connEdges.some((e) => e.source === node.id);
               const hasIn = connEdges.some((e) => e.target === node.id);
-              const meta = node.data.biomeMeta;
+              const d = node.data as any;
+              const meta = d.biomeMeta;
+              const biomeId: string = d.biomeId;
               return (
                 <div
                   key={node.id}
@@ -58,10 +60,10 @@ export function NoSelection({ nodeCount, edgeCount }: Props) {
                   }}
                 >
                   <span>
-                    {meta?.displayName ?? node.data.biomeId.replace("minecraft:", "")}
+                    {meta?.displayName ?? biomeId.replace("minecraft:", "")}
                     {meta && (
                       <span style={{ color: "#777", marginLeft: 6 }}>
-                        🌡{meta.defaultTemp.toFixed(1)}
+                        🌡{(meta as any).defaultTemp.toFixed(1)}
                       </span>
                     )}
                   </span>
@@ -94,8 +96,8 @@ export function NoSelection({ nodeCount, edgeCount }: Props) {
                     borderBottom: "1px solid #2a2a3e",
                   }}
                 >
-                  {srcNode?.data.biomeId.replace("minecraft:", "") ?? "?"} →{" "}
-                  {tgtNode?.data.biomeId.replace("minecraft:", "") ?? "?"}
+                  {((srcNode?.data as any)?.biomeId ?? "?").replace("minecraft:", "")} →{" "}
+                  {((tgtNode?.data as any)?.biomeId ?? "?").replace("minecraft:", "")}
                   <span style={{ color: "#666", marginLeft: 6 }}>
                     ({edge.data?.plants.length ?? 0}{t("overview.plantsSuffix")})
                   </span>

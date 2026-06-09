@@ -1,8 +1,10 @@
 import { useEditorStore } from "../../store/editorStore";
 import { NodeProperties } from "./NodeProperties";
+import { ConditionProperties } from "./ConditionProperties";
 import { PathProperties } from "./PathProperties";
 import { NoSelection } from "./NoSelection";
 import { useT } from "../../i18n/I18nContext";
+import type { ConditionGraphNode } from "../../model/types";
 
 export function PropertyPanel() {
   const { t } = useT();
@@ -12,8 +14,27 @@ export function PropertyPanel() {
 
   const selectedNode = selectedId ? nodes.find((n) => n.id === selectedId) : undefined;
   const selectedEdge = selectedId ? edges.find((e) => e.id === selectedId) : undefined;
+  const isConditionNode = selectedNode?.data?.type === "condition";
   const edgeCount = edges.length;
   const nodeCount = nodes.length;
+
+  const headerText = selectedEdge
+    ? t("panel.titleEdge").replace("{pathId}", selectedEdge.data!.pathId.replace("ecoflux:", ""))
+    : isConditionNode
+      ? t("condition.title").replace("{label}", (selectedNode!.data as any).label)
+      : selectedNode
+        ? t("panel.titleNode").replace("{name}", (selectedNode.data as any)?.biomeMeta?.displayName ?? (selectedNode.data as any)?.biomeId)
+        : t("panel.titleNone");
+
+  const panelBody = selectedEdge ? (
+    <PathProperties edge={selectedEdge} />
+  ) : isConditionNode ? (
+    <ConditionProperties node={selectedNode as ConditionGraphNode} />
+  ) : selectedNode ? (
+    <NodeProperties node={selectedNode as any} />
+  ) : (
+    <NoSelection nodeCount={nodeCount} edgeCount={edgeCount} />
+  );
 
   return (
     <div
@@ -38,21 +59,11 @@ export function PropertyPanel() {
           background: "#252540",
         }}
       >
-        {selectedEdge
-          ? t("panel.titleEdge").replace("{pathId}", selectedEdge.data!.pathId.replace("ecoflux:", ""))
-          : selectedNode
-            ? t("panel.titleNode").replace("{name}", selectedNode.data.biomeMeta?.displayName ?? selectedNode.data.biomeId)
-            : t("panel.titleNone")}
+        {headerText}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {selectedEdge ? (
-          <PathProperties edge={selectedEdge} />
-        ) : selectedNode ? (
-          <NodeProperties node={selectedNode} />
-        ) : (
-          <NoSelection nodeCount={nodeCount} edgeCount={edgeCount} />
-        )}
+        {panelBody}
       </div>
     </div>
   );

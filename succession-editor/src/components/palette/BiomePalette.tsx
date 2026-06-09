@@ -19,6 +19,7 @@ export function BiomePalette() {
 
   const nodes = useEditorStore((s) => s.nodes);
   const addBiomeNode = useEditorStore((s) => s.addBiomeNode);
+  const addConditionNode = useEditorStore((s) => s.addConditionNode);
 
   const usedBiomes = useMemo(() => new Set(nodes.map((n) => n.data.biomeId)), [nodes]);
 
@@ -158,6 +159,53 @@ export function BiomePalette() {
             </div>
           );
         })}
+
+        {/* Branching section */}
+        <div>
+          <div
+            style={{
+              padding: "6px 10px",
+              background: "#252540",
+              cursor: "pointer",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: 12,
+              fontWeight: "bold",
+              color: "#aaa",
+              borderBottom: "1px solid #333",
+              position: "sticky",
+              top: 0,
+              zIndex: 1,
+            }}
+          >
+            <span>{t("palette.branching")}</span>
+          </div>
+          <div
+            onClick={() => addConditionNode()}
+            title={t("palette.conditionDesc")}
+            style={{
+              padding: "6px 10px",
+              fontSize: 12,
+              cursor: "pointer",
+              color: "#ffb74d",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              borderBottom: "1px solid #2a2a3e",
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#2a2a4e";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            <span style={{ fontSize: 16 }}>◇</span>
+            <span>{t("palette.conditionNode")}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

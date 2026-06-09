@@ -1,4 +1,4 @@
-import type { BiomeGraphNode, PathGraphEdge, SuccessionPath } from "../model/types";
+import type { GraphNode, PathGraphEdge, SuccessionPath } from "../model/types";
 import { getBiomeMeta } from "../model/biomeData";
 
 let nodeCounter = 0;
@@ -9,19 +9,19 @@ let edgeCounter = 0;
  */
 export function importPaths(
   paths: SuccessionPath[],
-): { nodes: BiomeGraphNode[]; edges: PathGraphEdge[] } {
-  const nodeMap = new Map<string, BiomeGraphNode>();
+): { nodes: GraphNode[]; edges: PathGraphEdge[] } {
+  const nodeMap = new Map<string, GraphNode>();
   const edges: PathGraphEdge[] = [];
 
   // Helper to get or create a node for a biome
-  const getOrCreateNode = (biomeId: string): BiomeGraphNode => {
+  const getOrCreateNode = (biomeId: string): GraphNode => {
     if (nodeMap.has(biomeId)) return nodeMap.get(biomeId)!;
 
     const meta = getBiomeMeta(biomeId);
     const x = 100 + (nodeMap.size % 5) * 220;
     const y = 80 + Math.floor(nodeMap.size / 5) * 180;
 
-    const node: BiomeGraphNode = {
+    const node: GraphNode = {
       id: `node_import_${++nodeCounter}`,
       type: "biome",
       position: { x, y },
@@ -98,7 +98,7 @@ export function importPaths(
 /**
  * Read JSON files from the user's file system and parse them into the graph model.
  */
-export function readJsonFiles(files: FileList): Promise<{ nodes: BiomeGraphNode[]; edges: PathGraphEdge[] }> {
+export function readJsonFiles(files: FileList): Promise<{ nodes: GraphNode[]; edges: PathGraphEdge[] }> {
   const promises = Array.from(files).map(
     (file) =>
       new Promise<SuccessionPath | SuccessionPath[]>((resolve, reject) => {

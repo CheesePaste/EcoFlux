@@ -1,7 +1,7 @@
-import type { BiomeGraphNode, PathGraphEdge, SuccessionPath } from "../model/types";
+import type { GraphNode, PathGraphEdge, SuccessionPath } from "../model/types";
 
 export function exportPaths(
-  nodes: BiomeGraphNode[],
+  nodes: GraphNode[],
   edges: PathGraphEdge[],
 ): SuccessionPath[] {
   const paths: SuccessionPath[] = [];
@@ -10,16 +10,19 @@ export function exportPaths(
     const sourceNode = nodes.find((n) => n.id === edge.source);
     const targetNode = nodes.find((n) => n.id === edge.target);
     if (!sourceNode || !targetNode) return;
+    if (sourceNode.data.type !== "biome" || targetNode.data.type !== "biome") return;
 
+    const srcData = sourceNode.data;
+    const tgtData = targetNode.data;
     const d = edge.data!;
 
     const path: SuccessionPath = {
       schemaVersion: 1,
       pathId: d.pathId,
       priority: d.priority,
-      sourceBiomes: [sourceNode.data.biomeId],
-      targetBiome: targetNode.data.biomeId,
-      fallbackBiome: sourceNode.data.biomeId,
+      sourceBiomes: [srcData.biomeId],
+      targetBiome: tgtData.biomeId,
+      fallbackBiome: srcData.biomeId,
       climate: {
         temperature: { ...d.climate.temperature },
         downfall: { ...d.climate.downfall },

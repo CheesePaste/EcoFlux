@@ -29,6 +29,7 @@ export function SuccessionEdge(props: EdgeProps) {
   });
 
   const shortPathId = (data?.pathId ?? id).replace("ecoflux:", "");
+  const branchLabel = data?.conditionBranch === "match" ? "[✓] " : data?.conditionBranch === "no_match" ? "[✗] " : "";
 
   return (
     <>
@@ -58,7 +59,7 @@ export function SuccessionEdge(props: EdgeProps) {
             border: selected ? "2px solid #fff" : "1px solid #666",
           }}
         >
-          {shortPathId} (p:{data?.priority ?? "?"})
+          {branchLabel}{shortPathId} (p:{data?.priority ?? "?"})
         </div>
       </EdgeLabelRenderer>
     </>

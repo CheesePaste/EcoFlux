@@ -43,14 +43,14 @@ export function PathIdentityEditor({ edge, onChange }: Props) {
       <div className="prop-row">
         <label>{t("path.sourceBiome")}</label>
         <code style={{ color: "#81c784", fontSize: 11 }}>
-          {sourceNode?.data.biomeMeta?.displayName ?? sourceNode?.data.biomeId ?? "?"}
+          {(sourceNode?.data as any)?.biomeMeta?.displayName ?? (sourceNode?.data as any)?.biomeId ?? "?"}
         </code>
       </div>
 
       <div className="prop-row">
         <label>{t("path.targetBiome")}</label>
         <code style={{ color: "#64b5f6", fontSize: 11 }}>
-          {targetNode?.data.biomeMeta?.displayName ?? targetNode?.data.biomeId ?? "?"}
+          {(targetNode?.data as any)?.biomeMeta?.displayName ?? (targetNode?.data as any)?.biomeId ?? "?"}
         </code>
       </div>
 
@@ -58,7 +58,7 @@ export function PathIdentityEditor({ edge, onChange }: Props) {
         <label>{t("path.fallbackBiome")}</label>
         <input
           type="text"
-          value={sourceNode?.data.biomeId ?? "minecraft:plains"}
+          value={(sourceNode?.data as any)?.biomeId ?? "minecraft:plains"}
           className="prop-input mono"
           style={{ width: "100%", opacity: 0.5 }}
           disabled

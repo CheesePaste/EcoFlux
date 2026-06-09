@@ -10,12 +10,14 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useEditorStore } from "../../store/editorStore";
 import { BiomeNode } from "./BiomeNode";
+import { ConditionNode } from "./ConditionNode";
 import { SuccessionEdge } from "./SuccessionEdge";
 
-const nodeTypes = { biome: BiomeNode };
+const nodeTypes = { biome: BiomeNode, condition: ConditionNode };
 const edgeTypes = { succession: SuccessionEdge };
 
 function miniMapNodeColor(node: any): string {
+  if (node.data?.type === "condition") return "#ffb74d";
   const temp = node.data?.biomeMeta?.defaultTemp ?? 0.5;
   if (temp < 0.2) return "#81d4fa";
   if (temp < 0.6) return "#a5d6a7";
@@ -36,7 +38,12 @@ export function GraphCanvas() {
   const onConnect = useCallback(
     (connection: Connection) => {
       if (connection.source && connection.target) {
-        addEdge(connection.source, connection.target);
+        addEdge(
+          connection.source,
+          connection.target,
+          connection.sourceHandle ?? undefined,
+          connection.targetHandle ?? undefined,
+        );
       }
     },
     [addEdge],

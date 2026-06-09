@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useEditorStore } from "../../../store/editorStore";
 import type { PathGraphEdge, PlantDefinition } from "../../../model/types";
+import { defaultPlant } from "../../../model/defaults";
 import { SpawnRulesEditor } from "./SpawnRulesEditor";
 import { useT } from "../../../i18n/I18nContext";
 
@@ -49,6 +50,17 @@ const COMMON_PLANTS = [
   "minecraft:lily_pad",
 ];
 
+function groupPlantsByCategory(): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
+  for (const id of COMMON_PLANTS) {
+    const info = defaultPlant(id);
+    const cat = info.category;
+    if (!groups.has(cat)) groups.set(cat, []);
+    groups.get(cat)!.push(id);
+  }
+  return groups;
+}
+
 export function PlantTableEditor({ edge }: Props) {
   const { t } = useT();
   const [collapsed, setCollapsed] = useState(false);
@@ -56,9 +68,18 @@ export function PlantTableEditor({ edge }: Props) {
   const addPlant = useEditorStore((s) => s.addPlant);
   const removePlant = useEditorStore((s) => s.removePlant);
   const updatePlant = useEditorStore((s) => s.updatePlant);
+  const [quickAddKey, setQuickAddKey] = useState(0);
 
   const plants = edge.data!.plants;
   const totalWeight = plants.reduce((sum, p) => sum + p.weight, 0);
+  const plantGroups = useMemo(() => groupPlantsByCategory(), []);
+
+  const handleQuickAdd = (plantId: string) => {
+    const plant = defaultPlant(plantId);
+    addPlant(edge.id, plant);
+    setExpandedPlant(plants.length);
+    setQuickAddKey((k) => k + 1); // reset select
+  };
 
   return (
     <div className="prop-section">
@@ -110,10 +131,44 @@ export function PlantTableEditor({ edge }: Props) {
             </div>
           )}
 
+          {/* Quick-add plant dropdown */}
+          <div style={{ marginBottom: 6 }}>
+            <select
+              key={quickAddKey}
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) handleQuickAdd(e.target.value);
+              }}
+              style={{
+                width: "100%",
+                padding: "6px 8px",
+                background: "#2a2a3e",
+                color: "#ddd",
+                border: "1px solid #444",
+                borderRadius: 6,
+                fontSize: 11,
+                cursor: "pointer",
+              }}
+            >
+              <option value="" disabled>
+                {t("plant.quickAdd")}...
+              </option>
+              {Array.from(plantGroups.entries()).map(([cat, ids]) => (
+                <optgroup key={cat} label={cat}>
+                  {ids.map((id) => (
+                    <option key={id} value={id}>
+                      {id.replace("minecraft:", "")}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+
           <button
             onClick={() => {
               addPlant(edge.id);
-              setExpandedPlant(plants.length); // expand the new row
+              setExpandedPlant(plants.length);
             }}
             style={{
               width: "100%",
@@ -126,7 +181,7 @@ export function PlantTableEditor({ edge }: Props) {
               fontSize: 12,
             }}
           >
-            {t("path.addPlant")}
+            {t("plant.addCustom")}
           </button>
         </>
       )}

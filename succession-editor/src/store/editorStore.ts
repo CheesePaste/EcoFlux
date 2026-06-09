@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import type { NodeChange, EdgeChange } from "@xyflow/react";
 import { applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
-import type { BiomeGraphNode, PathGraphEdge, PathEdgeData, ValidationError, PlantDefinition } from "../model/types";
+import type { BiomeGraphNode, GraphNode, PathGraphEdge, PathEdgeData, ConditionGraphNode, ValidationError, PlantDefinition } from "../model/types";
 import { getBiomeMeta } from "../model/biomeData";
-import { defaultEdgeData, defaultPlant } from "../model/defaults";
+import { defaultEdgeData, defaultPlant, defaultConditionData } from "../model/defaults";
 
 let nextNodeId = 0;
 let nextEdgeId = 0;
@@ -22,12 +22,12 @@ export function resetIdCounters(): void {
 }
 
 interface HistoryEntry {
-  nodes: BiomeGraphNode[];
+  nodes: GraphNode[];
   edges: PathGraphEdge[];
 }
 
 interface EditorState {
-  nodes: BiomeGraphNode[];
+  nodes: GraphNode[];
   edges: PathGraphEdge[];
   selectedId: string | null;
   validationErrors: ValidationError[];
@@ -38,23 +38,24 @@ interface EditorState {
   redo: () => void;
   pushHistory: () => void;
 
-  onNodesChange: (changes: NodeChange<BiomeGraphNode>[]) => void;
+  onNodesChange: (changes: NodeChange<GraphNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<PathGraphEdge>[]) => void;
 
   addBiomeNode: (biomeId: string) => string;
+  addConditionNode: (position?: { x: number; y: number }) => string;
   removeNode: (nodeId: string) => void;
 
-  addEdge: (sourceId: string, targetId: string) => string | null;
+  addEdge: (sourceId: string, targetId: string, sourceHandle?: string, targetHandle?: string) => string | null;
   removeEdge: (edgeId: string) => void;
   updateEdgeData: (edgeId: string, patch: Partial<PathEdgeData>) => void;
 
   setSelectedId: (id: string | null) => void;
 
-  addPlant: (edgeId: string) => void;
+  addPlant: (edgeId: string, plant?: PlantDefinition) => void;
   removePlant: (edgeId: string, plantIndex: number) => void;
   updatePlant: (edgeId: string, plantIndex: number, patch: Partial<PlantDefinition>) => void;
 
-  loadGraph: (nodes: BiomeGraphNode[], edges: PathGraphEdge[]) => void;
+  loadGraph: (nodes: GraphNode[], edges: PathGraphEdge[]) => void;
   clearGraph: () => void;
 
   validate: () => boolean;
@@ -108,7 +109,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 
   onNodesChange(changes) {
     const { nodes } = get();
-    const nextNodes = applyNodeChanges(changes, nodes) as BiomeGraphNode[];
+    const nextNodes = applyNodeChanges(changes, nodes) as GraphNode[];
     set({ nodes: nextNodes });
 
     // Handle removals from ReactFlow (e.g., Delete key)
@@ -155,6 +156,20 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     return id;
   },
 
+  addConditionNode(position) {
+    get().pushHistory();
+    const id = genNodeId();
+    const data = defaultConditionData();
+    const node: ConditionGraphNode = {
+      id,
+      type: "condition",
+      position: position ?? { x: 200 + Math.random() * 200, y: 200 + Math.random() * 200 },
+      data,
+    };
+    set({ nodes: [...get().nodes, node] });
+    return id;
+  },
+
   removeNode(nodeId) {
     get().pushHistory();
     set({
@@ -164,7 +179,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     });
   },
 
-  addEdge(sourceId, targetId) {
+  addEdge(sourceId, targetId, sourceHandle?, targetHandle?) {
     const existing = get().edges.find(
       (e) => e.source === sourceId && e.target === targetId,
     );
@@ -176,12 +191,42 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 
     get().pushHistory();
     const id = genEdgeId();
-    const data = defaultEdgeData(sourceNode.data.biomeId, targetNode.data.biomeId);
+
+    const isConditionSource = sourceNode.data?.type === "condition";
+    const isConditionTarget = targetNode.data?.type === "condition";
+
+    let data: PathEdgeData;
+    if (isConditionSource) {
+      const targetBiomeId = (targetNode.data as any).biomeId ?? "";
+      data = {
+        ...defaultEdgeData("", targetBiomeId),
+        pathId: `ecoflux:cond_${targetBiomeId}`,
+        conditionBranch: (sourceHandle === "match" ? "match" : "no_match") as "match" | "no_match",
+        parentConditionId: sourceId,
+        sourceBiome: "",
+        targetBiome: targetBiomeId,
+      };
+    } else if (isConditionTarget) {
+      const sourceBiomeId = (sourceNode.data as any).biomeId ?? "";
+      data = {
+        ...defaultEdgeData(sourceBiomeId, ""),
+        pathId: `ecoflux:${sourceBiomeId.replace("minecraft:", "")}_to_cond`,
+        sourceBiome: sourceBiomeId,
+        targetBiome: "",
+      };
+    } else {
+      const srcBiomeId = (sourceNode.data as any).biomeId ?? "";
+      const tgtBiomeId = (targetNode.data as any).biomeId ?? "";
+      data = defaultEdgeData(srcBiomeId, tgtBiomeId);
+    }
+
     const edge: PathGraphEdge = {
       id,
       type: "succession",
       source: sourceId,
       target: targetId,
+      sourceHandle: sourceHandle ?? undefined,
+      targetHandle: targetHandle ?? undefined,
       data,
     };
     set({ edges: [...get().edges, edge] });
@@ -208,12 +253,13 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     set({ selectedId: id });
   },
 
-  addPlant(edgeId) {
+  addPlant(edgeId, plant?) {
+    const newPlant = plant ?? defaultPlant();
     const updated = get().edges.map((e) => {
       if (e.id !== edgeId) return e;
       return {
         ...e,
-        data: { ...e.data!, plants: [...e.data!.plants, defaultPlant()] },
+        data: { ...e.data!, plants: [...e.data!.plants, newPlant] },
       } as PathGraphEdge;
     });
     set({ edges: updated });
@@ -249,7 +295,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     set({ edges: updated });
   },
 
-  loadGraph(nodes, edges) {
+  loadGraph(nodes: GraphNode[], edges: PathGraphEdge[]) {
     nodes.forEach((n) => {
       const num = parseInt(n.id.replace("node_", ""), 10);
       if (!isNaN(num) && num >= nextNodeId) nextNodeId = num + 1;
