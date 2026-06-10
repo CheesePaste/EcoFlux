@@ -54,8 +54,25 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - Adapters: `SimplePlantAdapter` (flowers, grass, ferns, mushrooms), `SaplingAdapter` (tree saplings → tree transformation), `TreeStructureAdapter` (mature trees)
 - `VegetationTransformation` — Descriptor for sapling→tree conversion
 - `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`
-- `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted
-- `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, timing), NBT-serializable
+- `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted. Maps sapling IDs → `TreeGrowthProfile`, supports 1x1 and 2x2 trees. If profile has `morphologyParams()`, calls `TreeMorphology.growStage()`; otherwise falls back to legacy `profile.growStage()`
+- `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, resolved height, timing), NBT-serializable. Transient fields: skeleton, morphologyParams, stagePlan (rebuilt from seed on reload)
+- `tree/TreeGrowthProfile` — Interface: species-specific growth parameters (height range, block types, stage count, spacing) + optional `morphologyParams()`. 6 implementations in `tree/profiles/`
+- `tree/TreeShapeUtils` — Shared utilities: position-deterministic noise, canopy radius functions, leaf disc placement, 2x2 detection, branch generation, log/leaf block placement helpers
+- `tree/morphology/` — **New morphology system** (2026-06-10):
+  - `NodeType` — Enum: TRUNK, PRIMARY_BRANCH, SECONDARY_BRANCH, TWIG
+  - `SkeletonNode` — Record: pos, type, radius, parentIndex, depth
+  - `TreeSkeleton` — Skeleton data structure: node list, trunk path, primary branch list, trunkLevels (for 2x2)
+  - `SkeletonGenerator` — Parametric recursive branching: trunk with lean/noise, primary branches with radial+upward angle, secondary branches from branch midpoints
+  - `CanopyEnvelope` — 5 canopy shape density functions (ELLIPSOID/TALL_ELLIPSOID/CONE/CLUSTERED_ELLIPSOID/FLAT_CYLINDER/FLAT_DISC_CLUSTERED) with edge feathering
+  - `LeafFiller` — Skeleton-aware leaf placement: AABB traversal, canopy density check, skeleton distance, noise probability, sorted by proximity, max 50/stage, Chebyshev distance to nearest skeleton node
+  - `MorphologyParams` — Species morphology parameter record with factory methods (oak/birch/spruce/jungle/darkOak/acacia)
+  - `TreeMorphology` — Integration entry: generateSkeleton → planStages → growStage (place logs + fill leaves)
+- `tree/profiles/OakGrowthProfile` — Oak: flat ellipsoid canopy, 5-8 high, 3600 ticks/stage (~27 min), slight lean, 3-5 primary + secondary branches
+- `tree/profiles/BirchGrowthProfile` — Birch: tall slender ellipsoid, 6-10 high, 2400 ticks/stage (~20 min), nearly vertical, 0-2 short branches at top
+- `tree/profiles/SpruceGrowthProfile` — Spruce: conical full-height foliage, 8-15 high, 4800 ticks/stage (~48 min), vertical, 8-15 horizontal branches, clear trunk bottom 2-3
+- `tree/profiles/JungleGrowthProfile` — Jungle: 2x2 trunk, large ellipsoid + 4 sub-clusters, 10-15 high, 4800 ticks/stage (~64 min), 5-8 long branches + secondary
+- `tree/profiles/DarkOakGrowthProfile` — Dark oak: 2x2 trunk, flat cylinder dense canopy, 6-10 high, 3600 ticks/stage (~30 min), 4-6 branches, near-opaque leaves
+- `tree/profiles/AcaciaGrowthProfile` — Acacia: flat disc + scattered sphere clusters, 5-10 high, 3600 ticks/stage (~27 min), 10-25° lean, sparse irregular canopy
 
 ### Mixins (`mixin/`)
 - `client/BlockRenderDispatcherMixin` — Client-side: suppresses vanilla block render for visually-tracked blocks with non-1.0 scale
@@ -97,8 +114,8 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Current Development State
 
-- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, service layer extraction from prototype → `succession/`/`world/`/`plant/` packages, vegetationRecords point-based progress evaluation, player place/break → VegetationTracker auto-tracking, multi-plant weighted queue with queue_fill_factor, **negative regression → fallback biome**, **activePlants retired — unified to vegetationRecords**, **tree lifecycle Phase 1: Mixin intercepts sapling instant growth** (SaplingBlockMixin + TreeGrowthHandler + TreeGrowthSession), **tree lifecycle Phase 2: gradual tree construction** (TreeGrowthProfile + OakGrowthProfile + tickAll with 20-tick throttle)
-- **In progress**: Tree lifecycle Phase 3+ (multi-species profiles, death/decay, succession integration)
+- **Done**: Mod bootstrap, chunk data attachments, JSON config loading with 3 example paths, vegetation lifecycle adapter system, client visual rendering, network sync, debug commands, prototype full-loop demo, service layer extraction from prototype → `succession/`/`world/`/`plant/` packages, vegetationRecords point-based progress evaluation, player place/break → VegetationTracker auto-tracking, multi-plant weighted queue with queue_fill_factor, **negative regression → fallback biome**, **activePlants retired — unified to vegetationRecords**, **tree lifecycle Phase 1: Mixin intercepts sapling instant growth** (SaplingBlockMixin + TreeGrowthHandler + TreeGrowthSession), **tree lifecycle Phase 2: gradual tree construction** (TreeGrowthProfile + OakGrowthProfile + tickAll with 20-tick throttle), **tree lifecycle Phase 3: realistic multi-species growth** (6 profiles: Oak/Birch/Spruce/Jungle/DarkOak/Acacia, TreeShapeUtils noise/canopy/branch/2x2 utilities, variable heights, species-specific shapes), **tree morphology system** (SkeletonGenerator parametric branching + CanopyEnvelope 5 canopy shapes + LeafFiller skeleton-aware placement + MorphologyParams per-species + TreeMorphology integration + all 6 profiles wired)
+- **In progress**: Tree lifecycle Phase 4 (death/decay), succession integration
 - **Not yet started**: Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 
@@ -113,6 +130,7 @@ All design docs are in `docs/`, written in Chinese:
 - `visual-lifecycle-layer.md` — Client visual rendering design
 - `succession-path-format.md` — JSON path format spec
 - `tree-lifecycle-implementation.md` — Tree lifecycle implementation plan (6 phases)
+- `tree-morphology-design.md` — Tree morphology system design: skeleton + canopy envelope + leaf filler architecture
 
 ## Important Conventions
 

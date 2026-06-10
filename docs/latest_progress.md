@@ -346,15 +346,162 @@
 
 ### 已知限制
 
-- 树形较规整，后续计划用噪声随机去除部分树叶 + 枝干分叉
-- 完成时替换树苗的 log 类型硬编码 OAK_LOG，多树种时需改为从 profile 获取
-- 生长 session 仅存内存，区块卸载后丢失（下次 random tick 触发重新创建）
+- 同一位置重新种树会产生相同形状（位置确定性噪声），设计如此以保证视觉一致性
+- 2x2 树的 NW 角检测假设树苗排列为左上对齐，极端边界情况可能有偏差
+- 树冠可能略微超出区块边界，canGrowStage 仅检查高度上限
+
+## 2026-06-10：树生命周期 Phase 3 — 真实树木生长系统
+
+### 变更概要
+
+- 完全重写 `TreeGrowthProfile` 接口：新增高度范围、log/leaves 方块类型、2x2 支持、每实例随机高度解析
+- 新建 `TreeShapeUtils` 共享工具类：位置确定性噪声（同树同形）、冠形函数（橡扁球/白桦椭圆/云杉锥形）、树叶圆形放置（非方形）、2x2 检测/角定位、枝干生成
+- `TreeGrowthSession` 新增 `resolvedHeight` 字段 + NBT 持久化
+- `TreeGrowthHandler` 注册全部 6 个原版树种，`onGrowthComplete()` 使用 `profile.logBlock()`，支持 2x2 替换
+- 重写 `OakGrowthProfile`：扁球形宽冠 5-8 格，3600 tick/阶段（~27 分钟）
+- 新建 5 个 profile：
+  | 树种 | 高度 | 间隔 | 总耗时 | 形态 |
+  |------|------|------|--------|------|
+  | Birch | 6-10 | 2400 | ~20 分钟 | 细高椭圆顶冠 |
+  | Spruce | 8-15 | 4800 | ~48 分钟 | 锥形全高覆叶 |
+  | Jungle | 10-15 | 4800 | ~64 分钟 | 2x2 粗干+宽冠+侧枝 |
+  | Dark Oak | 6-10 | 3600 | ~30 分钟 | 2x2 粗干+密冠 |
+  | Acacia | 5-10 | 3600 | ~27 分钟 | 斜干+稀疏不规则冠 |
+- 开关 `gradualTreeGrowth` 行为不变：false → 原版瞬间生长，树长相不变
+
+### 修改/新增文件
+
+- `plant/tree/TreeGrowthProfile.java` — 接口扩展
+- `plant/tree/TreeShapeUtils.java` — 新建：噪声/冠形/放置/2x2/枝干 共享工具
+- `plant/tree/TreeGrowthSession.java` — 新增 resolvedHeight
+- `plant/tree/TreeGrowthHandler.java` — 6 树种注册 + 2x2 + profile.logBlock()
+- `plant/tree/profiles/OakGrowthProfile.java` — 重写
+- `plant/tree/profiles/BirchGrowthProfile.java` — 新建
+- `plant/tree/profiles/SpruceGrowthProfile.java` — 新建
+- `plant/tree/profiles/JungleGrowthProfile.java` — 新建
+- `plant/tree/profiles/DarkOakGrowthProfile.java` — 新建
+- `plant/tree/profiles/AcaciaGrowthProfile.java` — 新建
+
+### 验证结果
+
+- 编译通过
+
+## 2026-06-10：新树木形态系统设计
+
+### 设计文档
+
+完成 `docs/tree-morphology-design.md` — 树木形态系统完整设计方案。
+
+核心思路：用 **参数化递归骨架 + 3D 冠包络体 + 骨架感知树叶填充** 替代当前的 "直杆 + 圆盘" 树形。
+
+关键设计：
+- `TreeSkeleton` — 骨架数据结构（节点列表、主干路径、分枝列表）
+- `SkeletonGenerator` — 递归参数化分枝生成（主千 + 一级枝 + 二级枝 + 细枝）
+- `CanopyEnvelope` — 5 种 3D 冠形数学函数（橡扁椭球/白桦细椭球/云杉圆锥/丛林簇团/金合欢碟形）
+- `LeafFiller` — 树叶放置策略（骨架距离 + 包络体密度 + 噪声 + 边缘羽化）
+- `MorphologyParams` — 每个树种的形态参数 record
+- 树叶 DISTANCE 改为到最近骨架节点距离（而非到树干）
+
+实现分 5 个 Phase，Phase 1-3 为骨架+冠形+阶段化（P0），Phase 4 为 6 树种接入（P1）。
+
+## 2026-06-10：树形态系统 Phase 1-5 实现
+
+### 变更概要
+
+基于 `docs/tree-morphology-design.md` 设计方案，完整实现了新的树木形态系统。
+
+**Phase 1: 骨架系统**
+- `NodeType` — 节点类型枚举（TRUNK/PRIMARY_BRANCH/SECONDARY_BRANCH/TWIG）
+- `SkeletonNode` — 骨架节点 record（pos, type, radius, parentIndex, depth）
+- `TreeSkeleton` — 骨架数据结构（节点列表、主千路径、一级枝列表、2x2 trunkLevels 支持）
+- `SkeletonGenerator` — 参数化递归分枝生成：
+  - 主千：可倾角 + 噪声扰动（金合欢大幅倾斜，橡树微倾，云杉垂直）
+  - 一级枝：从主千特定高度范围分出，径向 + 上偏角 + 水平扰动
+  - 二级枝：从一级枝中段分出（仅大冠树种），偏离主枝方向 30°-60°
+  - 2x2 树干：每层 4 节点，父子索引正确对应
+
+**Phase 2: 冠形与填充**
+- `CanopyEnvelope` — 5 种 3D 冠形密度函数 + 边缘羽化：
+  - ELLIPSOID（橡树扁椭球） / TALL_ELLIPSOID（白桦细长椭球）
+  - CONE（云杉圆锥） / CLUSTERED_ELLIPSOID（丛林大椭球+子冠）
+  - FLAT_CYLINDER（深色橡树扁圆柱密实） / FLAT_DISC_CLUSTERED（金合欢扁碟+散落簇）
+- `LeafFiller` — 骨架感知树叶放置：
+  - 候选位置遍历包围盒（AABB），排除非空气/非树叶方块
+  - 包络体密度 > 阶段阈值 → 骨架距离 → 概率（branchProximity × density × edgeFactor × clustering + noise）
+  - 按距离排序优先放置近骨架位置，每阶段上限 50 树叶
+  - 树叶 DISTANCE 改为到最近骨架节点（TRUNK/PRIMARY/SECONDARY，不含 TWIG）的 Chebyshev 距离
+  - 世界高度边界检查
+
+**Phase 3: 阶段离散化**
+- `MorphologyParams` — 形态参数 record，每个树种工厂方法（oak/birch/spruce/jungle/darkOak/acacia）
+- `TreeMorphology` — 整合入口：
+  - `generateSkeleton()` → `planStages()` → `growStage()`
+  - 阶段分组：主千按深度分组 + 枝节点分配到对应主千阶段 + 剩余节点均分到冠阶段
+  - growStage 逻辑：放置原木方块（TRUNK/PRIMARY/SECONDARY） + 调用 LeafFiller 填充树叶
+
+**Phase 4: 6 树种接入**
+- 所有 6 个 profile 新增 `morphologyParams()` 方法，返回对应的 MorphologyParams
+- `TreeGrowthProfile` 接口新增 `morphologyParams()` 默认方法（返回 null 保持向后兼容）
+- `TreeGrowthHandler` 检测 profile 是否有 morphology params：
+  - 有 → `session.ensureSkeleton()` → `TreeMorphology.growStage()`
+  - 无 → 回退到旧的 `profile.growStage()` 逻辑
+- `TreeGrowthSession` 新增 transient 字段：skeleton、morphologyParams、stagePlan（不持久化，从种子重建）
+
+**Phase 5: 优化与打磨**
+- 2x2 树 trunkLevels 修复（区分 trunkPath 节点数和实际高度层数）
+- 2x2 树父子索引正确映射（每层节点指向上一层对应角落节点）
+- 世界高度边界检查（原木和树叶放置均检查 maxBuildHeight）
+- 每阶段树叶上限 50 个
+
+### 新增文件
+
+| 文件 | 职责 |
+|------|------|
+| `plant/tree/morphology/NodeType.java` | 骨架节点类型枚举 |
+| `plant/tree/morphology/SkeletonNode.java` | 骨架节点 record |
+| `plant/tree/morphology/TreeSkeleton.java` | 骨架数据结构 |
+| `plant/tree/morphology/SkeletonGenerator.java` | 递归参数化分枝生成 |
+| `plant/tree/morphology/CanopyEnvelope.java` | 5 种 3D 冠形密度函数 |
+| `plant/tree/morphology/LeafFiller.java` | 骨架感知树叶放置策略 |
+| `plant/tree/morphology/MorphologyParams.java` | 树种形态参数 record |
+| `plant/tree/morphology/TreeMorphology.java` | 形态系统总入口 |
+
+### 修改文件
+
+| 文件 | 变更 |
+|------|------|
+| `plant/tree/TreeGrowthSession.java` | 新增 skeleton/morphologyParams/stagePlan transient 字段 + ensureSkeleton() |
+| `plant/tree/TreeGrowthProfile.java` | 新增 morphologyParams() 默认方法 |
+| `plant/tree/TreeGrowthHandler.java` | tickAll/forceAdvanceStage/interceptGrowth 均接入 morphology 管线 |
+| `plant/tree/profiles/OakGrowthProfile.java` | 新增 morphologyParams() → MorphologyParams.oak() |
+| `plant/tree/profiles/BirchGrowthProfile.java` | 新增 morphologyParams() → MorphologyParams.birch() |
+| `plant/tree/profiles/SpruceGrowthProfile.java` | 新增 morphologyParams() → MorphologyParams.spruce() |
+| `plant/tree/profiles/JungleGrowthProfile.java` | 新增 morphologyParams() → MorphologyParams.jungle() |
+| `plant/tree/profiles/DarkOakGrowthProfile.java` | 新增 morphologyParams() → MorphologyParams.darkOak() |
+| `plant/tree/profiles/AcaciaGrowthProfile.java` | 新增 morphologyParams() → MorphologyParams.acacia() |
+
+### 架构说明
+
+```
+TreeGrowthHandler.tickAll()
+  ├─ profile.morphologyParams() != null?
+  │   ├─ YES → session.ensureSkeleton() → TreeMorphology.growStage()
+  │   │         ├─ 放置当前阶段原木方块 (TRUNK/PRIMARY/SECONDARY 节点)
+  │   │         └─ LeafFiller.fillLeaves() (包络体密度 + 骨架距离 + 噪声)
+  │   └─ NO  → profile.growStage() (旧逻辑，向后兼容)
+  └─ session.advanceStage()
+```
+
+骨架在 session 创建时生成（位置确定性种子），不持久化。区块卸载/重载后从 worldSeed + saplingPos 重建相同骨架。
+
+### 验证结果
+
+- 编译通过 (`./gradlew compileJava`)
 
 ## 建议的下一步
 
 详见 `todolist.md` 底部「下一步计划」章节，以及 `docs/tree-lifecycle-implementation.md` 树生命周期完整方案。
 
-1. **树生命周期 Phase 3** — 多树种支持（Birch/Spruce/Jungle/DarkOak GrowthProfile）
-2. **树生命周期 Phase 4** — 树木死亡腐烂（AGING→DEAD→DECAYING 阶段）
-3. **C. 非玩家方块变更事件** — 水/岩浆/随机刻导致植被消失时同步清理追踪
-4. **D. 区块边界混合** — 缓解群系切换的生硬边界
+1. **树生命周期 Phase 4** — 树木死亡腐烂（AGING→DEAD→DECAYING 阶段）
+2. **C. 非玩家方块变更事件** — 水/岩浆/随机刻导致植被消失时同步清理追踪
+3. **D. 区块边界混合** — 缓解群系切换的生硬边界

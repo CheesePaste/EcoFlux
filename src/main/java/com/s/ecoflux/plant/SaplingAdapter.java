@@ -2,6 +2,7 @@ package com.s.ecoflux.plant;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
+import com.s.ecoflux.config.EcofluxServerConfig;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -41,6 +42,21 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
             long gameTime,
             Optional<ResourceLocation> sourceBiomeId,
             Optional<ResourceLocation> sourcePathId) {
+        if (!EcofluxServerConfig.gradualPlantGrowth()) {
+            return new ActiveVegetationRecord(
+                    BuiltInRegistries.BLOCK.getKey(state.getBlock()),
+                    typeId(),
+                    VegetationCategory.SAPLING,
+                    pos.immutable(),
+                    VegetationLifecycleStage.GROWING,
+                    gameTime,
+                    gameTime,
+                    gameTime + 144000L,
+                    2,
+                    2,
+                    sourceBiomeId.orElse(null),
+                    sourcePathId.orElse(null));
+        }
         return new ActiveVegetationRecord(
                 BuiltInRegistries.BLOCK.getKey(state.getBlock()),
                 typeId(),
@@ -78,6 +94,17 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
             return VegetationObservation.absent("树苗方块已被不支持的方块替换。");
         }
 
+        if (!EcofluxServerConfig.gradualPlantGrowth()) {
+            return new VegetationObservation(
+                    true,
+                    VegetationLifecycleStage.GROWING,
+                    2,
+                    false,
+                    false,
+                    Optional.empty(),
+                    "树苗（跳过生命周期阶段推进）。");
+        }
+
         long age = Math.max(0L, gameTime - record.birthGameTime());
         VegetationLifecycleStage stage = age < 1200L ? VegetationLifecycleStage.JUVENILE : VegetationLifecycleStage.GROWING;
         int pointValue = age < 24000L ? 1 : 2;
@@ -93,6 +120,9 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
 
     @Override
     public VegetationVisualState visualState(ActiveVegetationRecord record, long gameTime) {
+        if (!EcofluxServerConfig.gradualPlantGrowth()) {
+            return new VegetationVisualState(VegetationLifecycleStage.GROWING, 1.0F);
+        }
         long age = Math.max(0L, gameTime - record.birthGameTime());
         long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
         return switch (record.lifeStage()) {

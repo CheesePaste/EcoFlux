@@ -2,6 +2,7 @@ package com.s.ecoflux.mixin;
 
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.plant.SaplingAdapter;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
@@ -35,8 +36,13 @@ public abstract class SaplingBlockMixin {
         SuccessionChunkData data = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
         ActiveVegetationRecord record = data.getVegetationRecords().get(pos);
         if (record != null && SaplingAdapter.TYPE_ID.equals(record.adapterType())) {
+            if (!EcofluxServerConfig.gradualTreeGrowth()) {
+                return;
+            }
             ci.cancel();
-            TreeGrowthHandler.INSTANCE.interceptGrowth(level, pos, record);
+            TreeGrowthHandler handler = TreeGrowthHandler.INSTANCE;
+            handler.interceptGrowth(level, pos, record);
+            handler.forceAdvanceStage(level, pos);
         }
     }
 }

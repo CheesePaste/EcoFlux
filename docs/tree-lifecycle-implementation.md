@@ -339,12 +339,20 @@ public final class TreeDecayHandler {
 - [x] 测试：橡树树苗分 5 阶段渐进长成，树苗→原木替换
 - [x] 修复：多维度共享 counter bug → `gameTime % 20`
 
-### Step 3: 多树种支持 ✅ 预计 3-4h
-- [ ] `BirchGrowthProfile`
-- [ ] `SpruceGrowthProfile`
-- [ ] `JungleGrowthProfile`
-- [ ] `DarkOakGrowthProfile`
-- [ ] 树苗方块 → Profile 的自动匹配
+### Step 3: 多树种支持 ✅ 已完成
+- [x] `BirchGrowthProfile`（白桦：细高 6-10 格，椭圆顶冠，2400 tick/阶段，~20 分钟长成）
+- [x] `SpruceGrowthProfile`（云杉：锥形 8-15 格，全高覆叶，4800 tick/阶段，~48 分钟长成）
+- [x] `JungleGrowthProfile`（丛林：2x2 粗干 10-15 格，宽冠+侧枝，4800 tick/阶段，~64 分钟长成）
+- [x] `DarkOakGrowthProfile`（深色橡树：2x2 粗干 6-10 格，密冠，3600 tick/阶段，~30 分钟长成）
+- [x] `AcaciaGrowthProfile`（金合欢：斜干 5-10 格，稀疏不规则冠，3600 tick/阶段，~27 分钟长成）
+- [x] `OakGrowthProfile` 重写（扁球形宽冠 5-8 格，3600 tick/阶段，~27 分钟长成）
+- [x] 树苗方块 → Profile 的自动匹配（6 树种全部注册）
+- [x] `TreeShapeUtils` 共享工具类（位置确定性噪声、冠形函数、树叶/原木放置、2x2 检测、枝干生成）
+- [x] `TreeGrowthProfile` 接口扩展（高度范围、log/leaves 方块类型、2x2 支持、实例级随机高度）
+- [x] `TreeGrowthSession` 新增 `resolvedHeight` 字段 + NBT 持久化
+- [x] `TreeGrowthHandler.onGrowthComplete()` 使用 `profile.logBlock()` 替代硬编码 OAK_LOG
+- [x] 2x2 检测逻辑（`isValid2x2` + NW 角定位 + 4 个树苗同时替换）
+- [x] 开关 `gradualTreeGrowth` 行为不变：false → 原版瞬间生长，true → 渐进生长
 
 ### Step 4: 死亡与腐烂 ✅ 预计 3-4h
 - [ ] 扩展 `VegetationLifecycleStage` 增加 DEAD/DECAYING

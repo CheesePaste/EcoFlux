@@ -12,24 +12,24 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class OakGrowthProfile implements TreeGrowthProfile {
-    public static final OakGrowthProfile INSTANCE = new OakGrowthProfile();
-    private static final ResourceLocation TYPE = ResourceLocation.withDefaultNamespace("oak");
+public final class BirchGrowthProfile implements TreeGrowthProfile {
+    public static final BirchGrowthProfile INSTANCE = new BirchGrowthProfile();
+    private static final ResourceLocation TYPE = ResourceLocation.withDefaultNamespace("birch");
 
-    private OakGrowthProfile() {
+    private BirchGrowthProfile() {
     }
 
     @Override public ResourceLocation treeType() { return TYPE; }
-    @Override public int minTrunkHeight() { return 5; }
-    @Override public int maxTrunkHeight() { return 8; }
-    @Override public int ticksPerStage() { return 3600; }
-    @Override public Block logBlock() { return Blocks.OAK_LOG; }
-    @Override public Block leavesBlock() { return Blocks.OAK_LEAVES; }
+    @Override public int minTrunkHeight() { return 6; }
+    @Override public int maxTrunkHeight() { return 10; }
+    @Override public int ticksPerStage() { return 2400; }
+    @Override public Block logBlock() { return Blocks.BIRCH_LOG; }
+    @Override public Block leavesBlock() { return Blocks.BIRCH_LEAVES; }
     @Override public boolean is2x2() { return false; }
 
     @Override
     public MorphologyParams morphologyParams() {
-        return MorphologyParams.oak();
+        return MorphologyParams.birch();
     }
 
     @Override
@@ -46,39 +46,15 @@ public final class OakGrowthProfile implements TreeGrowthProfile {
                           int totalStages, int resolvedHeight, RandomSource random) {
         int canopyStart = resolvedHeight;
         if (currentStage < canopyStart) {
-            placeTrunkStage(level, saplingPos, currentStage, resolvedHeight, random);
+            placeTrunkStage(level, saplingPos, currentStage, random);
         } else {
             placeCanopyStage(level, saplingPos, currentStage, totalStages, resolvedHeight, random);
         }
     }
 
-    private void placeTrunkStage(ServerLevel level, BlockPos saplingPos, int stage,
-                                 int resolvedHeight, RandomSource random) {
+    private void placeTrunkStage(ServerLevel level, BlockPos saplingPos, int stage, RandomSource random) {
         BlockPos trunkPos = saplingPos.above(stage + 1);
         TreeShapeUtils.tryPlaceLog(level, trunkPos, logBlock());
-
-        double progress = (double) stage / resolvedHeight;
-        double radius = 0.8 + progress * 1.2;
-
-        if (radius >= 1.0) {
-            TreeShapeUtils.placeLeafDisc(level, trunkPos, radius, leavesBlock(),
-                    trunkPos, 0.20, random);
-        }
-
-        if (stage >= resolvedHeight / 2 && random.nextDouble() < 0.25) {
-            placeBranch(level, saplingPos, trunkPos, random);
-        }
-    }
-
-    private void placeBranch(ServerLevel level, BlockPos saplingPos, BlockPos trunkPos, RandomSource random) {
-        int dx = random.nextInt(3) - 1;
-        int dz = random.nextInt(3) - 1;
-        if (dx == 0 && dz == 0) dx = 1;
-        BlockPos branchPos = trunkPos.offset(dx, random.nextInt(2) - 1, dz);
-        if (TreeShapeUtils.tryPlaceLog(level, branchPos, logBlock())) {
-            TreeShapeUtils.placeLeafDisc(level, branchPos, 1.5, leavesBlock(),
-                    trunkPos, 0.15, random);
-        }
     }
 
     private void placeCanopyStage(ServerLevel level, BlockPos saplingPos, int stage,
@@ -88,16 +64,27 @@ public final class OakGrowthProfile implements TreeGrowthProfile {
         BlockPos trunkTop = saplingPos.above(resolvedHeight);
         int y = canopyStage;
         BlockPos layerCenter = trunkTop.above(y);
-        double radius = TreeShapeUtils.oakCanopyRadius(y, canopyDepth);
+        double radius = TreeShapeUtils.birchCanopyRadius(y, canopyDepth);
 
         if (radius > 0) {
             TreeShapeUtils.placeLeafDisc(level, layerCenter, radius, leavesBlock(),
-                    trunkTop, 0.18, random);
+                    trunkTop, 0.15, random);
         }
 
         if (canopyStage == canopyDepth - 1) {
-            TreeShapeUtils.placeLeafDisc(level, layerCenter.above(), 1.0, leavesBlock(),
-                    trunkTop, 0.10, random);
+            BlockPos tip = layerCenter.above();
+            TreeShapeUtils.placeLeafDisc(level, tip, 0.6, leavesBlock(), trunkTop, 0.10, random);
+            if (random.nextDouble() < 0.4) {
+                TreeShapeUtils.placeLeaf(level, tip.above(), leavesBlock(), 1);
+            }
+        }
+
+        if (canopyStage >= 1 && random.nextDouble() < 0.3) {
+            int dropY = y - 1;
+            if (dropY >= 0) {
+                TreeShapeUtils.placeLeaf(level, layerCenter.below(), leavesBlock(),
+                        TreeShapeUtils.computeLeafDistance(layerCenter.below(), trunkTop));
+            }
         }
     }
 }

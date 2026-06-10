@@ -4,8 +4,12 @@ import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.plant.TreeStructureAdapter;
-import com.s.ecoflux.plant.VegetationTracker;
+import com.s.ecoflux.plant.tree.profiles.AcaciaGrowthProfile;
+import com.s.ecoflux.plant.tree.profiles.BirchGrowthProfile;
+import com.s.ecoflux.plant.tree.profiles.DarkOakGrowthProfile;
+import com.s.ecoflux.plant.tree.profiles.JungleGrowthProfile;
 import com.s.ecoflux.plant.tree.profiles.OakGrowthProfile;
+import com.s.ecoflux.plant.tree.profiles.SpruceGrowthProfile;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +18,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -23,9 +29,24 @@ public final class TreeGrowthHandler {
     public static final TreeGrowthHandler INSTANCE = new TreeGrowthHandler();
 
     private static final Map<ResourceLocation, TreeGrowthProfile> PROFILES = new HashMap<>();
+
     static {
-        PROFILES.put(ResourceLocation.withDefaultNamespace("oak"), OakGrowthProfile.INSTANCE);
-        PROFILES.put(ResourceLocation.withDefaultNamespace("oak_sapling"), OakGrowthProfile.INSTANCE);
+        PROFILES.put(id("oak"), OakGrowthProfile.INSTANCE);
+        PROFILES.put(id("oak_sapling"), OakGrowthProfile.INSTANCE);
+        PROFILES.put(id("birch"), BirchGrowthProfile.INSTANCE);
+        PROFILES.put(id("birch_sapling"), BirchGrowthProfile.INSTANCE);
+        PROFILES.put(id("spruce"), SpruceGrowthProfile.INSTANCE);
+        PROFILES.put(id("spruce_sapling"), SpruceGrowthProfile.INSTANCE);
+        PROFILES.put(id("jungle"), JungleGrowthProfile.INSTANCE);
+        PROFILES.put(id("jungle_sapling"), JungleGrowthProfile.INSTANCE);
+        PROFILES.put(id("dark_oak"), DarkOakGrowthProfile.INSTANCE);
+        PROFILES.put(id("dark_oak_sapling"), DarkOakGrowthProfile.INSTANCE);
+        PROFILES.put(id("acacia"), AcaciaGrowthProfile.INSTANCE);
+        PROFILES.put(id("acacia_sapling"), AcaciaGrowthProfile.INSTANCE);
+    }
+
+    private static ResourceLocation id(String path) {
+        return ResourceLocation.withDefaultNamespace(path);
     }
 
     private final Map<BlockPos, TreeGrowthSession> activeGrowths = new HashMap<>();
@@ -34,32 +55,55 @@ public final class TreeGrowthHandler {
     }
 
     public void interceptGrowth(ServerLevel level, BlockPos pos, ActiveVegetationRecord record) {
-        if (activeGrowths.containsKey(pos)) {
-            return;
-        }
-
         BlockState state = level.getBlockState(pos);
         ResourceLocation saplingId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
         TreeGrowthProfile profile = resolveProfile(saplingId);
-        int stages = profile != null ? profile.totalStages() : 5;
-        int interval = profile != null ? profile.ticksPerStage() : 2400;
+        if (profile == null) return;
+
+        BlockPos sessionPos = pos.immutable();
+        if (profile.is2x2()) {
+            BlockPos nwCorner = TreeShapeUtils.find2x2NWCorner(level, pos);
+            if (nwCorner == null) return;
+            sessionPos = nwCorner;
+        }
+
+        if (activeGrowths.containsKey(sessionPos)) return;
+
+        int height = profile.resolveHeight(level.random);
+        int stages = profile.totalStagesForHeight(height);
+        int interval = profile.ticksPerStage();
 
         TreeGrowthSession session = new TreeGrowthSession(
-                pos.immutable(),
-                saplingId,
-                level.getGameTime(),
-                stages,
-                interval);
-        activeGrowths.put(pos.immutable(), session);
+                sessionPos, saplingId, level.getGameTime(), stages, interval, height);
+
+        var morphologyParams = profile.morphologyParams();
+        if (morphologyParams != null) {
+            session.ensureSkeleton(level, morphologyParams);
+        }
+
+        activeGrowths.put(sessionPos, session);
 
         EcofluxConstants.LOGGER.info(
-                "[Ecoflux] Intercepted tree growth at {} (type={}), session created. totalStages={}, ticksPerStage={}",
-                pos, saplingId, stages, interval);
+                "[Ecoflux] Intercepted tree growth at {} (type={}), height={}, totalStages={}, morphology={}",
+                sessionPos, saplingId, height, stages, morphologyParams != null);
     }
 
     @Nullable
     public TreeGrowthSession getSession(BlockPos pos) {
         return activeGrowths.get(pos);
+    }
+
+    @Nullable
+    public TreeGrowthSession findSessionForSapling(BlockPos pos) {
+        TreeGrowthSession session = activeGrowths.get(pos);
+        if (session != null) return session;
+        for (int dx = 0; dx >= -1; dx--) {
+            for (int dz = 0; dz >= -1; dz--) {
+                session = activeGrowths.get(new BlockPos(pos.getX() + dx, pos.getY(), pos.getZ() + dz));
+                if (session != null) return session;
+            }
+        }
+        return null;
     }
 
     public void removeSession(BlockPos pos) {
@@ -75,9 +119,7 @@ public final class TreeGrowthHandler {
     }
 
     public void tickAll(ServerLevel level) {
-        if (activeGrowths.isEmpty()) {
-            return;
-        }
+        if (activeGrowths.isEmpty()) return;
 
         long gameTime = level.getGameTime();
         List<BlockPos> completed = new ArrayList<>();
@@ -91,14 +133,10 @@ public final class TreeGrowthHandler {
                 continue;
             }
 
-            if (gameTime - session.lastStageTime() < session.ticksPerStage()) {
-                continue;
-            }
+            if (gameTime - session.lastStageTime() < session.ticksPerStage()) continue;
 
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
-            if (chunk == null) {
-                continue;
-            }
+            if (chunk == null) continue;
 
             TreeGrowthProfile profile = resolveProfile(session.treeType());
             if (profile == null) {
@@ -107,11 +145,27 @@ public final class TreeGrowthHandler {
                 continue;
             }
 
-            if (!profile.canGrowStage(level, pos, session.currentStage())) {
+            if (!profile.canGrowStage(level, pos, session.currentStage(),
+                    session.totalStages(), session.resolvedHeight())) {
                 continue;
             }
 
-            profile.growStage(level, pos, session.currentStage());
+            RandomSource treeRandom = TreeShapeUtils.positionRandom(pos, level.getSeed());
+            var morphologyParams = profile.morphologyParams();
+            if (morphologyParams != null) {
+                session.ensureSkeleton(level, morphologyParams);
+                var skel = session.skeleton();
+                var plan = session.stagePlan();
+                if (skel != null && plan != null) {
+                    com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
+                            level, skel, morphologyParams, plan,
+                            session.currentStage(), level.getSeed(), treeRandom,
+                            profile.logBlock(), profile.leavesBlock());
+                }
+            } else {
+                profile.growStage(level, pos, session.currentStage(),
+                        session.totalStages(), session.resolvedHeight(), treeRandom);
+            }
             session.advanceStage(gameTime);
 
             EcofluxConstants.LOGGER.info(
@@ -129,30 +183,81 @@ public final class TreeGrowthHandler {
         }
     }
 
-    private void onGrowthComplete(ServerLevel level, LevelChunk chunk, BlockPos saplingPos) {
-        var chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-        chunkData.removeVegetation(saplingPos);
+    public boolean forceAdvanceStage(ServerLevel level, BlockPos pos) {
+        TreeGrowthSession session = findSessionForSapling(pos);
+        if (session == null || session.isComplete()) return false;
 
-        level.setBlock(saplingPos, Blocks.OAK_LOG.defaultBlockState(), 3);
+        LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
+        if (chunk == null) return false;
+
+        TreeGrowthProfile profile = resolveProfile(session.treeType());
+        if (profile == null) return false;
+
+        if (!profile.canGrowStage(level, session.saplingPos(), session.currentStage(),
+                session.totalStages(), session.resolvedHeight())) return false;
+
+        RandomSource treeRandom = TreeShapeUtils.positionRandom(session.saplingPos(), level.getSeed());
+        var morphologyParams = profile.morphologyParams();
+        if (morphologyParams != null) {
+            session.ensureSkeleton(level, morphologyParams);
+            var skel = session.skeleton();
+            var plan = session.stagePlan();
+            if (skel != null && plan != null) {
+                com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
+                        level, skel, morphologyParams, plan,
+                        session.currentStage(), level.getSeed(), treeRandom,
+                        profile.logBlock(), profile.leavesBlock());
+            }
+        } else {
+            profile.growStage(level, session.saplingPos(), session.currentStage(),
+                    session.totalStages(), session.resolvedHeight(), treeRandom);
+        }
+        session.advanceStage(level.getGameTime());
+
+        EcofluxConstants.LOGGER.info(
+                "[Ecoflux] Tree bone-mealed stage {}/{} at {} (type={})",
+                session.currentStage(), session.totalStages(), session.saplingPos(), session.treeType());
+
+        if (session.isComplete()) {
+            onGrowthComplete(level, chunk, session.saplingPos());
+            activeGrowths.remove(session.saplingPos());
+        }
+
+        return true;
+    }
+
+    private void onGrowthComplete(ServerLevel level, LevelChunk chunk, BlockPos basePos) {
+        var chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
+        TreeGrowthSession session = activeGrowths.get(basePos);
+        TreeGrowthProfile profile = session != null ? resolveProfile(session.treeType()) : null;
+        Block logBlock = profile != null ? profile.logBlock() : Blocks.OAK_LOG;
+
+        if (profile != null && profile.is2x2()) {
+            for (BlockPos trunkPos : TreeShapeUtils.trunk2x2Positions(basePos, basePos.getY())) {
+                chunkData.removeVegetation(trunkPos);
+                level.setBlock(trunkPos, logBlock.defaultBlockState(), 3);
+            }
+        } else {
+            chunkData.removeVegetation(basePos);
+            level.setBlock(basePos, logBlock.defaultBlockState(), 3);
+        }
 
         ActiveVegetationRecord treeRecord = TreeStructureAdapter.INSTANCE.captureBirth(
                 level,
-                saplingPos,
-                level.getBlockState(saplingPos),
+                basePos,
+                level.getBlockState(basePos),
                 level.getGameTime(),
                 chunkData.getCurrentBiome().map(key -> key.location()),
                 chunkData.getActivePathId());
         chunkData.trackVegetation(treeRecord);
 
-        EcofluxConstants.LOGGER.info("[Ecoflux] Tree growth complete at {}, sapling replaced with log", saplingPos);
+        EcofluxConstants.LOGGER.info("[Ecoflux] Tree growth complete at {}, replaced with {}", basePos, logBlock);
     }
 
     @Nullable
     private static TreeGrowthProfile resolveProfile(ResourceLocation saplingId) {
         TreeGrowthProfile profile = PROFILES.get(saplingId);
-        if (profile != null) {
-            return profile;
-        }
+        if (profile != null) return profile;
 
         String path = saplingId.getPath();
         if (path.endsWith("_sapling")) {

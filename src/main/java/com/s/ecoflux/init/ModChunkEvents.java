@@ -1,6 +1,7 @@
 package com.s.ecoflux.init;
 
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import com.s.ecoflux.prototype.PrototypeChunkController;
 import com.s.ecoflux.succession.SuccessionService;
@@ -163,6 +164,9 @@ public final class ModChunkEvents {
     }
 
     private static void processTreeGrowth(ServerLevel level) {
+        if (!EcofluxServerConfig.gradualTreeGrowth()) {
+            return;
+        }
         if (level.getGameTime() % TREE_GROWTH_TICK_INTERVAL != 0) {
             return;
         }

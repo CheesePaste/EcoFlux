@@ -2,6 +2,7 @@ package com.s.ecoflux.plant;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
+import com.s.ecoflux.config.EcofluxServerConfig;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -50,6 +51,22 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
             Optional<ResourceLocation> sourcePathId) {
         VegetationCategory derivedCategory = deriveCategory(state);
         int basePointValue = derivedCategory == VegetationCategory.FLOWER ? 2 : 1;
+        if (!EcofluxServerConfig.gradualPlantGrowth()) {
+            int maxPoints = basePointValue + 1;
+            return new ActiveVegetationRecord(
+                    net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()),
+                    typeId(),
+                    derivedCategory,
+                    pos.immutable(),
+                    VegetationLifecycleStage.MATURE,
+                    gameTime,
+                    gameTime,
+                    gameTime + 72000L,
+                    maxPoints,
+                    maxPoints,
+                    sourceBiomeId.orElse(null),
+                    sourcePathId.orElse(null));
+        }
         return new ActiveVegetationRecord(
                 net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()),
                 typeId(),
@@ -69,6 +86,17 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
     public VegetationObservation observe(ServerLevel level, ActiveVegetationRecord record, BlockState state, long gameTime) {
         if (state.isAir() || !matches(state)) {
             return VegetationObservation.absent("简单植物已不存在。");
+        }
+
+        if (!EcofluxServerConfig.gradualPlantGrowth()) {
+            return new VegetationObservation(
+                    true,
+                    VegetationLifecycleStage.MATURE,
+                    record.basePointValue() + 1,
+                    true,
+                    false,
+                    Optional.empty(),
+                    "简单植物（跳过生命周期阶段推进）。");
         }
 
         long age = Math.max(0L, gameTime - record.birthGameTime());
@@ -104,6 +132,9 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
 
     @Override
     public VegetationVisualState visualState(ActiveVegetationRecord record, long gameTime) {
+        if (!EcofluxServerConfig.gradualPlantGrowth()) {
+            return new VegetationVisualState(VegetationLifecycleStage.MATURE, 1.0F);
+        }
         long age = Math.max(0L, gameTime - record.birthGameTime());
         return switch (record.lifeStage()) {
             case BORN -> new VegetationVisualState(VegetationLifecycleStage.BORN, progress(age, 0L, 200L));
