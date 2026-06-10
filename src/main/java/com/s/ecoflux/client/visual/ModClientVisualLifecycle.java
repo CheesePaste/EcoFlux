@@ -20,6 +20,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 @EventBusSubscriber(modid = EcofluxConstants.MOD_ID, value = Dist.CLIENT)
 public final class ModClientVisualLifecycle {
@@ -69,6 +70,15 @@ public final class ModClientVisualLifecycle {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         VisualLifecycleClientRuntime.INSTANCE.tick();
+        com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE.onClientTick();
+    }
+
+    @SubscribeEvent
+    public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
+            return;
+        }
+        com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE.onRenderLevelStage(event);
     }
 
     private static RequiredArgumentBuilder<CommandSourceStack, Integer> positionArguments(VisualCommand visualCommand) {

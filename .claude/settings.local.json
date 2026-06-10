@@ -11,7 +11,31 @@
       "Bash(npm create *)",
       "Bash(npm install *)",
       "Bash(npx tsc *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git checkout *)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(gh repo *)",
+      "Bash(cd /d C:\\\\Users\\\\huhai\\\\Desktop\\\\Java-mcmod\\\\Succession)",
+      "Bash(./gradlew dependencies *)",
+      "Bash(javap -public -p -cp \"/c/Users/huhai/.gradle/caches/modules-2/files-2.1/net.neoforged/neoforge/21.1.227/3183dd3c5d69205a5c46e2f22a20fc6960be8601/neoforge-21.1.227-userdev.jar\" net.minecraft.world.level.block.SaplingBlock)",
+      "Bash(jar tf *)",
+      "Bash(javap -public \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\"\\\\!/net/minecraft/world/level/block/SaplingBlock.class)",
+      "Bash(javap -public -cp \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\" net.minecraft.world.level.block.SaplingBlock)",
+      "Bash(jar -tf \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\")",
+      "Bash(unzip -l \"/c/Users/huhai/Desktop/Java-mcmod/Succession/build/moddev/artifacts/neoforge-21.1.227-merged.jar\")",
+      "Bash(unzip *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(javap -cp ~/.gradle/caches/modules-2/files-2.1/net.neoforged/neoforge/21.1.227/3183dd3c5d69205a5c46e2f22a20fc6960be8601/neoforge-21.1.227-userdev.jar net.neoforged.neoforge.event.entity.player.BonemealEvent)",
+      "Bash(git merge *)",
+      "Bash(git show *)",
+      "Read(//tmp/**)",
+      "Bash(git push *)",
+      "Bash(git restore *)",
+      "Bash(git commit *)",
+      "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.world.level.Level)",
+      "Bash(./gradlew.bat compileJava)"
     ]
   }
 }

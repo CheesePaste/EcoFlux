@@ -1,5 +1,6 @@
 package com.s.ecoflux;
 
+import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.VisualLifecycleClientConfig;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.init.ModChunkEvents;
@@ -21,6 +22,7 @@ public final class EcofluxMod {
         ModPlayerEvents.register();
         ModCommands.register();
         ModReloadListeners.register();
+        modContainer.registerConfig(ModConfig.Type.SERVER, EcofluxServerConfig.SPEC, "ecoflux-server.toml");
         modContainer.registerConfig(ModConfig.Type.CLIENT, VisualLifecycleClientConfig.SPEC, "ecoflux-client.toml");
         EcofluxConstants.LOGGER.info("{} 正在初始化", modContainer.getModInfo().getDisplayName());
     }
