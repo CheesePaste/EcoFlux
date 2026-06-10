@@ -1,6 +1,7 @@
 package com.s.ecoflux.init;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.s.ecoflux.attachment.SuccessionChunkData;
@@ -32,6 +33,7 @@ public final class ModCommands {
         event.getDispatcher().register(Commands.literal("ecoflux")
                 .requires(source -> source.hasPermission(2))
                 .then(registerGlobalAutoCommands())
+                .then(registerSpeedCommand())
                 .then(Commands.literal("accelerate").executes(context -> runAccelerate(context.getSource())))
                 .then(registerLifecycleCommands())
                 .then(registerPrototypeCommands()));
@@ -42,6 +44,15 @@ public final class ModCommands {
                 .then(Commands.literal("on").executes(context -> enableFullAuto(context.getSource())))
                 .then(Commands.literal("off").executes(context -> setAuto(context.getSource(), false)))
                 .then(Commands.literal("status").executes(context -> autoStatus(context.getSource())));
+    }
+
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerSpeedCommand() {
+        return Commands.literal("speed")
+                .then(Commands.argument("multiplier", FloatArgumentType.floatArg(0.1f, 1000.0f))
+                        .executes(context -> setSpeed(
+                                context.getSource(),
+                                FloatArgumentType.getFloat(context, "multiplier"))))
+                .then(Commands.literal("status").executes(context -> speedStatus(context.getSource())));
     }
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerLifecycleCommands() {
@@ -206,6 +217,22 @@ public final class ModCommands {
                 () -> Component.literal(
                         "Ecoflux 原型自动演替当前"
                                 + (ModChunkEvents.isAutomaticProcessingEnabled() ? "已开启" : "已关闭") + "。"),
+                false);
+        return 1;
+    }
+
+    private static int setSpeed(CommandSourceStack source, float multiplier) {
+        ModChunkEvents.setSpeedMultiplier(multiplier);
+        source.sendSuccess(
+                () -> Component.literal("Ecoflux 演替速度倍率已设置为 " + String.format("%.1f", multiplier) + "x。"),
+                true);
+        return 1;
+    }
+
+    private static int speedStatus(CommandSourceStack source) {
+        source.sendSuccess(
+                () -> Component.literal(
+                        "Ecoflux 当前演替速度倍率为 " + String.format("%.1f", ModChunkEvents.getSpeedMultiplier()) + "x。"),
                 false);
         return 1;
     }

@@ -3,6 +3,7 @@ package com.s.ecoflux.plant;
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.config.EcofluxServerConfig;
+import com.s.ecoflux.init.ModChunkEvents;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -105,7 +106,7 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
                     "树苗（跳过生命周期阶段推进）。");
         }
 
-        long age = Math.max(0L, gameTime - record.birthGameTime());
+        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
         VegetationLifecycleStage stage = age < 1200L ? VegetationLifecycleStage.JUVENILE : VegetationLifecycleStage.GROWING;
         int pointValue = age < 24000L ? 1 : 2;
         return new VegetationObservation(
@@ -123,7 +124,7 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
         if (!EcofluxServerConfig.gradualPlantGrowth()) {
             return new VegetationVisualState(VegetationLifecycleStage.GROWING, 1.0F);
         }
-        long age = Math.max(0L, gameTime - record.birthGameTime());
+        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
         long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
         return switch (record.lifeStage()) {
             case BORN, JUVENILE -> new VegetationVisualState(VegetationLifecycleStage.JUVENILE, progress(age, 0L, 1200L));

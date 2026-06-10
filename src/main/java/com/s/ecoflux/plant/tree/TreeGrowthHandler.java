@@ -3,6 +3,7 @@ package com.s.ecoflux.plant.tree;
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.init.ModAttachments;
+import com.s.ecoflux.init.ModChunkEvents;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.TreeStructureAdapter;
 import com.s.ecoflux.plant.tree.profiles.AcaciaGrowthProfile;
@@ -160,7 +161,8 @@ public final class TreeGrowthHandler {
                 continue;
             }
 
-            if (gameTime - session.lastStageTime() < session.ticksPerStage()) continue;
+            long effectiveTicksPerStage = (long) Math.max(1, session.ticksPerStage() / ModChunkEvents.getSpeedMultiplier());
+            if (gameTime - session.lastStageTime() < effectiveTicksPerStage) continue;
 
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
             if (chunk == null) continue;

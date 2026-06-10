@@ -4,6 +4,7 @@ import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionConfigRegistry;
 import com.s.ecoflux.config.SuccessionPathDefinition;
 import com.s.ecoflux.init.ModAttachments;
+import com.s.ecoflux.init.ModChunkEvents;
 import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.plant.VegetationTracker;
 import java.util.ArrayList;
@@ -129,12 +130,15 @@ public final class SuccessionService {
         SuccessionPathDefinition path = pathOptional.get();
         long gameTime = level.getGameTime();
 
+        float speed = ModChunkEvents.getSpeedMultiplier();
         int pruned = 0;
-        if (gameTime % PRUNE_INTERVAL_TICKS == 0L) {
+        long effectivePruneInterval = (long) Math.max(1, PRUNE_INTERVAL_TICKS / speed);
+        if (gameTime % effectivePruneInterval == 0L) {
             pruned = PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
         }
 
-        if (gameTime % path.chunkRules().processingIntervalTicks() != 0L) {
+        long effectiveProcessInterval = (long) Math.max(1, path.chunkRules().processingIntervalTicks() / speed);
+        if (gameTime % effectiveProcessInterval != 0L) {
             return pruned > 0
                     ? "已清理 " + pruned + " 个植物。"
                     : "自动演替跳过区块 " + chunk.getPos() + "：等待处理间隔。";

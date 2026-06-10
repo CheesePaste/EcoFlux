@@ -1,220 +1,108 @@
 # TODO List
 
-以下待办基于 `README.md` 和当前分支状态整理，默认不参考其他 Git 分支实现。
+以下待办基于当前代码实现状态整理。
 
-## P0：先把工程从模板推进到可开发状态
+## P0：工程基础 ✅
 
-- [x] 以 `Ecoflux` 为统一命名，同步修正 `mod_id`、`mod_name`、包名和资源命名空间。
-- [x] 将语言资源迁移到 `assets/ecoflux/`。
-- [x] 新建 `EcofluxMod` 主入口类，替换模板 `neoforge.mods.toml` 描述。
-- [x] 补齐基础语言文件，至少提供模组名称和调试文本。
-- [x] 建立基础日志分类与常量类，避免后续散落硬编码字符串。
-- [ ] 新建 `data/ecoflux/` 下的数据驱动资源骨架。
+- [x] 以 `Ecoflux` 为统一命名，同步修正 `mod_id`、包名和资源命名空间
+- [x] 将语言资源迁移到 `assets/ecoflux/`
+- [x] 新建 `EcofluxMod` 主入口类
+- [x] 补齐基础语言文件（en_us / zh_cn）
+- [x] 建立 `EcofluxConstants` 日志与常量类
 
-验收标准：
+## P1：区块演替数据骨架 ✅
 
-- 能正常 `runClient` 启动模组。
-- 模组列表里显示的名称、版本、命名空间一致。
-- 工程里不再只有模板文件。
+- [x] 注册 `DataAttachment<SuccessionChunkData>`
+- [x] 定义 `SuccessionChunkData`、`PlantQueueEntry`、`ActiveVegetationRecord`
+- [x] 实现 NBT 序列化/反序列化
+- [x] 区块初始化、加载和保存时机
 
-## P1：区块演替数据骨架
+## P2：数据驱动配置加载 ✅
 
-- [x] 注册 `Data Attachments`，为区块附件预留 `SuccessionChunkData`。
-- [x] 定义 `SuccessionChunkData`、`PlantQueueEntry`、`ActivePlantRecord`。
-- [x] 设计并实现基础序列化/反序列化。
-- [x] 约定区块初始化、加载和保存时机。
-- [x] 增加最小调试输出，能在日志中看到区块数据创建与读取。
-
-验收标准：
-
-- 区块重新加载后附件数据仍能保留。
-- 附件内容至少包含进度、目标群系、植物队列和活跃植物映射的基础字段。
-
-## P2：数据驱动配置加载
-
-- [x] 设计 `succession_paths` JSON 格式。
-- [x] 实现配置加载、校验和缓存。
-- [x] 支持根据群系 + 温湿度条件匹配候选路径。
-- [x] 为路径配置生成至少 1 份示例数据。
-- [x] 处理缺失配置、非法配置和重复路径的日志提示。
-
-验收标准：
-
-- 游戏启动或数据重载后可以正确加载 JSON。
-- 给定群系与气候参数时能稳定解析目标路径。
+- [x] 设计 `succession_paths` JSON 格式 (schema v1)
+- [x] 实现 `SuccessionConfigLoader` + `SuccessionConfigRegistry`
+- [x] 支持根据群系 + 温湿度条件匹配候选路径
+- [x] 21 个演替路径 JSON 配置文件
 
 ## P3：植物管理闭环
 
-- [ ] 实现野生植物识别规则，明确排除农作物。
-- [ ] 实现植物队列生成与权重抽取。
-- [ ] 在随机刻或调度逻辑中尝试种植植物。
-- [ ] 记录活跃植物并维护 `currentPlantCount`。
-- [ ] 监听植物死亡、玩家破坏和失效替换，及时移除记录。
+- [x] 野生植物识别规则（VegetationTypeAdapter 系统）
+- [x] 植物队列生成与权重抽取（PlantSpawner.ensureQueue / buildWeightedQueue）
+- [x] 在 chunk tick 中尝试种植植物（trySpawnPlant）
+- [x] 记录活跃植物（vegetationRecords，activePlants 已退役）
+- [x] 监听植物死亡、玩家破坏和失效替换（ModPlayerEvents + pruneInvalidPlants）
+- [x] 非玩家方块变更 → prune 快速轮询（10 tick 间隔）
 
-验收标准：
+## P4：积分与进度系统 ✅
 
-- 区块里可以自动生成受控植物。
-- 植物消失后对应记录会同步清理。
-- `activePlants` 与世界实际状态基本一致。
-
-## P4：积分与进度系统
-
-- [x] 为不同植物定义 `pointValue`。
-- [x] 根据路径配置提供 `consumingValue`。
-- [x] 实现低频评估调度（3~7 游戏日）。
-- [x] 实现进度增长、衰减和回退逻辑。
-- [x] 设计调试命令或日志，便于观察区块进度变化。
-
-验收标准：
-
-- `totalPlantPoints > consumingValue` 时进度能增加。
-- 反之进度能下降。
-- 达到阈值前后行为可通过日志或命令验证。
+- [x] 为不同植物定义 `pointValue`
+- [x] 路径配置 `consumingValue`
+- [x] 低频评估调度（evaluation_interval_days）
+- [x] 进度增长、衰减和回退逻辑（SuccessionEvaluator）
+- [x] 调试命令 `/ecoflux prototype step/describe/evaluate`
 
 ## P5：群系替换与边界处理
 
-- [ ] 封装群系替换服务，验证 1.21.1 的可行 API。
-- [ ] 正向演替完成时切换到目标群系。
-- [ ] 负向回退时恢复上一群系或回退目标。
-- [ ] 在区块边界加入轻量混合策略，缓解生硬切换。
-- [ ] 演替完成后重置进度并刷新队列。
-
-验收标准：
-
-- 达到阈值时区块群系会真实改变。
-- 演替完成后数据状态重置合理，不会卡死在旧阶段。
+- [x] 封装群系替换服务（BiomeTransitionService）
+- [x] 正向演替完成时切换到目标群系（applyTransition）
+- [x] 负向回退时恢复 fallback 群系（applyRegression）
+- [ ] 在区块边界加入轻量混合策略，缓解生硬切换
+- [x] 演替完成后重置进度并刷新队列
 
 ## P6：同步、调试与兼容
 
-- [ ] 只同步客户端真正需要展示的数据。
-- [ ] 评估是否需要调试命令、HUD 或开发者日志开关。
-- [ ] 实现 `Dynamic Trees` 探测与兼容入口。
-- [ ] 在未安装 `Dynamic Trees` 时平稳降级。
-- [ ] 补充 GameTest 或至少一组可重复的人工验证步骤。
-
-验收标准：
-
-- 无兼容模组时主流程正常运行。
-- 有兼容模组时不会破坏基础流程。
-
-## 当前最先建议执行的 5 项
-
-1. [x] 设计第一版 `succession_paths` JSON。
-2. [x] 把 `SuccessionChunkData` 接入真实区块初始化流程。
-3. [x] 增加最小调试输出或命令，便于观察附件状态。
-4. [x] 做一个“单植物 + 单路径 + 单区块进度”的最小可运行原型。
-5. [x] 再补 `data/ecoflux/` 示例数据与加载器。
-
-## 2026-06-07 更新：服务层提取已完成
-
-以下工作已在 `another-try` 分支完成：
-
-- [x] 从 `PrototypeChunkController` 提取正式服务层：`succession/SuccessionService`、`SuccessionTargetResolver`、`SuccessionEvaluator`、`BiomeTransitionService`
-- [x] 提取通用工具：`world/ChunkSamplingHelper`、`plant/PlantSpawner`
-- [x] `isPrototypeChunk` 泛化为 `hasActivePath`，自动 tick 对所有配置路径生效
-- [x] `PrototypeChunkController` 瘦身为 ~175 行（仅保留加速演示模式）
-
-当前最优先的下一步：
-- [x] 把 `vegetationRecords` 积分接入区块进度结算（目前仅用衰老门控）
-- [x] 把玩家放置/破坏事件接入 `VegetationTracker`
-- [x] 多植物队列与权重抽取（原型仅测了单植物 dandelion）
+- [x] 客户端视觉状态同步（VegetationVisualChunkSyncPayload）
+- [x] 调试命令（/ecoflux prototype / auto / visual / lifecycle）
+- [ ] Dynamic Trees 兼容
+- [ ] GameTest 或可重复验证步骤
 
 ---
 
-## 下一步计划（2026-06-07 更新，排除 Dynamic Trees 兼容）
+## 下一步计划
 
 ### A. 负向回退 → Fallback 群系切换 ✅
 
-- [x] `BiomeTransitionService` 支持反向切换：读取 `previousBiome` 或 `fallbackBiome`，执行群系回退
-- [x] `SuccessionEvaluator` 在进度 ≤ -1.0 时触发反向过渡
-- [x] 回退完成后重置进度和队列
-- [x] 用 `/ecoflux prototype evaluate` 循环可验证：贡献积分不足时应能观测到进度持续下降，最终触发群系回退
+已完成。`SuccessionEvaluator.shouldRegress()` 在 progress ≤ -1.0 时触发，`BiomeTransitionService.applyRegression()` 切换到 fallbackBiome 并重置状态。
 
 ### B. activePlants 退役，统一到 vegetationRecords ✅
 
-- [x] `trySpawnPlant` 不再写入 `activePlants`，仅依赖 `VegetationTracker.trackAt()`
-- [x] `pruneInvalidPlants` 改为基于 `vegetationRecords` 的过期/消失检查
-- [x] 移除 `SuccessionChunkData` 中的 `activePlants`、`ActivePlantRecord`、`getTotalPlantPoints()` 等遗留字段和方法
-- [x] 确认所有引用 `activePlants` 的地方已迁移（`PrototypeChunkController`、`ChunkSamplingHelper`、`BiomeTransitionService`、NBT 序列化等）
-- [x] 删除 `ActivePlantRecord.java`
+已完成。移除 `activePlants`、`ActivePlantRecord`、`getTotalPlantPoints()` 等，所有追踪统一到 `vegetationRecords`。
 
-### C. 非玩家方块变更事件接入 VegetationTracker
+### C. 非玩家方块变更事件接入 VegetationTracker ✅
 
-当前 `ModPlayerEvents` 只处理玩家放置/破坏。以下自然事件会导致植被记录与实际世界不一致：
-- 水流/岩浆冲走方块
-- 原版随机刻导致的植物生长/死亡
-- 其他 mod 或原版机制替换方块（如村民踩踏耕地）
-
-- [x] `pruneInvalidPlants` 逐位置检查 `BlockState` 是否匹配 adapter：`state.isAir() || findAdapter(state).isEmpty()` → 移除
-- [x] `VegetationTracker.observeChunk()` 检查 `observation.present()` 并在植物消失时移除
-- [x] prune 从 `processingIntervalTicks` 拆出，以独立 10-tick 间隔运行（`SuccessionService.PRUNE_INTERVAL_TICKS`），非玩家破坏最多 0.5 秒延迟
-- [x] 结论：NeoForge 1.21.1 没有覆盖非玩家方块移除的统一事件（`BreakEvent` 仅玩家触发）；快速 prune 轮询是最实用的方案，无需额外事件订阅
+已完成。pruneInvalidPlants 逐位置检查 BlockState 是否匹配 adapter，prune 以独立 10-tick 间隔运行。NeoForge 1.21.1 没有覆盖非玩家方块移除的统一事件，快速 prune 轮询是最实用的方案。
 
 ### D. 区块边界混合
 
-当前群系替换是整块直接切换（`fillBiomesFromNoise` 写入统一 biome），相邻不同群系的区块之间边界非常生硬。
-
-- [ ] 在 `BiomeTransitionService` 中实现 border-blend：使用邻近区块的 biome 作为插值源
-- [ ] 过渡期间（progress 0.8~1.0）在区块边缘逐步混合目标群系
-- [ ] 评估 1.21.1 中 `fillBiomesFromNoise` 的参数是否支持逐列 biome 设置
+- [ ] 在 `BiomeTransitionService` 中实现 border-blend
+- [ ] 过渡期间在区块边缘逐步混合目标群系
 
 ### E. 演替路径可视化编辑器
 
-见 `docs/visual-succession-editor.md` 完整设计文档，实现代码在 `succession-editor/`。
-
-原计划是手动补充更多演替路径 JSON（目前只有 3 条路径，覆盖源群系很少）。重新评估后，改为构建一个**可视化节点-连线编辑器**，从根本上解决路径配置的效率问题。
-
-**Phase 1（已完成）**：Web 编辑器（React + ReactFlow），支持群系节点 + 演替连线绘制，导出标准 JSON
-- [x] 项目脚手架（Vite + React + TS + ReactFlow）
-- [x] BiomeNode 创建与渲染
-- [x] SuccessionEdge 连线交互
-- [x] 属性编辑面板（chunkRules / plants / climate）
-- [x] JSON 导入/导出（兼容现有 schema v1）
-- [x] 撤销/重做、校验
-- [x] 中英双语、错误边界、键盘快捷键
-
-**Phase 2（已完成 2026-06-09）**：条件分支节点 + 植物快速选择
-- [x] ClimateConditionNode 菱形节点（match/no_match 双输出端口）
-- [x] ConditionProperties 编辑器
-- [x] PlantTableEditor quick-add 下拉框（48 种常见植物按 category 分组）
-- [ ] 导出时展平条件分支为独立路径
-- [ ] 导入时自动检测分支还原条件节点
-
-**Phase 3**：优先级路由、植物池复用、全局 DAG 预览
-**Phase 4**：游戏内 HTTP 集成（可选，推送配置热加载）
-
-此外，短期手动补充的路径仍可直接编辑 JSON 文件：
-- [ ] 补充反向路径：`forest_to_plains`（森林退化回平原）
-- [ ] 补充更多源群系路径：`taiga_to_forest`、`swamp_to_forest` 等
+见 `docs/succession-editor.md`。Phase 1 完成，Phase 2 条件分支节点 + 植物快速选择完成（2026-06-09）。
 
 ### F. GameTest / 可重复验证步骤
 
-当前只能手动进游戏敲命令测试。需要一套可重复的验证流程。
-
-- [ ] 编写 GameTest：验证 `plains_to_forest` 的完整闭环（init → spawn → observe → evaluate → transition）
-- [ ] 或编写一套命令脚本（`/ecoflux prototype ...` 的固定序列），文档化预期结果
-- [ ] 验证点至少覆盖：队列多样性、积分正确累加、进度正/负向变化、群系切换前后状态
+- [ ] 编写 GameTest 验证完整演替闭环
+- [ ] 或编写命令脚本 + 文档化预期结果
 
 ---
 
 ## JSON 配置覆盖分析（2026-06-07）
 
-Schema 共 32 个字段。主代码实现率 86%（25/29 完全实现），编辑器可编辑率 83%（24/29）。
-
 ### 主代码未接入的字段（2 个）
 
-- [ ] `evaluation_interval_days.max` — `ChunkRules.resolvedEvaluationIntervalTicks()` 只读 `min`，`max` 从未使用。要么在 evaluator 里做随机区间 `[min, max]`，要么从 schema 删掉
-- [ ] `spawn_rules.placement` — 解析存储了但 `ChunkSamplingHelper.findSpawnPos()` 完全忽略，所有植物用同一套列搜索逻辑。应根据 `"surface"` / `"underground"` / `"water"` 等值选不同搜索策略
+- [ ] `evaluation_interval_days.max` — `ChunkRules.resolvedEvaluationIntervalTicks()` 只读 `min`，`max` 从未使用
+- [ ] `spawn_rules.placement` — 解析存储了但 `findSpawnPos()` 完全忽略
 
 ### 半接入（1 个）
 
-- [ ] `plants[].category` — 存入 `ActiveVegetationRecord` + 日志输出，但不影响任何游戏逻辑（积分、stage 判定均不依赖 category）
+- [ ] `plants[].category` — 存入 `ActiveVegetationRecord` + 日志输出，但不影响任何游戏逻辑
 
-### 编辑器不可编辑的字段（3 个）
+### 编辑器不可编辑的字段（2 个）
 
-- [ ] `source_biomes` 不支持多选 — 编辑器图拓扑决定了只能单元素数组，Java 支持一条路径覆盖多个源群系
-- [ ] `fallback_biome` 只读 — 显示但不可编辑，自动设为 source biome，Java 可以设任意 biome
-- [ ] `schema_version` — 硬编码为 1，不暴露（合理）
+- [ ] `source_biomes` 不支持多选 — 编辑器图拓扑决定了只能单元素数组，Java 支持多源群系
+- [ ] `fallback_biome` 只读 — 显示但不可编辑，自动设为 source biome
 
 ### 编辑器默认值与 Java 不一致（2 个）
 

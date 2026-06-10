@@ -1,188 +1,231 @@
-# 项目架构草案
+# 总体架构
 
-本文档基于 `README.md` 提取面向实现的架构，不依赖其他 Git 分支。
+## 包结构
 
-## 1. 架构目标
-
-把 README 中的玩法拆成四层：
-
-1. 配置层：加载演替路径、植物权重、环境条件和 consuming 规则。
-2. 数据层：在区块上持久化演替进度、植物队列和活跃植物状态。
-3. 运行层：处理随机刻、低频评估、植物增减和群系替换。
-4. 兼容层：负责网络同步和可选的 `Dynamic Trees` 联动。
-
-## 2. 推荐包结构
-
-以下结构按统一命名 `Ecoflux` 设计，建议后续代码目录同步迁移到 `com.s.ecoflux`。
-
-```text
-src/main/java/com/s/ecoflux/
-  EcofluxMod.java                   模组主入口
-  init/
-    ModAttachments.java             Data Attachments 注册
-    ModEvents.java                  通用事件绑定入口
-    ModRegistries.java              需要集中注册的对象
-  attachment/
-    SuccessionChunkData.java        区块演替核心状态
-    ActivePlantRecord.java          已追踪植物记录
-    PlantQueueEntry.java            待种植植物条目
-  config/
-    SuccessionPathDefinition.java   单条演替路径定义
-    PlantDefinition.java            植物配置定义
-    ClimateCondition.java           温度/湿度/群系匹配条件
-    SuccessionConfigLoader.java     JSON 加载与校验
-    SuccessionConfigRegistry.java   已加载配置缓存
-  succession/
-    SuccessionService.java          演替主流程编排
-    SuccessionEvaluator.java        积分、consuming、进度结算
-    SuccessionTargetResolver.java   目标群系解析
-    BiomeTransitionService.java     群系替换调用封装
-  plant/
-    PlantTracker.java               活跃植物登记/注销
-    PlantLifecycleHooks.java        破坏、凋零、生成监听
-    PlantSpawner.java               从队列尝试种植
-    PlantClassifier.java            判断哪些方块属于可管理植物
-  world/
-    ChunkTickCoordinator.java       随机刻和低频评估调度
-    ChunkSamplingHelper.java        区块中心/边界采样工具
-  network/
-    ChunkSyncPayload.java           客户端显示所需同步包
-    NetworkHandler.java             可选同步注册
-  compat/
-    DynamicTreesCompat.java         动态树兼容入口
-    CompatManager.java              兼容能力探测
-  util/
-    WeightedPicker.java             权重随机工具
-    BlockPosCodec.java              坐标序列化辅助
+```
+com.s.ecoflux/
+├── EcofluxMod.java              # @Mod 入口，组装所有子系统
+├── EcofluxConstants.java        # MOD_ID, LOGGER, ResourceLocation 工厂
+│
+├── config/                      # 配置系统
+│   ├── SuccessionConfigLoader       # Gson JSON 加载器 (SimpleJsonResourceReloadListener)
+│   ├── SuccessionConfigRegistry     # 线程安全缓存查找 (findBestMatch)
+│   ├── SuccessionPathDefinition     # Record: 演替路径完整定义
+│   ├── ChunkRules                   # Record: max_plants, consuming, intervals
+│   ├── ClimateCondition             # Record: temperature/rainfall 范围
+│   ├── PlantDefinition              # Record: 植物配置条目
+│   ├── PlantSpawnRules              # Record: 生成规则 (权重、位置)
+│   ├── FloatRange / IntRange        # Record: 范围工具类型
+│   ├── EcofluxServerConfig          # 服务端 TOML 配置
+│   └── VisualLifecycleClientConfig  # 客户端 TOML 配置
+│
+├── attachment/                  # 数据附件 (NBT 持久化)
+│   ├── SuccessionChunkData          # 核心 per-chunk 状态
+│   ├── ActiveVegetationRecord       # 活跃植被追踪记录
+│   └── PlantQueueEntry              # 预生成植物条目
+│
+├── succession/                  # 演替核心系统
+│   ├── SuccessionService            # 主编排入口 (init/step/tick/prune/spawn/evaluate)
+│   ├── SuccessionTargetResolver     # 初始化：采样 biome/climate → 匹配 config
+│   ├── SuccessionEvaluator          # 进度评估：aging gate + 点数 vs consuming
+│   └── BiomeTransitionService       # 群系替换：fillBiomesFromNoise + 发包 + 植树
+│
+├── plant/                       # 植物生命周期系统
+│   ├── VegetationTypeAdapter        # 核心接口：matches/captureBirth/observe/visualState
+│   ├── VegetationTracker            # 单例：追踪/观察/同步所有植被
+│   ├── PlantSpawner                 # 生成/修剪：trySpawnPlant/pruneInvalid/ensureQueue
+│   ├── VegetationObservation        # Record: 观察结果
+│   ├── VegetationTransformation     # Record: 转换描述
+│   ├── VegetationVisualState        # Record: 视觉快照
+│   ├── VegetationCategory           # Enum: 植被分类
+│   ├── VegetationLifecycleStage     # Enum: 生命周期阶段
+│   ├── SimplePlantAdapter           # 小型植物适配器 (花/草/蕨/蘑菇)
+│   ├── SaplingAdapter               # 树苗适配器 (→ TreeGrowthHandler)
+│   └── TreeStructureAdapter         # 成熟树适配器
+│   │
+│   └── tree/                    # 树木生长子系统
+│       ├── TreeGrowthHandler        # 单例：管理所有生长会话
+│       ├── TreeGrowthSession        # 每棵树状态 (NBT 可序列化)
+│       ├── TreeGrowthProfile        # 接口：树种生长参数 + morphologyParams()
+│       ├── TreeShapeUtils           # 共享工具 (噪声/冠形/2x2/枝干)
+│       ├── GrowthPlacement          # Record: 动画方块放置
+│       ├── GrowthBlockCapture       # Record: 方块捕获
+│       │
+│       ├── morphology/          # 形态学系统
+│       │   ├── TreeMorphology        # 集成入口 (generateSkeleton→planStages→growStage)
+│       │   ├── SkeletonGenerator     # 参数化递归分枝
+│       │   ├── CanopyEnvelope        # 5 种 3D 冠形密度函数
+│       │   ├── LeafFiller            # 骨架感知叶块放置
+│       │   ├── MorphologyParams      # 每树种形态参数 record
+│       │   ├── TreeSkeleton          # 骨架数据结构
+│       │   ├── SkeletonNode          # Record: pos, type, radius, parentIndex, depth
+│       │   └── NodeType              # Enum: TRUNK/PRIMARY_BRANCH/SECONDARY_BRANCH/TWIG
+│       │
+│       ├── profiles/            # 树种生长配置
+│       │   ├── OakGrowthProfile / BirchGrowthProfile / SpruceGrowthProfile
+│       │   ├── JungleGrowthProfile / DarkOakGrowthProfile / AcaciaGrowthProfile
+│       │   └── BrownMushroomGrowthProfile / RedMushroomGrowthProfile
+│       │
+│       └── animation/           # BlockDisplay 生长动画
+│           ├── BlockDisplayAnimator  # 实体生成/缩放/替换 (反射访问 Display 字段)
+│           └── AnimationStyle        # Enum: TRUNK_EXTRUDE/LEAF_INFLATE/LEAF_CLUSTER
+│
+├── client/                      # 客户端
+│   ├── visual/                  # 视觉生命周期渲染
+│   │   ├── VisualLifecycleClientRuntime  # 客户端单例：接收服务端视觉状态
+│   │   ├── VisualLifecycleWorldRenderer  # 渲染视觉叠加 (缩放/老化着色)
+│   │   ├── VisualLifecycleAdapter        # 接口
+│   │   ├── VisualLifecycleProfile        # 视觉配置
+│   │   ├── VisualLifecycleInstance       # 活跃实例
+│   │   ├── VisualLifecycleRenderState    # 渲染状态
+│   │   ├── VisualLifecycleStage          # 视觉阶段
+│   │   ├── VisualLifecycleExternalState  # 外部状态输出
+│   │   ├── VisualLifecycleTrackingSource # 追踪来源
+│   │   ├── VisualLifecycleRegistry       # 注册表
+│   │   ├── ModClientVisualLifecycle      # 客户端初始化
+│   │   └── adapters: Flower/Grass/Sapling/Generic
+│   │
+│   └── growth/                  # 客户端生长动画
+│       └── ClientGrowthAnimationManager  # 客户端接收动画同步
+│
+├── network/                     # 网络同步
+│   ├── ModNetworking                    # Payload 注册
+│   ├── VegetationVisualChunkSyncPayload # 植被视觉状态 → 客户端
+│   ├── VegetationVisualSyncEntry        # 单植物同步条目
+│   └── GrowthAnimationSyncPayload       # 生长动画同步
+│
+├── world/                       # 世界工具
+│   └── ChunkSamplingHelper      # 采样 biome/climate/surface/findSpawnPos
+│
+├── init/                        # 初始化与事件
+│   ├── ModAttachments           # DataAttachment<SuccessionChunkData> 注册
+│   ├── ModChunkEvents           # Chunk load/unload/tick 事件
+│   ├── ModPlayerEvents          # 玩家放置/破坏 → VegetationTracker
+│   ├── ModCommands              # /ecoflux debug 命令
+│   └── ModReloadListeners       # JSON 热重载 (/reload)
+│
+├── mixin/                       # Mixin 层
+│   ├── SaplingBlockMixin        # 拦截树苗瞬间生长 → TreeGrowthHandler
+│   ├── MushroomBlockMixin       # 拦截蘑菇瞬间生长
+│   ├── LevelMixin               # Level 相关钩子
+│   └── client/
+│       └── BlockRenderDispatcherMixin  # 抑制被追踪方块的 vanilla 渲染
+│
+└── prototype/                   # 加速演示
+    └── PrototypeChunkController # 10 秒加速演替演示模式
 ```
 
-## 3. 资源与数据布局
+## 分层架构
 
-建议的资源布局如下：
+```
+┌────────────────────────────────────────────┐
+│              配置层 (config/)               │
+│   JSON 定义 → SuccessionConfigRegistry     │
+│   决定：什么群系能演替到什么群系              │
+└────────────────────┬───────────────────────┘
+                     │ 提供 SuccessionPathDefinition
+                     ▼
+┌────────────────────────────────────────────┐
+│            演替核心层 (succession/)          │
+│   Service → Evaluator → BiomeTransition    │
+│   编排：初始化→生成→评估→转换                │
+└──────┬──────────────────┬──────────────────┘
+       │                  │
+       ▼                  ▼
+┌──────────────┐  ┌──────────────────┐
+│  植物生命周期  │  │   世界工具        │
+│  (plant/)    │  │   (world/)       │
+│  追踪·观察   │  │   采样·定位       │
+│  生成·修剪   │  │                  │
+└──────┬───────┘  └──────────────────┘
+       │
+       ▼
+┌────────────────────────────────────────────┐
+│          树木生长 (plant/tree/)              │
+│   Handler → Session → Morphology → Animation│
+└────────────────────────────────────────────┘
 
-```text
+横向支撑层：
+┌────────────┐  ┌────────────┐  ┌────────────┐
+│ attachment │  │  network   │  │   mixin    │
+│ 数据持久化  │  │  网络同步   │  │  字节码钩子 │
+└────────────┘  └────────────┘  └────────────┘
+```
+
+## 核心数据流
+
+```
+Chunk Load (ModChunkEvents)
+  │
+  ├─→ SuccessionService.initializeChunk()
+  │     ├─→ ChunkSamplingHelper.sampleChunkCenterBiome()
+  │     ├─→ ChunkSamplingHelper.sampleChunkClimate()
+  │     ├─→ SuccessionConfigRegistry.findBestMatch()
+  │     ├─→ SuccessionTargetResolver.populateChunkData()
+  │     └─→ PlantSpawner.ensureQueue() + trySpawnPlant()
+  │
+  ▼
+Chunk Tick (每 20 tick / 1秒)
+  │
+  ├─→ SuccessionService.processChunkTick()
+  │     ├─→ VegetationTracker.observeChunk()
+  │     ├─→ SuccessionEvaluator.evaluateProgress()
+  │     │     ├─ hasAgingVegetation()? → 比较 vegetationPoints vs consuming
+  │     │     └─ shouldRegress()? → progress <= -1.0
+  │     ├─→ progress >= 1.0 → BiomeTransitionService.applyTransition()
+  │     ├─→ progress <= -1.0 → BiomeTransitionService.applyRegression()
+  │     ├─→ PlantSpawner.pruneInvalidPlants()
+  │     └─→ PlantSpawner.trySpawnPlant()
+  │
+  ├─→ TreeGrowthHandler.tickAll() (每 20 tick)
+  │     └─→ profile.morphologyParams()? → TreeMorphology.growStage()
+  │
+  └─→ VegetationTracker.syncChunkToTracking() → 网络发包
+
+## 关键设计决策
+
+### 1. Data-driven 配置
+演替路径在 `data/ecoflux/succession_paths/*.json` 中定义为 JSON 文件，通过 `SimpleJsonResourceReloadListener` 加载，支持 `/reload` 热重载。无需修改代码即可添加新路径。
+
+### 2. DataAttachment 持久化
+每个 chunk 的状态通过 `DataAttachment<SuccessionChunkData>` 附加，完整 NBT 序列化。Chunk 卸载后重新加载时状态自动恢复。
+
+### 3. Adapter 模式植物识别
+植物类型通过 `VegetationTypeAdapter` 接口识别，而非硬编码。每个 adapter 实现 `matches(BlockState)` 判断是否匹配，`captureBirth()` 记录出生状态，`observe()` 评估生命周期阶段。
+
+### 4. 统一 vegetationRecords
+所有植物追踪统一到 `vegetationRecords` (`Map<BlockPos, ActiveVegetationRecord>`)，不再有单独的 `activePlants` 系统。`SuccessionChunkData.getCurrentPlantCount()` 返回 `vegetationRecords.size()`。
+
+### 5. 形态学驱动树木生长
+树生长使用参数化递归骨架 + 3D 冠包络体 + 骨架感知叶填充，而非简单的"直杆+圆盘"。每个树种有独立的 `MorphologyParams`，骨架通过位置确定性种子生成以保证视觉一致性。
+
+### 6. BlockDisplay 动画
+树生长阶段不瞬间放置方块，而是生成临时 `BlockDisplay` 实体播放缩放动画（树干挤出/树叶膨胀），完成后替换为真实方块。利用 Minecraft 内置的 Display 插值系统实现客户端平滑过渡。
+
+## 启动流程
+
+```
+EcofluxMod 构造器
+  ├─ ModAttachments.register()      — 注册 SUCCESSION_CHUNK_DATA
+  ├─ ModNetworking.register()       — 注册网络 Payload
+  ├─ ModChunkEvents.register()      — 注册 chunk load/unload/tick 处理器
+  ├─ ModPlayerEvents.register()     — 注册玩家放置/破坏处理器
+  ├─ ModCommands.register()         — 注册 /ecoflux 命令
+  ├─ ModReloadListeners.register()  — 注册 JSON 热重载监听器
+  └─ registerConfig()               — 服务端 + 客户端 TOML 配置
+```
+
+## 资源结构
+
+```
 src/main/resources/
-  assets/ecoflux/
-    lang/
-      en_us.json
-      zh_cn.json
-  data/ecoflux/
-    succession_paths/
-      *.json
+├── ecoflux.mixins.json                    # Mixin 配置
+├── assets/ecoflux/lang/
+│   ├── en_us.json                         # 英文翻译
+│   └── zh_cn.json                         # 中文翻译
+└── data/ecoflux/succession_paths/
+    ├── plains_to_forest.json              # 21 个演替路径 JSON
+    ├── plains_to_meadow.json
+    ├── forest_to_birch_forest.json
+    └── ... (共 21 个文件)
 ```
-
-注意：
-
-- `README.md` 的数据路径与当前统一命名一致，后续资源应向 `ecoflux` 收敛。
-- 当前仓库仍保留 `succession` 遗留目录，重构时需要整体替换。
-- 代码里不要把路径字符串散落硬编码；统一通过常量或配置注册表提供命名空间。
-
-## 4. 核心数据对象
-
-### 4.1 `SuccessionChunkData`
-
-区块级核心状态建议至少包含：
-
-- `currentBiome`
-- `targetBiome`
-- `previousBiome`
-- `progress`
-- `consumingValue`
-- `maxPlantCount`
-- `currentPlantCount`
-- `queueVersion`，用于配置刷新后判断队列是否需要重建
-- `Queue<PlantQueueEntry> plantQueue`
-- `Map<BlockPos, ActivePlantRecord> activePlants`
-- `lastEvaluationGameTime`
-
-### 4.2 `PlantQueueEntry`
-
-建议字段：
-
-- `plantId`
-- `pointValue`
-- `weight`
-- `maxAge`
-- `spawnRulesRef`
-
-### 4.3 `ActivePlantRecord`
-
-建议字段：
-
-- `plantId`
-- `pointValue`
-- `spawnPos`
-- `birthGameTime`
-- `expireGameTime`
-- `sourceBiome`
-
-## 5. 运行时主流程
-
-### 5.1 区块初始化
-
-1. 区块加载时附加 `SuccessionChunkData`。
-2. 如果数据为空，则根据当前群系匹配演替路径。
-3. 初始化 consuming、植物上限和植物队列。
-
-### 5.2 随机刻 / 常规驱动
-
-1. 调度器判定当前区块是否需要处理。
-2. 若 `currentPlantCount < maxPlantCount` 且队列非空，则尝试种植。
-3. 种植成功后把结果加入 `activePlants`，并更新数量。
-4. 种植失败时按策略决定重试、丢弃或延后。
-
-### 5.3 生命周期维护
-
-1. 监听植物自然凋零、被破坏、替换或失效。
-2. 从 `activePlants` 移除对应记录。
-3. 重新统计或增量调整植物总积分。
-
-### 5.4 低频评估
-
-1. 每隔 3~7 游戏日对区块做一次评估。
-2. 计算 `totalPlantPoints` 与 `consumingValue` 的差值。
-3. 差值为正则增加进度，反之减少进度。
-4. 当 `progress >= 1.0` 时执行正向演替；当 `progress <= -1.0` 时回退到上一阶段。
-
-### 5.5 群系替换
-
-1. 解析目标群系。
-2. 调用群系替换服务执行真实变更。
-3. 重置区块演替状态、重新生成队列，并视需要对边界表层做混合缓解。
-
-## 6. 配置层设计建议
-
-单条演替路径建议描述这些信息：
-
-- 源群系
-- 目标群系
-- 气候条件（温度、湿度范围，可选额外过滤）
-- consuming 数值
-- 最大植物容量
-- 植物列表及权重
-- 可回退目标
-
-建议把“路径匹配”和“植物定义复用”分开：
-
-- `succession_paths/*.json` 负责描述从什么群系到什么群系。
-- 如果后续配置变多，可以再拆出 `plant_sets/*.json` 供多条路径复用。
-
-## 7. 性能策略
-
-- 区块评估严格低频化，不在每 tick 结算。
-- 尽量使用增量更新，避免反复全量扫描区块内植物。
-- 区块未加载时不做额外工作。
-- 把“边界混合”放在演替完成瞬间执行，而不是持续执行。
-- 兼容层探测只在启动或资源重载时做一次。
-
-## 8. 当前最值得先落地的最小闭环
-
-第一阶段不要一上来实现全部能力，建议先打通以下闭环：
-
-1. 区块附件可读写。
-2. 能从 JSON 解析一条演替路径。
-3. 能把 1 种植物写入队列并在区块里生成。
-4. 能统计点数并推动进度变化。
-5. 能在阈值达到后触发一次真实群系替换。
-
-有了这个最小闭环，再补植物分类、更多路径、同步和外部联动。

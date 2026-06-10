@@ -32,8 +32,7 @@ The codebase is in `src/main/java/com/s/ecoflux/`. Key architectural layers:
 - JSON path files live at `src/main/resources/data/ecoflux/succession_paths/*.json`
 
 ### Data layer (`attachment/`)
-- `SuccessionChunkData` — Core per-chunk state attached via NeoForge `DataAttachment<SuccessionChunkData>`. Contains: current/target/previous biome, progress (double), consuming value, max/current plant count, plant queue, active plant/vegetation maps, evaluation timer. Fully NBT-serializable
-- `ActivePlantRecord` — Tracked plant: position, point value, birth/expiry time
+- `SuccessionChunkData` — Core per-chunk state attached via NeoForge `DataAttachment<SuccessionChunkData>`. Contains: current/target/previous biome, progress (double), consuming value, max/current plant count, plant queue, vegetationRecords map, evaluation timer. Fully NBT-serializable
 - `ActiveVegetationRecord` — Vegetation lifecycle record: adapter type, category, stage, point value, birth/age/expiry times
 - `PlantQueueEntry` — Pre-generated plant to spawn: plant_id, point_value, weight, max_age
 
@@ -127,16 +126,16 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 ## Documentation
 
 All design docs are in `docs/`, written in Chinese:
-- `architecture.md` — Target architecture: 4-layer design (config, data, runtime, compat), proposed package structure
-- `development-context.md` — Constraints, gaps, risk areas
-- `todolist.md` — Priority-ordered TODO (P0–P6)
-- `latest_progress.md` — Most recent development log, current state of each subsystem
-- `plant-lifecycle-system.md` — Vegetation adapter design
-- `visual-lifecycle-layer.md` — Client visual rendering design
-- `succession-path-format.md` — JSON path format spec
-- `visual-succession-editor.md` — Visual node-edge editor for designing succession paths (web tool, phased plan)
-- `tree-lifecycle-implementation.md` — Tree lifecycle implementation plan (6 phases)
-- `tree-morphology-design.md` — Tree morphology system design: skeleton + canopy envelope + leaf filler architecture
+- `README.md` — Master index with project overview, subsystem diagram, document map, and quick navigation
+- `architecture.md` — Overall architecture: package map, layered design, data flow, key design decisions
+- `config-system.md` — Configuration system: JSON format spec, loader, registry, path matching
+- `succession-system.md` — Succession core: service orchestration, evaluation, biome transition, prototype
+- `plant-lifecycle-system.md` — Plant lifecycle: adapter pattern, VegetationTracker, PlantSpawner, lifecycle stages
+- `tree-growth-system.md` — Tree growth: handler, sessions, profiles, morphology system, BlockDisplay animations
+- `client-visual-system.md` — Client visual: VisualLifecycle rendering, tint/scale, growth animation client
+- `networking-and-data.md` — Network sync & data: packets, chunk attachments, NBT serialization
+- `succession-editor.md` — Succession editor: React web tool for visual succession path design
+- `todolist.md` — Priority-ordered TODO list and JSON config coverage analysis
 
 ## Important Conventions
 

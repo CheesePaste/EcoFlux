@@ -3,6 +3,7 @@ package com.s.ecoflux.succession;
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionPathDefinition;
+import com.s.ecoflux.init.ModChunkEvents;
 import net.minecraft.util.Mth;
 
 public final class SuccessionEvaluator {
@@ -17,7 +18,8 @@ public final class SuccessionEvaluator {
             long gameTime,
             boolean ignoreInterval) {
         int evaluationInterval = path.chunkRules().resolvedEvaluationIntervalTicks(DEFAULT_DAY_TICKS);
-        if (!ignoreInterval && gameTime - chunkData.getLastEvaluationGameTime() < evaluationInterval) {
+        long effectiveInterval = (long) Math.max(1, evaluationInterval / ModChunkEvents.getSpeedMultiplier());
+        if (!ignoreInterval && gameTime - chunkData.getLastEvaluationGameTime() < effectiveInterval) {
             return "跳过评估：等待评估间隔。";
         }
 

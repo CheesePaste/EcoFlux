@@ -25,6 +25,7 @@ public final class ModChunkEvents {
     private static final int ACCELERATED_TRANSITION_TICKS = 200;
     private static final int TREE_GROWTH_TICK_INTERVAL = 20;
     private static volatile boolean automaticProcessingEnabled;
+    private static volatile float speedMultiplier = 1.0f;
 
     private ModChunkEvents() {
     }
@@ -41,6 +42,14 @@ public final class ModChunkEvents {
 
     public static void setAutomaticProcessingEnabled(boolean enabled) {
         automaticProcessingEnabled = enabled;
+    }
+
+    public static float getSpeedMultiplier() {
+        return speedMultiplier;
+    }
+
+    public static void setSpeedMultiplier(float multiplier) {
+        speedMultiplier = Math.max(0.1f, Math.min(1000.0f, multiplier));
     }
 
     public static void syncChunkTracking(ServerLevel level, ChunkAccess chunk) {
@@ -167,7 +176,8 @@ public final class ModChunkEvents {
         if (!EcofluxServerConfig.gradualTreeGrowth()) {
             return;
         }
-        if (level.getGameTime() % TREE_GROWTH_TICK_INTERVAL != 0) {
+        long effectiveInterval = (long) Math.max(1, TREE_GROWTH_TICK_INTERVAL / speedMultiplier);
+        if (level.getGameTime() % effectiveInterval != 0) {
             return;
         }
         TreeGrowthHandler.INSTANCE.tickAll(level);

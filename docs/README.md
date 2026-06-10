@@ -1,22 +1,86 @@
-# 开发文档索引
+# Ecoflux 文档目录
 
-这些文档基于当前分支的 `README.md`、现有工程骨架和当前工作区状态整理，用来给后续开发提供统一上下文。
+Ecoflux 是一个 **NeoForge 1.21.1** Minecraft 模组，实现 chunk 尺度的生态演替：植物生长、老化、死亡，其集体"点数"决定该 chunk 的群系演进方向（如草原→森林）或退化方向。
 
-## 工作规则
+## 子系统总览
 
-- 当前阶段只以 `README.md` 和当前分支工作区为依据开展开发。
-- 明确禁止查看、比对、引用其他 Git 分支的内容；如果未来确实需要跨分支信息，必须先获得用户明确许可。
-- 当 `README.md`、构建配置、资源命名存在冲突时，先记录差异，再由后续开发任务显式消解，不擅自猜测旧分支实现。
+```
+┌─────────────────────────────────────────────────────────┐
+│                      Ecoflux Mod                        │
+├─────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │  配置系统     │  │  演替核心     │  │  植物生命周期  │  │
+│  │  config/     │  │  succession/ │  │  plant/       │  │
+│  │  JSON 加载   │  │  评估·转换   │  │  适配器·追踪  │  │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
+│         │                 │                 │           │
+│         ▼                 ▼                 ▼           │
+│  SuccessionPath    SuccessionService   VegetationTracker│
+│  Definition        Evaluator           TypeAdapter      │
+│  ConfigRegistry    TargetResolver      PlantSpawner     │
+│                    BiomeTransition                      │
+│                                                        │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │  树木生长     │  │  客户端视觉   │  │  网络与数据   │  │
+│  │  plant/tree/ │  │  client/     │  │  network/    │  │
+│  │  Morphology  │  │  Visual      │  │  attachment/ │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│                                                        │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Mixin 层: SaplingBlock / BlockRenderDispatcher   │   │
+│  └──────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+```
 
-## 文档列表
+## 文档索引
 
-- `docs/development-context.md`：项目目标、当前仓库状态、已知约束和待确认事项。
-- `docs/architecture.md`：面向实现的模块划分、数据结构建议、运行时流程和资源布局。
-- `docs/todolist.md`：按优先级整理的开发待办、验收点和里程碑。
+| 文档 | 内容 | 适用场景 |
+|------|------|---------|
+| [architecture.md](architecture.md) | 总体架构、包结构、分层设计、数据流、关键设计决策 | 首次了解项目、全局视角 |
+| [config-system.md](config-system.md) | JSON 配置格式、加载器、注册表、路径匹配算法 | 添加新演替路径、理解配置 schema |
+| [succession-system.md](succession-system.md) | 演替循环、进度评估、群系转换、原型演示 | 理解群系如何演变、调试演替逻辑 |
+| [plant-lifecycle-system.md](plant-lifecycle-system.md) | 植物适配器模式、生命周期追踪、繁殖器 | 理解植物如何被识别和追踪 |
+| [tree-growth-system.md](tree-growth-system.md) | 树木渐进生长、形态学系统、BlockDisplay 动画 | 理解树如何生长、添加新树种 |
+| [client-visual-system.md](client-visual-system.md) | 客户端视觉渲染、生命周期可视化、生长动画 | 理解客户端渲染层 |
+| [networking-and-data.md](networking-and-data.md) | 网络协议、数据附件、NBT 序列化 | 理解数据如何持久化和同步 |
+| [succession-editor.md](succession-editor.md) | Web 可视化编辑器（React 子项目） | 使用或扩展演替编辑器 |
+| [todolist.md](todolist.md) | 优先级排序的开发任务清单 | 了解当前进度和待办事项 |
 
-## 当前快照
+## 快速导航
 
-- 项目是 NeoForge 1.21.1 模组骨架，Java 代码尚未开始实现。
-- `README.md` 已明确核心玩法：区块级生态演替、植物积分、JSON 驱动路径、可选 Dynamic Trees 联动。
-- 命名现已确定统一为 `Ecoflux`，后续开发应逐步清理当前工程里残留的 `Succession` / `succession` 命名。
-- 后续实现建议先阅读 `docs/development-context.md`，再按 `docs/architecture.md` 和 `docs/todolist.md` 推进。
+| 我想... | 去看... |
+|---------|--------|
+| 了解项目整体结构 | `architecture.md` |
+| 添加新的群系演替路径 | `config-system.md` → 末尾"如何添加" |
+| 理解 chunk 如何从草原变成森林 | `succession-system.md` → 演替循环 |
+| 添加新的植物类型支持 | `plant-lifecycle-system.md` → VegetationTypeAdapter |
+| 添加新的树种生长形态 | `tree-growth-system.md` → 如何添加新树种 |
+| 理解树为什么不是瞬间长大 | `tree-growth-system.md` → 生长管线 |
+| 查看当前开发进度 | `todolist.md` |
+| 使用可视化编辑器 | `succession-editor.md` |
+
+## 当前开发状态 (2026-06-10)
+
+**已完成:**
+- Mod 引导、chunk 数据附件、JSON 配置加载（21 个演替路径）
+- 植被生命周期适配器系统（SimplePlant / Sapling / TreeStructure / Mushroom）
+- 客户端视觉渲染、网络同步、调试命令
+- 原型全流程演示 → 服务层提取（succession/world/plant 包）
+- vegetationRecords 统一追踪（activePlants 已退役）
+- 玩家放置/破坏 → VegetationTracker 自动追踪
+- 多植物加权队列 + queue_fill_factor
+- 负向退化 → fallback 群系
+- 树生命周期 Phase 1-3：Mixin 拦截 + 渐进生长 + 6 树种
+- 树形态学系统：骨架生成 + 5 种冠形 + 骨架感知叶填充
+- BlockDisplay 生长动画
+- 演替路径可视化编辑器 (React web 工具)
+
+**进行中:**
+- 树生命周期 Phase 4（死亡/腐烂）
+- 演替系统整合
+
+**未开始:**
+- Dynamic Trees 兼容
+- 区块边界混合
+- GameTest
+- 非玩家方块变更事件 → 植被清理

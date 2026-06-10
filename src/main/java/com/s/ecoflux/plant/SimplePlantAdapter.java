@@ -3,6 +3,7 @@ package com.s.ecoflux.plant;
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.config.EcofluxServerConfig;
+import com.s.ecoflux.init.ModChunkEvents;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -99,7 +100,7 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
                     "简单植物（跳过生命周期阶段推进）。");
         }
 
-        long age = Math.max(0L, gameTime - record.birthGameTime());
+        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
         VegetationLifecycleStage stage;
         int pointValue;
         boolean mature = false;
@@ -135,7 +136,7 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
         if (!EcofluxServerConfig.gradualPlantGrowth()) {
             return new VegetationVisualState(VegetationLifecycleStage.MATURE, 1.0F);
         }
-        long age = Math.max(0L, gameTime - record.birthGameTime());
+        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
         return switch (record.lifeStage()) {
             case BORN -> new VegetationVisualState(VegetationLifecycleStage.BORN, progress(age, 0L, 200L));
             case GROWING -> new VegetationVisualState(VegetationLifecycleStage.GROWING, progress(age, 200L, 1200L));
