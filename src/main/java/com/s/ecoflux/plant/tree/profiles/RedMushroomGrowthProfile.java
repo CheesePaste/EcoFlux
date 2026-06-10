@@ -13,6 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
     public static final RedMushroomGrowthProfile INSTANCE = new RedMushroomGrowthProfile();
     private static final ResourceLocation TYPE = ResourceLocation.withDefaultNamespace("red_mushroom");
+    private static final int CAP_RADIUS = 2;
 
     private RedMushroomGrowthProfile() {
     }
@@ -48,15 +49,15 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
     public void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                           int totalStages, int resolvedHeight, RandomSource random) {
         if (currentStage < resolvedHeight) {
-            placeStemStage(level, saplingPos, currentStage);
+            placeStem(level, saplingPos, currentStage + 1);
         } else {
             int capStage = currentStage - resolvedHeight;
-            placeCapStage(level, saplingPos, resolvedHeight, capStage, random);
+            placeCap(level, saplingPos, resolvedHeight, capStage);
         }
     }
 
-    private void placeStemStage(ServerLevel level, BlockPos saplingPos, int stage) {
-        BlockPos stemPos = saplingPos.above(stage + 1);
+    private void placeStem(ServerLevel level, BlockPos saplingPos, int y) {
+        BlockPos stemPos = saplingPos.above(y);
         BlockState existing = level.getBlockState(stemPos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
                 || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
@@ -65,40 +66,46 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
         }
     }
 
-    private void placeCapStage(ServerLevel level, BlockPos saplingPos, int stemHeight,
-                               int capStage, RandomSource random) {
-        BlockPos capCenter = saplingPos.above(stemHeight);
+    /**
+     * Matches vanilla HugeRedMushroomFeature: 4-layer dome cap.
+     * Bottom 3 layers are border-only rings (sides without corners).
+     * Top layer is full 5x5.
+     */
+    private void placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
+        int r = CAP_RADIUS;
 
         switch (capStage) {
             case 0 -> {
-                // dome layer: center at stem top, small cluster
-                placeCapBlock(level, capCenter);
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dz = -1; dz <= 1; dz++) {
-                        if (dx == 0 && dz == 0) continue;
-                        placeCapBlock(level, capCenter.offset(dx, 0, dz));
-                    }
+                // bottom 2 dome layers: y=h-3 and y=h-2, border-only rings
+                for (int dy = stemHeight - 3; dy <= stemHeight - 2; dy++) {
+                    placeDomeRing(level, saplingPos, dy, r);
                 }
-                // one above center
-                placeCapBlock(level, capCenter.above());
             }
             case 1 -> {
-                // wider layer at top
-                for (int dx = -2; dx <= 2; dx++) {
-                    for (int dz = -2; dz <= 2; dz++) {
-                        if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) continue;
-                        if (Math.abs(dx) == 2 && Math.abs(dz) == 2 && random.nextFloat() > 0.5) continue;
-                        placeCapBlock(level, capCenter.offset(dx, 0, dz));
+                // upper dome ring: y=h-1, border-only
+                placeDomeRing(level, saplingPos, stemHeight - 1, r);
+                // top full layer: y=h, all positions
+                for (int dx = -r; dx <= r; dx++) {
+                    for (int dz = -r; dz <= r; dz++) {
+                        placeCapBlock(level, saplingPos.offset(dx, stemHeight, dz));
                     }
                 }
-                // top dome
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dz = -1; dz <= 1; dz++) {
-                        placeCapBlock(level, capCenter.offset(dx, 1, dz));
-                    }
+            }
+        }
+    }
+
+    /**
+     * Places a ring of cap blocks: the 4 sides of the square without corners and without interior.
+     * Matches vanilla: isXEdge != isZEdge condition.
+     */
+    private void placeDomeRing(ServerLevel level, BlockPos saplingPos, int y, int r) {
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                boolean xEdge = dx == -r || dx == r;
+                boolean zEdge = dz == -r || dz == r;
+                if (xEdge != zEdge) {
+                    placeCapBlock(level, saplingPos.offset(dx, y, dz));
                 }
-                // top center cap
-                placeCapBlock(level, capCenter.above(2));
             }
         }
     }

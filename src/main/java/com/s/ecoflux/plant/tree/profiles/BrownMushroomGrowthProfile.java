@@ -1,8 +1,6 @@
 package com.s.ecoflux.plant.tree.profiles;
 
 import com.s.ecoflux.plant.tree.TreeGrowthProfile;
-import java.util.ArrayList;
-import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -10,11 +8,13 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.HugeMushroomBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
     public static final BrownMushroomGrowthProfile INSTANCE = new BrownMushroomGrowthProfile();
     private static final ResourceLocation TYPE = ResourceLocation.withDefaultNamespace("brown_mushroom");
+    private static final int CAP_RADIUS = 2;
 
     private BrownMushroomGrowthProfile() {
     }
@@ -29,7 +29,7 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
 
     @Override
     public int totalStagesForHeight(int resolvedHeight) {
-        return resolvedHeight + 3; // stem + 3 cap stages
+        return resolvedHeight + 2; // stem + 2 cap stages
     }
 
     @Override
@@ -50,15 +50,15 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
     public void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                           int totalStages, int resolvedHeight, RandomSource random) {
         if (currentStage < resolvedHeight) {
-            placeStemStage(level, saplingPos, currentStage);
+            placeStem(level, saplingPos, currentStage + 1);
         } else {
             int capStage = currentStage - resolvedHeight;
-            placeCapStage(level, saplingPos, resolvedHeight, capStage, random);
+            placeCap(level, saplingPos, resolvedHeight, capStage);
         }
     }
 
-    private void placeStemStage(ServerLevel level, BlockPos saplingPos, int stage) {
-        BlockPos stemPos = saplingPos.above(stage + 1);
+    private void placeStem(ServerLevel level, BlockPos saplingPos, int y) {
+        BlockPos stemPos = saplingPos.above(y);
         BlockState existing = level.getBlockState(stemPos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
                 || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
@@ -67,55 +67,35 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
         }
     }
 
-    private void placeCapStage(ServerLevel level, BlockPos saplingPos, int stemHeight,
-                               int capStage, RandomSource random) {
+    /**
+     * Matches vanilla HugeBrownMushroomFeature: single flat disk at stem top,
+     * 5x5 square minus 4 corners.
+     */
+    private void placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
         BlockPos capCenter = saplingPos.above(stemHeight);
+        int r = CAP_RADIUS;
 
         switch (capStage) {
             case 0 -> {
-                // center + ring radius 1
+                // center block
                 placeCapBlock(level, capCenter);
+                // radius 1 ring (3x3 minus corners)
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
                         if (dx == 0 && dz == 0) continue;
+                        if (Math.abs(dx) == 1 && Math.abs(dz) == 1) continue;
                         placeCapBlock(level, capCenter.offset(dx, 0, dz));
-                    }
-                }
-                // top center
-                placeCapBlock(level, capCenter.above());
-            }
-            case 1 -> {
-                // extend to radius 2
-                for (int dx = -2; dx <= 2; dx++) {
-                    for (int dz = -2; dz <= 2; dz++) {
-                        if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) continue;
-                        if (Math.abs(dx) == 2 && Math.abs(dz) == 2 && random.nextFloat() > 0.6) continue;
-                        placeCapBlock(level, capCenter.offset(dx, 0, dz));
-                    }
-                }
-                // ring radius 1 on top layer
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dz = -1; dz <= 1; dz++) {
-                        placeCapBlock(level, capCenter.offset(dx, 1, dz));
                     }
                 }
             }
-            case 2 -> {
-                // extend to radius 3, outer ring
-                for (int dx = -3; dx <= 3; dx++) {
-                    for (int dz = -3; dz <= 3; dz++) {
-                        if (Math.abs(dx) <= 2 && Math.abs(dz) <= 2) continue;
-                        if (Math.abs(dx) == 3 && Math.abs(dz) == 3 && random.nextFloat() > 0.5) continue;
-                        placeCapBlock(level, capCenter.offset(dx, -1, dz));
-                    }
-                }
-                // a few hanging blocks
-                for (int dx = -2; dx <= 2; dx++) {
-                    for (int dz = -2; dz <= 2; dz++) {
-                        if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) continue;
-                        if (random.nextFloat() < 0.3) {
-                            placeCapBlock(level, capCenter.offset(dx, -1, dz));
-                        }
+            case 1 -> {
+                // outer ring: radius 2, all blocks minus corners and inner 3x3
+                for (int dx = -r; dx <= r; dx++) {
+                    for (int dz = -r; dz <= r; dz++) {
+                        if (Math.abs(dx) == r && Math.abs(dz) == r) continue; // skip 4 corners
+                        if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1
+                                && !(Math.abs(dx) == 1 && Math.abs(dz) == 1)) continue; // skip inner
+                        placeCapBlock(level, capCenter.offset(dx, 0, dz));
                     }
                 }
             }
