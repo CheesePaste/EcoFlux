@@ -40,6 +40,7 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
             if (check.getY() >= level.getMaxBuildHeight()) return false;
             BlockState s = level.getBlockState(check);
             return s.isAir() || s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS)
+                    || s.is(Blocks.BROWN_MUSHROOM) || s.is(Blocks.RED_MUSHROOM)
                     || s.is(Blocks.BROWN_MUSHROOM_BLOCK) || s.is(Blocks.RED_MUSHROOM_BLOCK)
                     || s.is(Blocks.MUSHROOM_STEM);
         }
@@ -61,6 +62,7 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
         BlockPos stemPos = saplingPos.above(y);
         BlockState existing = level.getBlockState(stemPos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
+                || existing.is(Blocks.BROWN_MUSHROOM) || existing.is(Blocks.RED_MUSHROOM)
                 || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
                 || existing.is(Blocks.MUSHROOM_STEM)) {
             level.setBlock(stemPos, Blocks.MUSHROOM_STEM.defaultBlockState(), 3);
@@ -106,6 +108,7 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
     private void placeCapBlock(ServerLevel level, BlockPos pos, int r, int dx, int dz) {
         BlockState existing = level.getBlockState(pos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
+                || existing.is(Blocks.BROWN_MUSHROOM) || existing.is(Blocks.RED_MUSHROOM)
                 || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
                 || existing.is(Blocks.MUSHROOM_STEM)) {
             boolean onXEdge = dx == -r || dx == r;
