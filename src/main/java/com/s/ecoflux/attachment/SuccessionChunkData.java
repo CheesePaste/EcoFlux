@@ -33,7 +33,6 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private static final String LAST_EVALUATION_GAME_TIME = "last_evaluation_game_time";
     private static final String PLANT_QUEUE = "plant_queue";
     private static final String VEGETATION_RECORDS = "vegetation_records";
-    private static final String ACTIVE_PLANTS = "active_plants";
 
     private static final Set<VegetationLifecycleStage> CONTRIBUTING_STAGES = Set.of(
             VegetationLifecycleStage.GROWING,
@@ -201,6 +200,9 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
 
     public void clearRuntimeState() {
         activePathId = null;
+        targetBiome = null;
+        consumingValue = 0;
+        maxPlantCount = 0;
         progress = 0.0D;
         lastEvaluationGameTime = 0L;
         plantQueue.clear();

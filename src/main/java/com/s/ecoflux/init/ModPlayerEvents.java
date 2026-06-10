@@ -1,15 +1,10 @@
 package com.s.ecoflux.init;
 
-import com.s.ecoflux.attachment.ActiveVegetationRecord;
-import com.s.ecoflux.attachment.SuccessionChunkData;
-import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.VegetationTracker;
-import com.s.ecoflux.plant.VegetationTypeAdapter;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.common.NeoForge;
@@ -31,27 +26,12 @@ public final class ModPlayerEvents {
 
         ServerLevel level = (ServerLevel) event.getLevel();
         BlockPos pos = event.getPos();
-        BlockState state = event.getPlacedBlock();
         LevelChunk chunk = getChunk(level, pos);
         if (chunk == null) {
             return;
         }
 
-        Optional<VegetationTypeAdapter> adapter = VegetationTracker.INSTANCE.findAdapter(state);
-        if (adapter.isEmpty()) {
-            return;
-        }
-
-        SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-        ActiveVegetationRecord record = adapter.get().captureBirth(
-                level,
-                pos,
-                state,
-                level.getGameTime(),
-                chunkData.getCurrentBiome().map(key -> key.location()),
-                chunkData.getActivePathId());
-        chunkData.trackVegetation(record);
-        ModNetworking.syncChunkToTracking(level, chunk);
+        VegetationTracker.INSTANCE.trackAt(level, chunk, pos, Optional.empty(), Optional.empty());
     }
 
     private static void onBlockBroken(BlockEvent.BreakEvent event) {
@@ -67,13 +47,7 @@ public final class ModPlayerEvents {
             return;
         }
 
-        SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-        if (!chunkData.getVegetationRecords().containsKey(pos)) {
-            return;
-        }
-
-        chunkData.removeVegetation(pos);
-        ModNetworking.syncChunkToTracking(level, chunk);
+        VegetationTracker.INSTANCE.untrack(chunk, pos);
     }
 
     private static LevelChunk getChunk(ServerLevel level, BlockPos pos) {

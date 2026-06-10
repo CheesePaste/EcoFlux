@@ -35,4 +35,11 @@ public interface VegetationTypeAdapter {
             long gameTime) {
         return Optional.empty();
     }
+
+    static float progress(long age, long start, long endExclusive) {
+        if (endExclusive <= start) {
+            return 1.0F;
+        }
+        return (float) (Math.max(0L, age - start)) / (float) (endExclusive - start);
+    }
 }

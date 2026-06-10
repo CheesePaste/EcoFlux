@@ -35,7 +35,8 @@
       "Bash(git restore *)",
       "Bash(git commit *)",
       "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.world.level.Level)",
-      "Bash(./gradlew.bat compileJava)"
+      "Bash(./gradlew.bat compileJava)",
+      "Bash(xargs -I{} basename {})"
     ]
   }
 }

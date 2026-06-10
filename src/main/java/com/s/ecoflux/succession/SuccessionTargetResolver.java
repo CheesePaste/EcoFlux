@@ -52,12 +52,8 @@ public final class SuccessionTargetResolver {
             return;
         }
 
-        chunkData.setActivePathId(null);
+        chunkData.clearRuntimeState();
         chunkData.setPreviousBiome(null);
-        chunkData.setTargetBiome(null);
-        chunkData.setConsumingValue(0);
-        chunkData.setMaxPlantCount(0);
-        chunkData.replacePlantQueue(List.of());
         EcofluxConstants.LOGGER.debug(
                 "已初始化 Ecoflux 区块 {}：群系 {} 没有匹配的演替路径（温度={}，降水={}）",
                 chunk.getPos(),

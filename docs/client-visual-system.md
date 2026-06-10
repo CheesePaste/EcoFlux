@@ -125,16 +125,6 @@
   → VisualLifecycleWorldRenderer 消费 VisualLifecycleRenderState
 ```
 
-## BlockDisplay 生长动画（客户端）
-
-树木生长动画的客户端接收由 `ClientGrowthAnimationManager` 处理。服务端通过 `GrowthAnimationSyncPayload` 发送动画参数，客户端接收后管理 BlockDisplay 实体的渲染。
-
-相关组件：
-- `client/growth/ClientGrowthAnimationManager.java` — 客户端接收动画同步
-- `mixin/client/BlockRenderDispatcherMixin.java` — 抑制被追踪方块的 vanilla 渲染（缩放不为 1.0 时）
-
-详见 [tree-growth-system.md](tree-growth-system.md) 中的 BlockDisplay 动画章节。
-
 ## 当前相关文件
 
 ```
@@ -155,9 +145,6 @@ client/visual/
 ├── SaplingVisualLifecycleAdapter.java
 └── GenericVisualLifecycleAdapter.java
 
-client/growth/
-└── ClientGrowthAnimationManager.java
-
 mixin/client/
 └── BlockRenderDispatcherMixin.java
 
@@ -165,6 +152,5 @@ config/
 └── VisualLifecycleClientConfig.java
 
 network/
-├── VegetationVisualChunkSyncPayload.java
-└── GrowthAnimationSyncPayload.java
+└── VegetationVisualChunkSyncPayload.java
 ```

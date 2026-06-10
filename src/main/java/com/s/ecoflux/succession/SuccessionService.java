@@ -52,29 +52,7 @@ public final class SuccessionService {
         if (pathOptional.isEmpty()) {
             return "区块 " + chunk.getPos() + " 没有激活的演替路径。";
         }
-
-        SuccessionPathDefinition path = pathOptional.get();
-        long gameTime = level.getGameTime();
-        List<String> messages = new ArrayList<>();
-
-        int pruned = PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
-        messages.add("已清理 " + pruned + " 个植物。");
-
-        PlantSpawner.ensureQueue(chunkData, path);
-        messages.add(PlantSpawner.trySpawnPlant(level, chunk, chunkData, path, gameTime));
-
-        messages.add(VegetationTracker.INSTANCE.observeChunk(level, chunk));
-
-        String evalResult = SuccessionEvaluator.evaluate(chunkData, path, gameTime, true);
-        messages.add(evalResult);
-
-        if (chunkData.getProgress() >= 1.0D) {
-            messages.add(BiomeTransitionService.applyTransition(level, chunk, chunkData));
-        } else if (SuccessionEvaluator.shouldRegress(chunkData)) {
-            messages.add(BiomeTransitionService.applyRegression(level, chunk, chunkData, path));
-        }
-
-        return String.join(" ", messages);
+        return doPipeline(level, chunk, chunkData, pathOptional.get(), true);
     }
 
     public static String pruneChunk(ServerLevel level, LevelChunk chunk) {
@@ -129,22 +107,25 @@ public final class SuccessionService {
 
         SuccessionPathDefinition path = pathOptional.get();
         long gameTime = level.getGameTime();
-
         float speed = ModChunkEvents.getSpeedMultiplier();
-        int pruned = 0;
+
         long effectivePruneInterval = (long) Math.max(1, PRUNE_INTERVAL_TICKS / speed);
-        if (gameTime % effectivePruneInterval == 0L) {
-            pruned = PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
+        if (gameTime % effectivePruneInterval != 0L
+                && gameTime % ((long) Math.max(1, path.chunkRules().processingIntervalTicks() / speed)) != 0L) {
+            return "自动演替跳过区块 " + chunk.getPos() + "：等待处理间隔。";
         }
 
-        long effectiveProcessInterval = (long) Math.max(1, path.chunkRules().processingIntervalTicks() / speed);
-        if (gameTime % effectiveProcessInterval != 0L) {
-            return pruned > 0
-                    ? "已清理 " + pruned + " 个植物。"
-                    : "自动演替跳过区块 " + chunk.getPos() + "：等待处理间隔。";
-        }
+        return doPipeline(level, chunk, chunkData, path, false);
+    }
 
+    private static String doPipeline(ServerLevel level, LevelChunk chunk,
+                                      SuccessionChunkData chunkData,
+                                      SuccessionPathDefinition path,
+                                      boolean ignoreInterval) {
+        long gameTime = level.getGameTime();
         List<String> messages = new ArrayList<>();
+
+        int pruned = PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
         messages.add("已清理 " + pruned + " 个植物。");
 
         PlantSpawner.ensureQueue(chunkData, path);
@@ -152,7 +133,7 @@ public final class SuccessionService {
 
         messages.add(VegetationTracker.INSTANCE.observeChunk(level, chunk));
 
-        String evalResult = SuccessionEvaluator.evaluate(chunkData, path, gameTime, false);
+        String evalResult = SuccessionEvaluator.evaluate(chunkData, path, gameTime, ignoreInterval);
         messages.add(evalResult);
 
         if (chunkData.getProgress() >= 1.0D) {

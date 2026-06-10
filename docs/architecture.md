@@ -48,8 +48,6 @@ com.s.ecoflux/
 │       ├── TreeGrowthSession        # 每棵树状态 (NBT 可序列化)
 │       ├── TreeGrowthProfile        # 接口：树种生长参数 + morphologyParams()
 │       ├── TreeShapeUtils           # 共享工具 (噪声/冠形/2x2/枝干)
-│       ├── GrowthPlacement          # Record: 动画方块放置
-│       ├── GrowthBlockCapture       # Record: 方块捕获
 │       │
 │       ├── morphology/          # 形态学系统
 │       │   ├── TreeMorphology        # 集成入口 (generateSkeleton→planStages→growStage)
@@ -66,9 +64,6 @@ com.s.ecoflux/
 │       │   ├── JungleGrowthProfile / DarkOakGrowthProfile / AcaciaGrowthProfile
 │       │   └── BrownMushroomGrowthProfile / RedMushroomGrowthProfile
 │       │
-│       └── animation/           # BlockDisplay 生长动画
-│           ├── BlockDisplayAnimator  # 实体生成/缩放/替换 (反射访问 Display 字段)
-│           └── AnimationStyle        # Enum: TRUNK_EXTRUDE/LEAF_INFLATE/LEAF_CLUSTER
 │
 ├── client/                      # 客户端
 │   ├── visual/                  # 视觉生命周期渲染
@@ -85,14 +80,11 @@ com.s.ecoflux/
 │   │   ├── ModClientVisualLifecycle      # 客户端初始化
 │   │   └── adapters: Flower/Grass/Sapling/Generic
 │   │
-│   └── growth/                  # 客户端生长动画
-│       └── ClientGrowthAnimationManager  # 客户端接收动画同步
 │
 ├── network/                     # 网络同步
 │   ├── ModNetworking                    # Payload 注册
 │   ├── VegetationVisualChunkSyncPayload # 植被视觉状态 → 客户端
 │   ├── VegetationVisualSyncEntry        # 单植物同步条目
-│   └── GrowthAnimationSyncPayload       # 生长动画同步
 │
 ├── world/                       # 世界工具
 │   └── ChunkSamplingHelper      # 采样 biome/climate/surface/findSpawnPos

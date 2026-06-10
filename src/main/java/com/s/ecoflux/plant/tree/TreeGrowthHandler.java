@@ -4,7 +4,6 @@ import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.init.ModChunkEvents;
-import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.TreeStructureAdapter;
 import com.s.ecoflux.plant.tree.profiles.AcaciaGrowthProfile;
 import com.s.ecoflux.plant.tree.profiles.BirchGrowthProfile;
@@ -180,27 +179,22 @@ public final class TreeGrowthHandler {
             }
 
             RandomSource treeRandom = TreeShapeUtils.positionRandom(pos, level.getSeed());
-            List<GrowthPlacement> placed = null;
             var morphologyParams = profile.morphologyParams();
             if (morphologyParams != null) {
                 session.ensureSkeleton(level, morphologyParams);
                 var skel = session.skeleton();
                 var plan = session.stagePlan();
                 if (skel != null && plan != null) {
-                    placed = com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
+                    com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
                             level, skel, morphologyParams, plan,
                             session.currentStage(), level.getSeed(), treeRandom,
                             profile.logBlock(), profile.leavesBlock());
                 }
             } else {
-                placed = profile.growStage(level, pos, session.currentStage(),
+                profile.growStage(level, pos, session.currentStage(),
                         session.totalStages(), session.resolvedHeight(), treeRandom);
             }
             session.advanceStage(gameTime);
-
-            if (placed != null && !placed.isEmpty()) {
-                ModNetworking.sendGrowthAnimation(level, chunk, placed);
-            }
 
             EcofluxConstants.LOGGER.info(
                     "[Ecoflux] Tree growth stage {}/{} at {} (type={})",
@@ -208,7 +202,7 @@ public final class TreeGrowthHandler {
 
             if (session.isComplete()) {
                 completed.add(pos);
-                onGrowthComplete(level, chunk, pos);
+                onGrowthComplete(level, chunk, pos, session, profile);
             }
         }
 
@@ -230,7 +224,6 @@ public final class TreeGrowthHandler {
         if (!profile.canGrowStage(level, session.saplingPos(), session.currentStage(),
                 session.totalStages(), session.resolvedHeight())) return false;
 
-        List<GrowthPlacement> placed = null;
         RandomSource treeRandom = TreeShapeUtils.positionRandom(session.saplingPos(), level.getSeed());
         var morphologyParams = profile.morphologyParams();
         if (morphologyParams != null) {
@@ -238,40 +231,35 @@ public final class TreeGrowthHandler {
             var skel = session.skeleton();
             var plan = session.stagePlan();
             if (skel != null && plan != null) {
-                placed = com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
+                com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
                         level, skel, morphologyParams, plan,
                         session.currentStage(), level.getSeed(), treeRandom,
                         profile.logBlock(), profile.leavesBlock());
             }
         } else {
-            placed = profile.growStage(level, session.saplingPos(), session.currentStage(),
+            profile.growStage(level, session.saplingPos(), session.currentStage(),
                     session.totalStages(), session.resolvedHeight(), treeRandom);
         }
         session.advanceStage(level.getGameTime());
-
-        if (placed != null && !placed.isEmpty()) {
-            ModNetworking.sendGrowthAnimation(level, chunk, placed);
-        }
 
         EcofluxConstants.LOGGER.info(
                 "[Ecoflux] Tree bone-mealed stage {}/{} at {} (type={})",
                 session.currentStage(), session.totalStages(), session.saplingPos(), session.treeType());
 
         if (session.isComplete()) {
-            onGrowthComplete(level, chunk, session.saplingPos());
+            onGrowthComplete(level, chunk, session.saplingPos(), session, profile);
             activeGrowths.remove(session.saplingPos());
         }
 
         return true;
     }
 
-    private void onGrowthComplete(ServerLevel level, LevelChunk chunk, BlockPos basePos) {
+    private void onGrowthComplete(ServerLevel level, LevelChunk chunk, BlockPos basePos,
+                                   TreeGrowthSession session, TreeGrowthProfile profile) {
         var chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-        TreeGrowthSession session = activeGrowths.get(basePos);
-        TreeGrowthProfile profile = session != null ? resolveProfile(session.treeType()) : null;
-        Block logBlock = profile != null ? profile.logBlock() : Blocks.OAK_LOG;
+        Block logBlock = profile.logBlock();
 
-        if (profile != null && profile.is2x2()) {
+        if (profile.is2x2()) {
             for (BlockPos trunkPos : TreeShapeUtils.trunk2x2Positions(basePos, basePos.getY())) {
                 chunkData.removeVegetation(trunkPos);
                 level.removeBlock(trunkPos, false);

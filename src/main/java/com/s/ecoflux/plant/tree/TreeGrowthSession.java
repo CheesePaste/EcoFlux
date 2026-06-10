@@ -52,7 +52,7 @@ public final class TreeGrowthSession {
     }
 
     public void ensureSkeleton(ServerLevel level, MorphologyParams params) {
-        if (skeleton != null && morphologyParams == params) return;
+        if (skeleton != null && params.equals(morphologyParams)) return;
         this.morphologyParams = params;
         RandomSource random = TreeShapeUtils.positionRandom(saplingPos, level.getSeed());
         this.skeleton = TreeMorphology.generateSkeleton(saplingPos, params, resolvedHeight, random);

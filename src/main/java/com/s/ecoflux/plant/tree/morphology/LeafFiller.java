@@ -1,6 +1,5 @@
 package com.s.ecoflux.plant.tree.morphology;
 
-import com.s.ecoflux.plant.tree.GrowthPlacement;
 import com.s.ecoflux.plant.tree.TreeShapeUtils;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,7 +20,7 @@ public final class LeafFiller {
 
     private LeafFiller() {}
 
-    public static List<GrowthPlacement> fillLeaves(
+    public static void fillLeaves(
             ServerLevel level,
             TreeSkeleton skeleton,
             CanopyEnvelope.DensityFunction densityFn,
@@ -81,7 +80,6 @@ public final class LeafFiller {
 
         Collections.shuffle(candidates, new Random(worldSeed ^ (long) currentStage));
 
-        List<GrowthPlacement> placements = new ArrayList<>();
         int placed = 0;
         for (Candidate candidate : candidates) {
             if (placed >= maxLeavesForStage(stageProgress)) break;
@@ -98,30 +96,7 @@ public final class LeafFiller {
                     .setValue(LeavesBlock.DISTANCE, Math.min(distance, 7))
                     .setValue(LeavesBlock.PERSISTENT, true), 3);
             placed++;
-
-            // Stagger: leaves animate outward from skeleton nodes
-            // Closer leaves pop first, farther leaves delay
-            int skeletonDepth = nearestSkeletonDepth(skeleton, pos.getX(), pos.getY(), pos.getZ());
-            int delay = skeletonDepth * 3 + (int)(distToSkeleton * 2) + random.nextInt(3);
-            placements.add(new GrowthPlacement(pos, GrowthPlacement.ANIM_LEAF_INFLATE, delay));
         }
-
-        return placements;
-    }
-
-    private static int nearestSkeletonDepth(TreeSkeleton skeleton, int x, int y, int z) {
-        int bestDepth = 0;
-        double bestDist = Double.MAX_VALUE;
-        for (SkeletonNode node : skeleton.nodes()) {
-            if (node.type() == NodeType.TWIG) continue;
-            double dist = chebyshevDist(x, y, z,
-                    node.pos().getX(), node.pos().getY(), node.pos().getZ());
-            if (dist < bestDist) {
-                bestDist = dist;
-                bestDepth = node.depth();
-            }
-        }
-        return bestDepth;
     }
 
     private static int[] computeStageBounds(TreeSkeleton skeleton, int stage, int totalStages) {

@@ -1,7 +1,5 @@
 package com.s.ecoflux.plant.tree;
 
-import java.util.ArrayList;
-import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -36,32 +34,6 @@ public final class TreeShapeUtils {
         h ^= (long) saplingPos.getZ() * 0x27ae2f10b06b6e7dL;
         h = (h ^ (h >>> 30)) * 0xbf58476d1ce4e5b9L;
         return RandomSource.create(h);
-    }
-
-    public static double oakCanopyRadius(int yFromTop, int canopyDepth) {
-        if (canopyDepth <= 0) return 0;
-        double mid = canopyDepth * 0.45;
-        double offset = Math.abs(yFromTop - mid);
-        double radius = canopyDepth * 0.65 - offset * 0.85;
-        return Math.max(0, radius);
-    }
-
-    public static double birchCanopyRadius(int yFromTop, int canopyDepth) {
-        if (canopyDepth <= 0) return 0;
-        double mid = canopyDepth * 0.3;
-        double offset = Math.abs(yFromTop - mid) / (canopyDepth * 0.5);
-        double radius = 2.0 * (1.0 - offset * offset);
-        return Math.max(0, radius);
-    }
-
-    public static double spruceCanopyRadius(int yFromGround, int totalHeight, int clearTrunk) {
-        int foliageHeight = totalHeight - clearTrunk;
-        if (foliageHeight <= 0) return 0;
-        int foliageY = yFromGround - clearTrunk;
-        if (foliageY < 0) return 0;
-        double ratio = 1.0 - (double) foliageY / foliageHeight;
-        double maxRadius = totalHeight >= 12 ? 3.2 : 2.5;
-        return maxRadius * ratio;
     }
 
     public static boolean shouldPlaceLeaf(double distFromTrunk, double expectedRadius,
@@ -113,14 +85,6 @@ public final class TreeShapeUtils {
         }
     }
 
-    public static BlockPos findNWCorner(BlockPos pos) {
-        return pos;
-    }
-
-    public static boolean isValid2x2(ServerLevel level, BlockPos pos) {
-        return find2x2NWCorner(level, pos) != null;
-    }
-
     public static BlockPos find2x2NWCorner(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
         if (!(state.getBlock() instanceof SaplingBlock)) return null;
@@ -159,29 +123,5 @@ public final class TreeShapeUtils {
                 new BlockPos(nwCorner.getX(), y, nwCorner.getZ() + 1),
                 new BlockPos(nwCorner.getX() + 1, y, nwCorner.getZ() + 1)
         };
-    }
-
-    public static List<BlockPos> generateBranchPositions(BlockPos saplingPos, int trunkHeight,
-                                                         RandomSource random, int maxBranches,
-                                                         int maxBranchLength) {
-        List<BlockPos> branches = new ArrayList<>();
-        int minBranchY = trunkHeight / 3;
-        int branchesToPlace = 1 + random.nextInt(maxBranches);
-
-        for (int i = 0; i < branchesToPlace; i++) {
-            int branchY = saplingPos.getY() + minBranchY + random.nextInt(trunkHeight - minBranchY);
-            int dx = 0, dz = 0;
-            switch (random.nextInt(4)) {
-                case 0 -> dx = 1;
-                case 1 -> dx = -1;
-                case 2 -> dz = 1;
-                case 3 -> dz = -1;
-            }
-            int length = 1 + random.nextInt(maxBranchLength);
-            for (int l = 1; l <= length; l++) {
-                branches.add(new BlockPos(saplingPos.getX() + dx * l, branchY, saplingPos.getZ() + dz * l));
-            }
-        }
-        return branches;
     }
 }

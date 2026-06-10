@@ -89,7 +89,6 @@ BORN → MATURING → MATURE → AGING → DEAD → DECAYING → GONE
 在 `EcofluxMod` 构造器中注册所有 Payload：
 
 - `VegetationVisualChunkSyncPayload` — 植被视觉状态同步
-- `GrowthAnimationSyncPayload` — 生长动画同步
 
 ### VegetationVisualChunkSyncPayload
 
@@ -111,14 +110,6 @@ BORN → MATURING → MATURE → AGING → DEAD → DECAYING → GONE
 - `adapterType: String` — 适配器类型
 - `stage: VegetationLifecycleStage` — 生命周期阶段
 - `visualSnapshot: CompoundTag` — 视觉快照（缩放、着色等）
-
-### GrowthAnimationSyncPayload
-
-树木生长动画同步：
-- `pos: BlockPos` — 生长位置
-- `animationType: AnimationStyle` — 动画类型
-- `blockState: BlockState` — 方块状态
-- `startScale / targetScale / duration` — 动画参数
 
 ## 同步流程
 

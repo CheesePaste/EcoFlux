@@ -170,34 +170,6 @@ MorphologyParams.darkOak() // 深色橡树
 MorphologyParams.acacia()  // 金合欢
 ```
 
-## BlockDisplay 生长动画
-
-树生长阶段不瞬间放置方块，而是生成临时 `BlockDisplay` 实体播放平滑缩放动画。
-
-### 动画风格
-
-| 风格 | 方块类型 | 起始缩放 | 目标缩放 | 持续时间 |
-|------|---------|---------|---------|---------|
-| `TRUNK_EXTRUDE` | 原木 | (0.9, 0.05, 0.9) | (1.0, 1.0, 1.0) | 15 tick |
-| `LEAF_INFLATE` | 树叶 | (0.05, 0.05, 0.05) | (1.08, 1.08, 1.08) | 20 tick |
-| `LEAF_CLUSTER` | 顶部树叶 | (0.05, 0.05, 0.05) | (1.05, 1.05, 1.05) | 12 tick |
-
-### 实现原理
-
-- 两帧式触发：第 0 tick 生成实体（初始缩放 + 插值 0），第 1 tick 设置目标缩放 + 插值持续时间
-- 利用 Minecraft 内置 Display 变换插值系统，服务端设置 `interpolation_duration` 后客户端自动平滑过渡
-- 使用 Java 反射访问 `Display` 的私有 `EntityDataAccessor` 字段
-- 实体意外消失时自动补放真实方块
-
-### 组件
-
-| 类 | 位置 | 职责 |
-|----|------|------|
-| `BlockDisplayAnimator` | `plant/tree/animation/` | 服务端：生成 BlockDisplay、设置缩放、完成替换 |
-| `AnimationStyle` | `plant/tree/animation/` | 动画参数枚举 |
-| `ClientGrowthAnimationManager` | `client/growth/` | 客户端：接收动画同步 |
-| `BlockRenderDispatcherMixin` | `mixin/client/` | 抑制被追踪方块的 vanilla 渲染（缩放不为 1.0 时） |
-
 ## Mixin 层
 
 | Mixin | 目标 | 作用 |

@@ -115,7 +115,6 @@ public final class SuccessionConfigLoader extends SimpleJsonResourceReloadListen
 
     private PlantSpawnRules parseSpawnRules(JsonObject spawnRulesObject) {
         return new PlantSpawnRules(
-                GsonHelper.getAsString(spawnRulesObject, "placement"),
                 GsonHelper.getAsBoolean(spawnRulesObject, "require_sky", true),
                 GsonHelper.getAsInt(spawnRulesObject, "max_local_density"),
                 parseIdList(GsonHelper.getAsJsonArray(spawnRulesObject, "allowed_base_blocks"), "allowed_base_blocks"));

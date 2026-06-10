@@ -185,6 +185,9 @@ public final class VegetationTracker {
     public String untrack(LevelChunk chunk, BlockPos pos) {
         SuccessionChunkData chunkData = chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA);
         ActiveVegetationRecord removed = chunkData.removeVegetation(pos);
+        if (removed != null && chunk.getLevel() instanceof ServerLevel serverLevel) {
+            ModNetworking.syncChunkToTracking(serverLevel, chunk);
+        }
         return removed == null
                 ? "位置 " + pos + " 跳过取消追踪：没有已追踪植被记录。"
                 : "已取消追踪位置 " + pos + " 的植被。";

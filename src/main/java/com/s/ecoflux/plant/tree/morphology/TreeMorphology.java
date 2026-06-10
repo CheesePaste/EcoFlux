@@ -1,6 +1,5 @@
 package com.s.ecoflux.plant.tree.morphology;
 
-import com.s.ecoflux.plant.tree.GrowthPlacement;
 import com.s.ecoflux.plant.tree.TreeShapeUtils;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -93,7 +92,7 @@ public final class TreeMorphology {
         return new GrowStagePlan(totalStages, stageGroups);
     }
 
-    public static List<GrowthPlacement> growStage(
+    public static void growStage(
             ServerLevel level,
             TreeSkeleton skeleton,
             MorphologyParams params,
@@ -104,9 +103,8 @@ public final class TreeMorphology {
             Block logBlock,
             Block leavesBlock
     ) {
-        if (currentStage >= plan.totalStages()) return List.of();
+        if (currentStage >= plan.totalStages()) return;
 
-        List<GrowthPlacement> allPlacements = new ArrayList<>();
         List<Integer> stageNodeIndices = plan.stageGroups().get(currentStage);
         int worldMaxY = level.getMaxBuildHeight() - 1;
 
@@ -116,28 +114,16 @@ public final class TreeMorphology {
 
             BlockPos pos = node.pos();
             if (pos.getY() > worldMaxY) continue;
-            if (TreeShapeUtils.tryPlaceLog(level, pos, logBlock)) {
-                // Stagger: trunk bottom-up, branches based on depth
-                int delay = node.depth() * 3;
-                byte animType = node.type() == NodeType.TRUNK
-                        ? GrowthPlacement.ANIM_TRUNK
-                        : GrowthPlacement.ANIM_LEAF_CLUSTER;
-                allPlacements.add(new GrowthPlacement(pos, animType, delay));
-            }
+            TreeShapeUtils.tryPlaceLog(level, pos, logBlock);
         }
 
         BlockPos saplingPos = skeleton.saplingPos();
         int trunkBaseY = saplingPos.getY();
-        int finalTrunkY = trunkBaseY + skeleton.trunkHeight();
         int currentTrunkY = trunkBaseY + Math.min(currentStage + 1, skeleton.trunkHeight());
-        double stageProgress = (double) currentStage / Math.max(1, plan.totalStages());
+        int finalTrunkY = trunkBaseY + skeleton.trunkHeight();
 
         int trunkCenterX = saplingPos.getX();
         int trunkCenterZ = saplingPos.getZ();
-        if (params.is2x2()) {
-            trunkCenterX = saplingPos.getX();
-            trunkCenterZ = saplingPos.getZ();
-        }
 
         int maxNodeDepth = currentStage + 3;
         double baseSr = params.subClusterRadius() > 0 ? params.subClusterRadius() : 3.5;
@@ -156,6 +142,7 @@ public final class TreeMorphology {
                 }
             }
         }
+        double stageProgress = (double) currentStage / Math.max(1, plan.totalStages());
         CanopyEnvelope.CanopyConfig canopyConfig = new CanopyEnvelope.CanopyConfig(
                 params.canopyType(),
                 trunkCenterX,
@@ -178,14 +165,11 @@ public final class TreeMorphology {
 
         CanopyEnvelope.DensityFunction densityFn = CanopyEnvelope.createDensityFunction(canopyConfig);
 
-        List<GrowthPlacement> leafPlacements = LeafFiller.fillLeaves(
+        LeafFiller.fillLeaves(
                 level, skeleton, densityFn, leavesBlock, saplingPos.above(currentTrunkY - trunkBaseY),
                 params.leafDensity(), params.branchClustering(), params.edgeFeather(),
                 currentStage, plan.totalStages(), worldSeed, random
         );
-        allPlacements.addAll(leafPlacements);
-
-        return allPlacements;
     }
 
     public record GrowStagePlan(int totalStages, List<List<Integer>> stageGroups) {}

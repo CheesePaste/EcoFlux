@@ -22,7 +22,9 @@ public final class FlowerVisualLifecycleAdapter implements VisualLifecycleAdapte
 
     @Override
     public boolean matches(BlockState state) {
-        return state.is(BlockTags.SMALL_FLOWERS);
+        return state.is(BlockTags.SMALL_FLOWERS)
+                || state.is(BlockTags.TALL_FLOWERS)
+                || (state.is(BlockTags.FLOWERS) && !state.is(BlockTags.SMALL_FLOWERS) && !state.is(BlockTags.TALL_FLOWERS));
     }
 
     @Override

@@ -1,7 +1,6 @@
 package com.s.ecoflux.plant.tree;
 
 import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
-import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -11,9 +10,15 @@ import net.minecraft.world.level.block.Block;
 public interface TreeGrowthProfile {
     ResourceLocation treeType();
 
-    int minTrunkHeight();
+    default int minTrunkHeight() {
+        MorphologyParams mp = morphologyParams();
+        return mp != null ? mp.minTrunkHeight() : 5;
+    }
 
-    int maxTrunkHeight();
+    default int maxTrunkHeight() {
+        MorphologyParams mp = morphologyParams();
+        return mp != null ? mp.maxTrunkHeight() : 8;
+    }
 
     int ticksPerStage();
 
@@ -34,6 +39,8 @@ public interface TreeGrowthProfile {
     }
 
     default int resolveHeight(RandomSource random) {
+        MorphologyParams mp = morphologyParams();
+        if (mp != null) return mp.resolveHeight(random);
         int range = maxTrunkHeight() - minTrunkHeight();
         return minTrunkHeight() + (range > 0 ? random.nextInt(range + 1) : 0);
     }
@@ -41,6 +48,7 @@ public interface TreeGrowthProfile {
     boolean canGrowStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                          int totalStages, int resolvedHeight);
 
-    List<GrowthPlacement> growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
-                                  int totalStages, int resolvedHeight, RandomSource random);
+    default void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
+                                  int totalStages, int resolvedHeight, RandomSource random) {
+    }
 }

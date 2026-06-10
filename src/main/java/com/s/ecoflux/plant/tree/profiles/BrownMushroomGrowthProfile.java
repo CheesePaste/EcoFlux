@@ -1,9 +1,6 @@
 package com.s.ecoflux.plant.tree.profiles;
 
-import com.s.ecoflux.plant.tree.GrowthPlacement;
 import com.s.ecoflux.plant.tree.TreeGrowthProfile;
-import java.util.ArrayList;
-import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -51,17 +48,17 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
     }
 
     @Override
-    public List<GrowthPlacement> growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
+    public void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                           int totalStages, int resolvedHeight, RandomSource random) {
         if (currentStage < resolvedHeight) {
-            return placeStem(level, saplingPos, currentStage + 1);
+            placeStem(level, saplingPos, currentStage + 1);
         } else {
             int capStage = currentStage - resolvedHeight;
-            return placeCap(level, saplingPos, resolvedHeight + 1, capStage);
+            placeCap(level, saplingPos, resolvedHeight + 1, capStage);
         }
     }
 
-    private List<GrowthPlacement> placeStem(ServerLevel level, BlockPos saplingPos, int yAbove) {
+    private void placeStem(ServerLevel level, BlockPos saplingPos, int yAbove) {
         BlockPos stemPos = saplingPos.above(yAbove);
         BlockState existing = level.getBlockState(stemPos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
@@ -69,32 +66,21 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
                 || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
                 || existing.is(Blocks.MUSHROOM_STEM)) {
             level.setBlock(stemPos, Blocks.MUSHROOM_STEM.defaultBlockState(), 3);
-            int delay = yAbove * 3 + level.random.nextInt(2);
-            return List.of(new GrowthPlacement(stemPos, GrowthPlacement.ANIM_TRUNK, delay));
         }
-        return List.of();
     }
 
-    private List<GrowthPlacement> placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
+    private void placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
         BlockPos capCenter = saplingPos.above(stemHeight);
         int r = CAP_RADIUS;
-        List<GrowthPlacement> placements = new ArrayList<>();
 
         switch (capStage) {
             case 0 -> {
-                if (tryPlaceCapBlock(level, capCenter, r, 0, 0)) {
-                    placements.add(new GrowthPlacement(capCenter, GrowthPlacement.ANIM_LEAF_INFLATE,
-                            stemHeight * 3 + level.random.nextInt(2)));
-                }
+                tryPlaceCapBlock(level, capCenter, r, 0, 0);
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
                         if (dx == 0 && dz == 0) continue;
                         if (Math.abs(dx) == 1 && Math.abs(dz) == 1) continue;
-                        if (tryPlaceCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz)) {
-                            int delay = stemHeight * 3 + (Math.abs(dx) + Math.abs(dz)) * 2 + level.random.nextInt(2);
-                            placements.add(new GrowthPlacement(capCenter.offset(dx, 0, dz),
-                                    GrowthPlacement.ANIM_LEAF_INFLATE, delay));
-                        }
+                        tryPlaceCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz);
                     }
                 }
             }
@@ -104,16 +90,11 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
                         if (Math.abs(dx) == r && Math.abs(dz) == r) continue;
                         if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1
                                 && !(Math.abs(dx) == 1 && Math.abs(dz) == 1)) continue;
-                        if (tryPlaceCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz)) {
-                            int delay = stemHeight * 3 + (Math.abs(dx) + Math.abs(dz)) * 2 + level.random.nextInt(3);
-                            placements.add(new GrowthPlacement(capCenter.offset(dx, 0, dz),
-                                    GrowthPlacement.ANIM_LEAF_CLUSTER, delay));
-                        }
+                        tryPlaceCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz);
                     }
                 }
             }
         }
-        return placements;
     }
 
     private boolean tryPlaceCapBlock(ServerLevel level, BlockPos pos, int r, int dx, int dz) {

@@ -56,14 +56,8 @@ public final class BiomeTransitionService {
         ResourceKey<Biome> oldBiome = chunkData.getCurrentBiome().orElse(null);
         chunkData.setPreviousBiome(oldBiome);
         chunkData.setCurrentBiome(fallbackKey);
-        chunkData.setActivePathId(null);
-        chunkData.setTargetBiome(null);
-        chunkData.setConsumingValue(0);
-        chunkData.setMaxPlantCount(0);
-        chunkData.setProgress(0.0D);
+        chunkData.clearRuntimeState();
         chunkData.setLastEvaluationGameTime(level.getGameTime());
-        chunkData.replacePlantQueue(List.of());
-        chunkData.clearVegetationRecords();
         ModNetworking.syncChunkToTracking(level, chunk);
 
         EcofluxConstants.LOGGER.info(
@@ -100,14 +94,8 @@ public final class BiomeTransitionService {
         ResourceKey<Biome> oldBiome = data.getCurrentBiome().orElse(null);
         data.setPreviousBiome(oldBiome);
         data.setCurrentBiome(targetBiome.get());
-        data.setActivePathId(null);
-        data.setTargetBiome(null);
-        data.setConsumingValue(0);
-        data.setMaxPlantCount(0);
-        data.setProgress(0.0D);
+        data.clearRuntimeState();
         data.setLastEvaluationGameTime(level.getGameTime());
-        data.replacePlantQueue(List.of());
-        data.clearVegetationRecords();
         ModNetworking.syncChunkToTracking(level, chunk);
 
         EcofluxConstants.LOGGER.info(

@@ -138,10 +138,10 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
         }
         long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
         return switch (record.lifeStage()) {
-            case BORN -> new VegetationVisualState(VegetationLifecycleStage.BORN, progress(age, 0L, 200L));
-            case GROWING -> new VegetationVisualState(VegetationLifecycleStage.GROWING, progress(age, 200L, 1200L));
-            case MATURE -> new VegetationVisualState(VegetationLifecycleStage.MATURE, progress(age, 1200L, 48000L));
-            case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, progress(age, 48000L, record.expireGameTime() - record.birthGameTime()));
+            case BORN -> new VegetationVisualState(VegetationLifecycleStage.BORN, VegetationTypeAdapter.progress(age, 0L, 200L));
+            case GROWING -> new VegetationVisualState(VegetationLifecycleStage.GROWING, VegetationTypeAdapter.progress(age, 200L, 1200L));
+            case MATURE -> new VegetationVisualState(VegetationLifecycleStage.MATURE, VegetationTypeAdapter.progress(age, 1200L, 48000L));
+            case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, VegetationTypeAdapter.progress(age, 48000L, record.expireGameTime() - record.birthGameTime()));
             default -> new VegetationVisualState(record.lifeStage(), 1.0F);
         };
     }
@@ -157,12 +157,5 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
             return VegetationCategory.GROUND_COVER;
         }
         return VegetationCategory.OTHER;
-    }
-
-    private static float progress(long age, long start, long endExclusive) {
-        if (endExclusive <= start) {
-            return 1.0F;
-        }
-        return (float) (Math.max(0L, age - start)) / (float) (endExclusive - start);
     }
 }

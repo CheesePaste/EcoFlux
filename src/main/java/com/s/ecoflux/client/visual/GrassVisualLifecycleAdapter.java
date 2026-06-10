@@ -21,7 +21,10 @@ public final class GrassVisualLifecycleAdapter implements VisualLifecycleAdapter
 
     @Override
     public boolean matches(BlockState state) {
-        return state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN) || state.is(Blocks.DEAD_BUSH);
+        return state.is(Blocks.SHORT_GRASS)
+                || state.is(Blocks.FERN)
+                || state.is(Blocks.TALL_GRASS)
+                || state.is(Blocks.LARGE_FERN);
     }
 
     @Override
@@ -41,11 +44,11 @@ public final class GrassVisualLifecycleAdapter implements VisualLifecycleAdapter
 
     @Override
     public List<Block> demoBlocks() {
-        return List.of(Blocks.SHORT_GRASS, Blocks.FERN, Blocks.DEAD_BUSH);
+        return List.of(Blocks.SHORT_GRASS, Blocks.FERN, Blocks.TALL_GRASS, Blocks.LARGE_FERN);
     }
 
     @Override
     public String supportSummary() {
-        return "minecraft:short_grass, minecraft:fern, minecraft:dead_bush";
+        return "minecraft:short_grass, minecraft:fern, minecraft:tall_grass, minecraft:large_fern";
     }
 }

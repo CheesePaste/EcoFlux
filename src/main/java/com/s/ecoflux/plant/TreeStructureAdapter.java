@@ -79,16 +79,10 @@ public final class TreeStructureAdapter implements VegetationTypeAdapter {
         long age = Math.max(0L, gameTime - record.birthGameTime());
         long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
         return switch (record.lifeStage()) {
-            case MATURE -> new VegetationVisualState(VegetationLifecycleStage.MATURE, progress(age, 0L, 96000L));
-            case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, progress(age, 96000L, totalLifetime));
+            case MATURE -> new VegetationVisualState(VegetationLifecycleStage.MATURE, VegetationTypeAdapter.progress(age, 0L, 96000L));
+            case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, VegetationTypeAdapter.progress(age, 96000L, totalLifetime));
             default -> new VegetationVisualState(record.lifeStage(), 1.0F);
         };
     }
 
-    private static float progress(long age, long start, long endExclusive) {
-        if (endExclusive <= start) {
-            return 1.0F;
-        }
-        return (float) (Math.max(0L, age - start)) / (float) (endExclusive - start);
-    }
 }

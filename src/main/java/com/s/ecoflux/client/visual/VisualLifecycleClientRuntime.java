@@ -16,6 +16,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.ChunkPos;
@@ -298,15 +299,17 @@ public final class VisualLifecycleClientRuntime {
         return manualWorldRenderPass.get();
     }
 
-    private static int defaultColor(ClientLevel level, BlockPos pos, BlockState state) {
+    public static final int DEAD_BUSH_COLOR = 0xA78F63;
+
+    public static int defaultColor(BlockAndTintGetter getter, BlockPos pos, BlockState state) {
         if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN)) {
-            return BiomeColors.getAverageGrassColor(level, pos);
+            return BiomeColors.getAverageGrassColor(getter, pos);
         }
         if (state.is(BlockTags.SAPLINGS)) {
-            return BiomeColors.getAverageFoliageColor(level, pos);
+            return BiomeColors.getAverageFoliageColor(getter, pos);
         }
         if (state.is(Blocks.DEAD_BUSH)) {
-            return 0xA78F63;
+            return DEAD_BUSH_COLOR;
         }
         return 0xFFFFFF;
     }

@@ -55,7 +55,6 @@ public final class SkeletonGenerator {
                 : 0;
         double leanDir = random.nextDouble() * 2.0 * Math.PI;
 
-        BlockPos currentPos = saplingPos;
         for (int y = 0; y < height; y++) {
             int dx = 0;
             int dz = 0;
@@ -98,7 +97,6 @@ public final class SkeletonGenerator {
                 }
                 skeleton.addTrunkNode(idx);
             }
-            currentPos = nodePos;
         }
     }
 

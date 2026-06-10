@@ -20,7 +20,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 @EventBusSubscriber(modid = EcofluxConstants.MOD_ID, value = Dist.CLIENT)
 public final class ModClientVisualLifecycle {
@@ -70,15 +69,6 @@ public final class ModClientVisualLifecycle {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         VisualLifecycleClientRuntime.INSTANCE.tick();
-        com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE.onClientTick();
-    }
-
-    @SubscribeEvent
-    public static void onRenderLevelStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES) {
-            return;
-        }
-        com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE.onRenderLevelStage(event);
     }
 
     private static RequiredArgumentBuilder<CommandSourceStack, Integer> positionArguments(VisualCommand visualCommand) {
@@ -133,16 +123,7 @@ public final class ModClientVisualLifecycle {
     }
 
     private static int defaultTintColor(BlockState state, BlockAndTintGetter getter, BlockPos pos) {
-        if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN)) {
-            return net.minecraft.client.renderer.BiomeColors.getAverageGrassColor(getter, pos);
-        }
-        if (state.is(BlockTags.SAPLINGS)) {
-            return net.minecraft.client.renderer.BiomeColors.getAverageFoliageColor(getter, pos);
-        }
-        if (state.is(Blocks.DEAD_BUSH)) {
-            return 0xA78F63;
-        }
-        return 0xFFFFFF;
+        return VisualLifecycleClientRuntime.defaultColor(getter, pos, state);
     }
 
     @FunctionalInterface

@@ -127,10 +127,10 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
         long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
         long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
         return switch (record.lifeStage()) {
-            case BORN, JUVENILE -> new VegetationVisualState(VegetationLifecycleStage.JUVENILE, progress(age, 0L, 1200L));
-            case GROWING -> new VegetationVisualState(VegetationLifecycleStage.GROWING, progress(age, 1200L, totalLifetime));
+            case BORN, JUVENILE -> new VegetationVisualState(VegetationLifecycleStage.JUVENILE, VegetationTypeAdapter.progress(age, 0L, 1200L));
+            case GROWING -> new VegetationVisualState(VegetationLifecycleStage.GROWING, VegetationTypeAdapter.progress(age, 1200L, totalLifetime));
             case MATURE -> new VegetationVisualState(VegetationLifecycleStage.MATURE, 1.0F);
-            case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, progress(age, 24000L, totalLifetime));
+            case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, VegetationTypeAdapter.progress(age, 24000L, totalLifetime));
             default -> new VegetationVisualState(record.lifeStage(), 1.0F);
         };
     }
@@ -157,12 +157,5 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
         }
 
         return Optional.empty();
-    }
-
-    private static float progress(long age, long start, long endExclusive) {
-        if (endExclusive <= start) {
-            return 1.0F;
-        }
-        return (float) (Math.max(0L, age - start)) / (float) (endExclusive - start);
     }
 }
