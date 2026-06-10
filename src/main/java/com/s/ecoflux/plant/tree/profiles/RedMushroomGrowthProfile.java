@@ -36,7 +36,7 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
     public boolean canGrowStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                                 int totalStages, int resolvedHeight) {
         if (currentStage < resolvedHeight) {
-            BlockPos check = saplingPos.above(currentStage + 1);
+            BlockPos check = saplingPos.above(currentStage);
             if (check.getY() >= level.getMaxBuildHeight()) return false;
             BlockState s = level.getBlockState(check);
             return s.isAir() || s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS)
@@ -50,7 +50,7 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
     public void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                           int totalStages, int resolvedHeight, RandomSource random) {
         if (currentStage < resolvedHeight) {
-            placeStem(level, saplingPos, currentStage + 1);
+            placeStem(level, saplingPos, currentStage);
         } else {
             int capStage = currentStage - resolvedHeight;
             placeCap(level, saplingPos, resolvedHeight, capStage);
