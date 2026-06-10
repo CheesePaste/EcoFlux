@@ -47,11 +47,15 @@ public final class ClientGrowthAnimationManager {
         return renderPassActive;
     }
 
-    public void addSingle(BlockPos pos, byte animType) {
+    public void addSingle(BlockPos pos, byte animType, int delayTicks) {
         AnimParams params = animType >= 0 && animType < PARAMS.length ? PARAMS[animType] : PARAMS[0];
-        active.put(pos.immutable(), new GrowthAnimInstance(pos.immutable(), clientTick, params));
-        EcofluxConstants.LOGGER.info("[Ecoflux] CLIENT anim mgr addSingle: pos={}, type={}, clientTick={}, total={}",
-                pos, animType, clientTick, active.size());
+        active.put(pos.immutable(), new GrowthAnimInstance(pos.immutable(), clientTick + delayTicks, params));
+        EcofluxConstants.LOGGER.info("[Ecoflux] CLIENT anim mgr addSingle: pos={}, type={}, delay={}, clientTick={}, total={}",
+                pos, animType, delayTicks, clientTick, active.size());
+    }
+
+    public void addSingle(BlockPos pos, byte animType) {
+        addSingle(pos, animType, 0);
     }
 
     public void addEntries(Iterable<BlockPos> positions, byte animType) {
@@ -108,6 +112,7 @@ public final class ClientGrowthAnimationManager {
 
                 long elapsed = clientTick - inst.startTick;
                 float progress = (elapsed + tickDelta) / (float) inst.params.durationTicks;
+                if (progress < 0f) progress = 0f;
                 if (progress > 1.0f) progress = 1.0f;
                 float eased = easeOutBack(progress);
 

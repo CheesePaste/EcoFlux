@@ -35,14 +35,14 @@ public final class ModNetworking {
      * Send growth animation triggers to all players tracking the chunk.
      * Called after each tree growth stage places blocks.
      */
-    public static void sendGrowthAnimation(ServerLevel level, LevelChunk chunk, List<BlockPos> positions, byte animType) {
-        List<GrowthAnimationSyncPayload.GrowthAnimEntry> entries = positions.stream()
-                .map(pos -> new GrowthAnimationSyncPayload.GrowthAnimEntry(pos, animType))
+    public static void sendGrowthAnimation(ServerLevel level, LevelChunk chunk, List<com.s.ecoflux.plant.tree.GrowthPlacement> placements) {
+        List<GrowthAnimationSyncPayload.GrowthAnimEntry> entries = placements.stream()
+                .map(p -> new GrowthAnimationSyncPayload.GrowthAnimEntry(p.pos(), p.animType(), p.delayTicks()))
                 .toList();
         if (entries.isEmpty()) return;
         GrowthAnimationSyncPayload payload = new GrowthAnimationSyncPayload(chunk.getPos(), entries);
-        EcofluxConstants.LOGGER.info("[Ecoflux] SENDING growth anim packet: chunk={}, entries={}, animType={}",
-                chunk.getPos(), entries.size(), animType);
+        EcofluxConstants.LOGGER.info("[Ecoflux] SENDING growth anim packet: chunk={}, entries={}",
+                chunk.getPos(), entries.size());
         PacketDistributor.sendToPlayersTrackingChunk(level, chunk.getPos(), payload);
     }
 
@@ -113,9 +113,9 @@ public final class ModNetworking {
             com.s.ecoflux.client.growth.ClientGrowthAnimationManager mgr =
                     com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE;
             for (GrowthAnimationSyncPayload.GrowthAnimEntry entry : payload.entries()) {
-                EcofluxConstants.LOGGER.info("[Ecoflux] CLIENT adding anim: pos={}, type={}",
-                        entry.pos(), entry.animType());
-                mgr.addSingle(entry.pos(), entry.animType());
+                EcofluxConstants.LOGGER.info("[Ecoflux] CLIENT adding anim: pos={}, type={}, delay={}",
+                        entry.pos(), entry.animType(), entry.delayTicks());
+                mgr.addSingle(entry.pos(), entry.animType(), entry.delayTicks());
             }
             EcofluxConstants.LOGGER.info("[Ecoflux] CLIENT total active anims after add: {}",
                     mgr.activeCount());

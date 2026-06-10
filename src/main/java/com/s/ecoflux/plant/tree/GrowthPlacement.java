@@ -6,7 +6,10 @@ import net.minecraft.core.BlockPos;
  * A block placed during a tree growth stage, tagged with the animation type
  * the client should play.
  */
-public record GrowthPlacement(BlockPos pos, byte animType) {
+public record GrowthPlacement(BlockPos pos, byte animType, int delayTicks) {
+    public GrowthPlacement(BlockPos pos, byte animType) {
+        this(pos, animType, 0);
+    }
     public static final byte ANIM_TRUNK = 0;
     public static final byte ANIM_LEAF_INFLATE = 1;
     public static final byte ANIM_LEAF_CLUSTER = 2;

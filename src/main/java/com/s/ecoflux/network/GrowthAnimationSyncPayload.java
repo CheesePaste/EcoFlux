@@ -39,7 +39,11 @@ public record GrowthAnimationSyncPayload(
         return TYPE;
     }
 
-    public record GrowthAnimEntry(BlockPos pos, byte animType) {
+    public record GrowthAnimEntry(BlockPos pos, byte animType, int delayTicks) {
+        public GrowthAnimEntry(BlockPos pos, byte animType) {
+            this(pos, animType, 0);
+        }
+
         public static final StreamCodec<RegistryFriendlyByteBuf, GrowthAnimEntry> STREAM_CODEC =
                 StreamCodec.composite(
                         StreamCodec.of(
@@ -49,6 +53,8 @@ public record GrowthAnimationSyncPayload(
                         GrowthAnimEntry::pos,
                         ByteBufCodecs.BYTE,
                         GrowthAnimEntry::animType,
+                        ByteBufCodecs.VAR_INT,
+                        GrowthAnimEntry::delayTicks,
                         GrowthAnimEntry::new
                 );
     }

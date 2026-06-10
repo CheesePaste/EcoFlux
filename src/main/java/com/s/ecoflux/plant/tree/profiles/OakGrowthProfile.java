@@ -45,11 +45,14 @@ public final class OakGrowthProfile implements TreeGrowthProfile {
     public List<GrowthPlacement> growStage(ServerLevel level, BlockPos saplingPos, int currentStage) {
         List<GrowthPlacement> placed = new ArrayList<>();
         int newStage = currentStage + 1;
+
+        // Base delay: trunk blocks animate bottom-up, each stage +3 ticks
+        int baseDelay = (newStage - 1) * 3;
         BlockPos trunkPos = saplingPos.above(newStage);
 
         if (level.getBlockState(trunkPos).isAir() || level.getBlockState(trunkPos).is(BlockTags.LEAVES)) {
             level.setBlock(trunkPos, Blocks.OAK_LOG.defaultBlockState(), 3);
-            placed.add(new GrowthPlacement(trunkPos.immutable(), GrowthPlacement.ANIM_TRUNK));
+            placed.add(new GrowthPlacement(trunkPos.immutable(), GrowthPlacement.ANIM_TRUNK, baseDelay));
         }
 
         int radius = newStage >= 4 ? 2 : 1;
@@ -63,7 +66,9 @@ public final class OakGrowthProfile implements TreeGrowthProfile {
                     level.setBlock(leafPos, Blocks.OAK_LEAVES.defaultBlockState()
                             .setValue(LeavesBlock.DISTANCE, 1)
                             .setValue(LeavesBlock.PERSISTENT, false), 3);
-                    placed.add(new GrowthPlacement(leafPos.immutable(), GrowthPlacement.ANIM_LEAF_INFLATE));
+                    // Leaves animate outward from trunk: farther = later
+                    int leafDelay = baseDelay + (Math.abs(dx) + Math.abs(dz)) * 2;
+                    placed.add(new GrowthPlacement(leafPos.immutable(), GrowthPlacement.ANIM_LEAF_INFLATE, leafDelay));
                 }
             }
         }
@@ -77,7 +82,8 @@ public final class OakGrowthProfile implements TreeGrowthProfile {
                         level.setBlock(leafPos, Blocks.OAK_LEAVES.defaultBlockState()
                                 .setValue(LeavesBlock.DISTANCE, 1)
                                 .setValue(LeavesBlock.PERSISTENT, false), 3);
-                        placed.add(new GrowthPlacement(leafPos.immutable(), GrowthPlacement.ANIM_LEAF_CLUSTER));
+                        int canopyDelay = baseDelay + (Math.abs(dx) + Math.abs(dz)) * 2;
+                        placed.add(new GrowthPlacement(leafPos.immutable(), GrowthPlacement.ANIM_LEAF_CLUSTER, canopyDelay));
                     }
                 }
             }

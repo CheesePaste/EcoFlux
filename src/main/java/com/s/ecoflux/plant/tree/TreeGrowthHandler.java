@@ -123,13 +123,7 @@ public final class TreeGrowthHandler {
             session.advanceStage(gameTime);
 
             if (!placed.isEmpty()) {
-                Map<Byte, List<BlockPos>> byType = new HashMap<>();
-                for (GrowthPlacement p : placed) {
-                    byType.computeIfAbsent(p.animType(), k -> new ArrayList<>()).add(p.pos());
-                }
-                for (Map.Entry<Byte, List<BlockPos>> e : byType.entrySet()) {
-                    ModNetworking.sendGrowthAnimation(level, chunk, e.getValue(), e.getKey());
-                }
+                ModNetworking.sendGrowthAnimation(level, chunk, placed);
             }
 
             EcofluxConstants.LOGGER.info(
@@ -155,7 +149,7 @@ public final class TreeGrowthHandler {
 
         // Animate the sapling→log transition on the client
         ModNetworking.sendGrowthAnimation(level, chunk,
-                List.of(saplingPos.immutable()), (byte) 0); // TRUNK_EXTRUDE
+                List.of(new GrowthPlacement(saplingPos.immutable(), (byte) 0))); // TRUNK
 
         ActiveVegetationRecord treeRecord = TreeStructureAdapter.INSTANCE.captureBirth(
                 level,
