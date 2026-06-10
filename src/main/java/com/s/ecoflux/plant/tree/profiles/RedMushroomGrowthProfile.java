@@ -8,6 +8,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.HugeMushroomBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
@@ -28,7 +29,7 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
 
     @Override
     public int totalStagesForHeight(int resolvedHeight) {
-        return resolvedHeight + 2; // stem + 2 cap stages
+        return resolvedHeight + 2;
     }
 
     @Override
@@ -68,54 +69,60 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
 
     /**
      * Matches vanilla HugeRedMushroomFeature: 4-layer dome cap.
-     * Bottom 3 layers are border-only rings (sides without corners).
-     * Top layer is full 5x5.
+     * Bottom 3 layers (y=h-3..h-1): border rings, radius 2, where |x|==2 xor |z|==2.
+     * Top layer (y=h): full 3x3 square, radius 1.
+     * Sets HugeMushroomBlock face directions matching vanilla.
      */
     private void placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
-        int r = CAP_RADIUS;
-
         switch (capStage) {
             case 0 -> {
-                // bottom 2 dome layers: y=h-3 and y=h-2, border-only rings
                 for (int dy = stemHeight - 3; dy <= stemHeight - 2; dy++) {
-                    placeDomeRing(level, saplingPos, dy, r);
+                    placeDomeRing(level, saplingPos, dy, CAP_RADIUS, stemHeight);
                 }
             }
             case 1 -> {
-                // upper dome ring: y=h-1, border-only
-                placeDomeRing(level, saplingPos, stemHeight - 1, r);
-                // top full layer: y=h, all positions
-                for (int dx = -r; dx <= r; dx++) {
-                    for (int dz = -r; dz <= r; dz++) {
-                        placeCapBlock(level, saplingPos.offset(dx, stemHeight, dz));
+                placeDomeRing(level, saplingPos, stemHeight - 1, CAP_RADIUS, stemHeight);
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        placeCapBlock(level, saplingPos.offset(dx, stemHeight, dz),
+                                stemHeight, stemHeight, dx, dz);
                     }
                 }
             }
         }
     }
 
-    /**
-     * Places a ring of cap blocks: the 4 sides of the square without corners and without interior.
-     * Matches vanilla: isXEdge != isZEdge condition.
-     */
-    private void placeDomeRing(ServerLevel level, BlockPos saplingPos, int y, int r) {
+    private void placeDomeRing(ServerLevel level, BlockPos saplingPos, int y, int r, int stemHeight) {
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
                 boolean xEdge = dx == -r || dx == r;
                 boolean zEdge = dz == -r || dz == r;
                 if (xEdge != zEdge) {
-                    placeCapBlock(level, saplingPos.offset(dx, y, dz));
+                    placeCapBlock(level, saplingPos.offset(dx, y, dz),
+                            y, stemHeight, dx, dz);
                 }
             }
         }
     }
 
-    private void placeCapBlock(ServerLevel level, BlockPos pos) {
+    /**
+     * Places a red mushroom cap block with vanilla face directions.
+     * Matches HugeRedMushroomFeature.makeCap() face logic:
+     * UP = y >= stemHeight - 1 (top 2 layers)
+     * WEST/EAST/NORTH/SOUTH = facing away from center (dx < 0, dx > 0, dz < 0, dz > 0)
+     */
+    private void placeCapBlock(ServerLevel level, BlockPos pos, int y, int stemHeight, int dx, int dz) {
         BlockState existing = level.getBlockState(pos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
                 || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
                 || existing.is(Blocks.MUSHROOM_STEM)) {
-            level.setBlock(pos, Blocks.RED_MUSHROOM_BLOCK.defaultBlockState(), 3);
+            BlockState state = Blocks.RED_MUSHROOM_BLOCK.defaultBlockState()
+                    .setValue(HugeMushroomBlock.UP, y >= stemHeight - 1)
+                    .setValue(HugeMushroomBlock.WEST, dx < 0)
+                    .setValue(HugeMushroomBlock.EAST, dx > 0)
+                    .setValue(HugeMushroomBlock.NORTH, dz < 0)
+                    .setValue(HugeMushroomBlock.SOUTH, dz > 0);
+            level.setBlock(pos, state, 3);
         }
     }
 }

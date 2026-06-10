@@ -29,7 +29,7 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
 
     @Override
     public int totalStagesForHeight(int resolvedHeight) {
-        return resolvedHeight + 2; // stem + 2 cap stages
+        return resolvedHeight + 2;
     }
 
     @Override
@@ -68,8 +68,8 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
     }
 
     /**
-     * Matches vanilla HugeBrownMushroomFeature: single flat disk at stem top,
-     * 5x5 square minus 4 corners.
+     * Matches vanilla HugeBrownMushroomFeature: single flat disk (5x5 minus 4 corners)
+     * at stem top, with proper HugeMushroomBlock face directions.
      */
     private void placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
         BlockPos capCenter = saplingPos.above(stemHeight);
@@ -77,37 +77,45 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
 
         switch (capStage) {
             case 0 -> {
-                // center block
-                placeCapBlock(level, capCenter);
-                // radius 1 ring (3x3 minus corners)
+                placeCapBlock(level, capCenter, r, 0, 0);
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
                         if (dx == 0 && dz == 0) continue;
                         if (Math.abs(dx) == 1 && Math.abs(dz) == 1) continue;
-                        placeCapBlock(level, capCenter.offset(dx, 0, dz));
+                        placeCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz);
                     }
                 }
             }
             case 1 -> {
-                // outer ring: radius 2, all blocks minus corners and inner 3x3
                 for (int dx = -r; dx <= r; dx++) {
                     for (int dz = -r; dz <= r; dz++) {
-                        if (Math.abs(dx) == r && Math.abs(dz) == r) continue; // skip 4 corners
+                        if (Math.abs(dx) == r && Math.abs(dz) == r) continue;
                         if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1
-                                && !(Math.abs(dx) == 1 && Math.abs(dz) == 1)) continue; // skip inner
-                        placeCapBlock(level, capCenter.offset(dx, 0, dz));
+                                && !(Math.abs(dx) == 1 && Math.abs(dz) == 1)) continue;
+                        placeCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz);
                     }
                 }
             }
         }
     }
 
-    private void placeCapBlock(ServerLevel level, BlockPos pos) {
+    /**
+     * Places a brown mushroom cap block with vanilla face directions.
+     * Matches HugeBrownMushroomFeature.makeCap() face logic.
+     */
+    private void placeCapBlock(ServerLevel level, BlockPos pos, int r, int dx, int dz) {
         BlockState existing = level.getBlockState(pos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
                 || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
                 || existing.is(Blocks.MUSHROOM_STEM)) {
-            level.setBlock(pos, Blocks.BROWN_MUSHROOM_BLOCK.defaultBlockState(), 3);
+            boolean onXEdge = dx == -r || dx == r;
+            boolean onZEdge = dz == -r || dz == r;
+            BlockState state = Blocks.BROWN_MUSHROOM_BLOCK.defaultBlockState()
+                    .setValue(HugeMushroomBlock.WEST, onXEdge && dx == -r || onZEdge && dx == 1 - r)
+                    .setValue(HugeMushroomBlock.EAST, onXEdge && dx == r || onZEdge && dx == r - 1)
+                    .setValue(HugeMushroomBlock.NORTH, onZEdge && dz == -r || onXEdge && dz == 1 - r)
+                    .setValue(HugeMushroomBlock.SOUTH, onZEdge && dz == r || onXEdge && dz == r - 1);
+            level.setBlock(pos, state, 3);
         }
     }
 }
