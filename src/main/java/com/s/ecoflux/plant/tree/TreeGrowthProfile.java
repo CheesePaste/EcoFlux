@@ -1,6 +1,7 @@
 package com.s.ecoflux.plant.tree;
 
 import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -40,6 +41,6 @@ public interface TreeGrowthProfile {
     boolean canGrowStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                          int totalStages, int resolvedHeight);
 
-    void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
-                   int totalStages, int resolvedHeight, RandomSource random);
+    List<GrowthPlacement> growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
+                                  int totalStages, int resolvedHeight, RandomSource random);
 }

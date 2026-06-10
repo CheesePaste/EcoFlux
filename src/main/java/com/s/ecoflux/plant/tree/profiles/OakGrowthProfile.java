@@ -1,8 +1,11 @@
 package com.s.ecoflux.plant.tree.profiles;
 
+import com.s.ecoflux.plant.tree.GrowthPlacement;
 import com.s.ecoflux.plant.tree.TreeGrowthProfile;
 import com.s.ecoflux.plant.tree.TreeShapeUtils;
 import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -42,14 +45,15 @@ public final class OakGrowthProfile implements TreeGrowthProfile {
     }
 
     @Override
-    public void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
+    public List<GrowthPlacement> growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                           int totalStages, int resolvedHeight, RandomSource random) {
-        int canopyStart = resolvedHeight;
-        if (currentStage < canopyStart) {
+        // Fallback path when skeleton/plan is null; no per-block animation tracking
+        if (currentStage < resolvedHeight) {
             placeTrunkStage(level, saplingPos, currentStage, resolvedHeight, random);
         } else {
             placeCanopyStage(level, saplingPos, currentStage, totalStages, resolvedHeight, random);
         }
+        return List.of();
     }
 
     private void placeTrunkStage(ServerLevel level, BlockPos saplingPos, int stage,

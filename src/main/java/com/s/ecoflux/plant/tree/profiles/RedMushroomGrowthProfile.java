@@ -1,6 +1,9 @@
 package com.s.ecoflux.plant.tree.profiles;
 
+import com.s.ecoflux.plant.tree.GrowthPlacement;
 import com.s.ecoflux.plant.tree.TreeGrowthProfile;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -36,7 +39,6 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
     public boolean canGrowStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                                 int totalStages, int resolvedHeight) {
         if (currentStage < resolvedHeight) {
-            // Stem starts at +1 above mushroom to avoid destroying it
             BlockPos check = saplingPos.above(currentStage + 1);
             if (check.getY() >= level.getMaxBuildHeight()) return false;
             BlockState s = level.getBlockState(check);
@@ -49,17 +51,17 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
     }
 
     @Override
-    public void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
+    public List<GrowthPlacement> growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                           int totalStages, int resolvedHeight, RandomSource random) {
         if (currentStage < resolvedHeight) {
-            placeStem(level, saplingPos, currentStage + 1); // offset +1 to skip mushroom itself
+            return placeStem(level, saplingPos, currentStage + 1);
         } else {
             int capStage = currentStage - resolvedHeight;
-            placeCap(level, saplingPos, resolvedHeight + 1, capStage); // cap start above stem
+            return placeCap(level, saplingPos, resolvedHeight + 1, capStage);
         }
     }
 
-    private void placeStem(ServerLevel level, BlockPos saplingPos, int yAbove) {
+    private List<GrowthPlacement> placeStem(ServerLevel level, BlockPos saplingPos, int yAbove) {
         BlockPos stemPos = saplingPos.above(yAbove);
         BlockState existing = level.getBlockState(stemPos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
@@ -67,57 +69,58 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
                 || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
                 || existing.is(Blocks.MUSHROOM_STEM)) {
             level.setBlock(stemPos, Blocks.MUSHROOM_STEM.defaultBlockState(), 3);
+            int delay = yAbove * 3 + level.random.nextInt(2);
+            return List.of(new GrowthPlacement(stemPos, GrowthPlacement.ANIM_TRUNK, delay));
         }
+        return List.of();
     }
 
-    /**
-     * Matches vanilla HugeRedMushroomFeature: 4-layer dome cap.
-     * Bottom 3 layers (y=h-3..h-1): border rings, radius 2, where |x|==2 xor |z|==2.
-     * Top layer (y=h): full 3x3 square, radius 1.
-     * Sets HugeMushroomBlock face directions matching vanilla.
-     *
-     * stemHeight is the resolved height PLUS the +1 offset (so cap layers build above the stem).
-     */
-    private void placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
-        int capBaseY = stemHeight - 3; // bottom of dome layers
+    private List<GrowthPlacement> placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
+        List<GrowthPlacement> placements = new ArrayList<>();
+        int capBaseY = stemHeight - 3;
         switch (capStage) {
             case 0 -> {
                 for (int dy = capBaseY; dy <= capBaseY + 1; dy++) {
-                    placeDomeRing(level, saplingPos, dy, CAP_RADIUS, stemHeight);
+                    placements.addAll(placeDomeRing(level, saplingPos, dy, stemHeight));
                 }
             }
             case 1 -> {
-                placeDomeRing(level, saplingPos, capBaseY + 2, CAP_RADIUS, stemHeight);
+                placements.addAll(placeDomeRing(level, saplingPos, capBaseY + 2, stemHeight));
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
-                        placeCapBlock(level, saplingPos.offset(dx, stemHeight, dz),
-                                stemHeight, stemHeight, dx, dz);
+                        if (tryPlaceCapBlock(level, saplingPos.offset(dx, stemHeight, dz),
+                                stemHeight, stemHeight, dx, dz)) {
+                            int delay = stemHeight * 3 + (Math.abs(dx) + Math.abs(dz)) * 2 + level.random.nextInt(3);
+                            placements.add(new GrowthPlacement(saplingPos.offset(dx, stemHeight, dz),
+                                    GrowthPlacement.ANIM_LEAF_CLUSTER, delay));
+                        }
                     }
                 }
             }
         }
+        return placements;
     }
 
-    private void placeDomeRing(ServerLevel level, BlockPos saplingPos, int y, int r, int stemHeight) {
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                boolean xEdge = dx == -r || dx == r;
-                boolean zEdge = dz == -r || dz == r;
+    private List<GrowthPlacement> placeDomeRing(ServerLevel level, BlockPos saplingPos, int y, int stemHeight) {
+        List<GrowthPlacement> placements = new ArrayList<>();
+        for (int dx = -CAP_RADIUS; dx <= CAP_RADIUS; dx++) {
+            for (int dz = -CAP_RADIUS; dz <= CAP_RADIUS; dz++) {
+                boolean xEdge = dx == -CAP_RADIUS || dx == CAP_RADIUS;
+                boolean zEdge = dz == -CAP_RADIUS || dz == CAP_RADIUS;
                 if (xEdge != zEdge) {
-                    placeCapBlock(level, saplingPos.offset(dx, y, dz),
-                            y, stemHeight, dx, dz);
+                    if (tryPlaceCapBlock(level, saplingPos.offset(dx, y, dz),
+                            y, stemHeight, dx, dz)) {
+                        int delay = y * 2 + (Math.abs(dx) + Math.abs(dz)) + level.random.nextInt(2);
+                        placements.add(new GrowthPlacement(saplingPos.offset(dx, y, dz),
+                                GrowthPlacement.ANIM_LEAF_INFLATE, delay));
+                    }
                 }
             }
         }
+        return placements;
     }
 
-    /**
-     * Places a red mushroom cap block with vanilla face directions.
-     * Matches HugeRedMushroomFeature.makeCap() face logic:
-     * UP = y >= stemHeight - 1 (top 2 layers)
-     * WEST/EAST/NORTH/SOUTH = facing away from center (dx < 0, dx > 0, dz < 0, dz > 0)
-     */
-    private void placeCapBlock(ServerLevel level, BlockPos pos, int y, int stemHeight, int dx, int dz) {
+    private boolean tryPlaceCapBlock(ServerLevel level, BlockPos pos, int y, int stemHeight, int dx, int dz) {
         BlockState existing = level.getBlockState(pos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
                 || existing.is(Blocks.BROWN_MUSHROOM) || existing.is(Blocks.RED_MUSHROOM)
@@ -130,6 +133,8 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
                     .setValue(HugeMushroomBlock.NORTH, dz < 0)
                     .setValue(HugeMushroomBlock.SOUTH, dz > 0);
             level.setBlock(pos, state, 3);
+            return true;
         }
+        return false;
     }
 }

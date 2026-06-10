@@ -191,7 +191,7 @@ public final class TreeGrowthHandler {
                             profile.logBlock(), profile.leavesBlock());
                 }
             } else {
-                profile.growStage(level, pos, session.currentStage(),
+                placed = profile.growStage(level, pos, session.currentStage(),
                         session.totalStages(), session.resolvedHeight(), treeRandom);
             }
             session.advanceStage(gameTime);
@@ -242,7 +242,7 @@ public final class TreeGrowthHandler {
                         profile.logBlock(), profile.leavesBlock());
             }
         } else {
-            profile.growStage(level, session.saplingPos(), session.currentStage(),
+            placed = profile.growStage(level, session.saplingPos(), session.currentStage(),
                     session.totalStages(), session.resolvedHeight(), treeRandom);
         }
         session.advanceStage(level.getGameTime());

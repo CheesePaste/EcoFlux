@@ -1,6 +1,9 @@
 package com.s.ecoflux.plant.tree.profiles;
 
+import com.s.ecoflux.plant.tree.GrowthPlacement;
 import com.s.ecoflux.plant.tree.TreeGrowthProfile;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -36,7 +39,6 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
     public boolean canGrowStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                                 int totalStages, int resolvedHeight) {
         if (currentStage < resolvedHeight) {
-            // Stem starts at +1 above mushroom to avoid destroying it
             BlockPos check = saplingPos.above(currentStage + 1);
             if (check.getY() >= level.getMaxBuildHeight()) return false;
             BlockState s = level.getBlockState(check);
@@ -49,17 +51,17 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
     }
 
     @Override
-    public void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
+    public List<GrowthPlacement> growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                           int totalStages, int resolvedHeight, RandomSource random) {
         if (currentStage < resolvedHeight) {
-            placeStem(level, saplingPos, currentStage + 1); // offset +1 to skip mushroom itself
+            return placeStem(level, saplingPos, currentStage + 1);
         } else {
             int capStage = currentStage - resolvedHeight;
-            placeCap(level, saplingPos, resolvedHeight + 1, capStage); // cap start above stem
+            return placeCap(level, saplingPos, resolvedHeight + 1, capStage);
         }
     }
 
-    private void placeStem(ServerLevel level, BlockPos saplingPos, int yAbove) {
+    private List<GrowthPlacement> placeStem(ServerLevel level, BlockPos saplingPos, int yAbove) {
         BlockPos stemPos = saplingPos.above(yAbove);
         BlockState existing = level.getBlockState(stemPos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
@@ -67,25 +69,32 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
                 || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
                 || existing.is(Blocks.MUSHROOM_STEM)) {
             level.setBlock(stemPos, Blocks.MUSHROOM_STEM.defaultBlockState(), 3);
+            int delay = yAbove * 3 + level.random.nextInt(2);
+            return List.of(new GrowthPlacement(stemPos, GrowthPlacement.ANIM_TRUNK, delay));
         }
+        return List.of();
     }
 
-    /**
-     * Matches vanilla HugeBrownMushroomFeature: single flat disk (5x5 minus 4 corners)
-     * at stem top, with proper HugeMushroomBlock face directions.
-     */
-    private void placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
+    private List<GrowthPlacement> placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {
         BlockPos capCenter = saplingPos.above(stemHeight);
         int r = CAP_RADIUS;
+        List<GrowthPlacement> placements = new ArrayList<>();
 
         switch (capStage) {
             case 0 -> {
-                placeCapBlock(level, capCenter, r, 0, 0);
+                if (tryPlaceCapBlock(level, capCenter, r, 0, 0)) {
+                    placements.add(new GrowthPlacement(capCenter, GrowthPlacement.ANIM_LEAF_INFLATE,
+                            stemHeight * 3 + level.random.nextInt(2)));
+                }
                 for (int dx = -1; dx <= 1; dx++) {
                     for (int dz = -1; dz <= 1; dz++) {
                         if (dx == 0 && dz == 0) continue;
                         if (Math.abs(dx) == 1 && Math.abs(dz) == 1) continue;
-                        placeCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz);
+                        if (tryPlaceCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz)) {
+                            int delay = stemHeight * 3 + (Math.abs(dx) + Math.abs(dz)) * 2 + level.random.nextInt(2);
+                            placements.add(new GrowthPlacement(capCenter.offset(dx, 0, dz),
+                                    GrowthPlacement.ANIM_LEAF_INFLATE, delay));
+                        }
                     }
                 }
             }
@@ -95,18 +104,19 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
                         if (Math.abs(dx) == r && Math.abs(dz) == r) continue;
                         if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1
                                 && !(Math.abs(dx) == 1 && Math.abs(dz) == 1)) continue;
-                        placeCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz);
+                        if (tryPlaceCapBlock(level, capCenter.offset(dx, 0, dz), r, dx, dz)) {
+                            int delay = stemHeight * 3 + (Math.abs(dx) + Math.abs(dz)) * 2 + level.random.nextInt(3);
+                            placements.add(new GrowthPlacement(capCenter.offset(dx, 0, dz),
+                                    GrowthPlacement.ANIM_LEAF_CLUSTER, delay));
+                        }
                     }
                 }
             }
         }
+        return placements;
     }
 
-    /**
-     * Places a brown mushroom cap block with vanilla face directions.
-     * Matches HugeBrownMushroomFeature.makeCap() face logic.
-     */
-    private void placeCapBlock(ServerLevel level, BlockPos pos, int r, int dx, int dz) {
+    private boolean tryPlaceCapBlock(ServerLevel level, BlockPos pos, int r, int dx, int dz) {
         BlockState existing = level.getBlockState(pos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
                 || existing.is(Blocks.BROWN_MUSHROOM) || existing.is(Blocks.RED_MUSHROOM)
@@ -120,6 +130,8 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
                     .setValue(HugeMushroomBlock.NORTH, onZEdge && dz == -r || onXEdge && dz == 1 - r)
                     .setValue(HugeMushroomBlock.SOUTH, onZEdge && dz == r || onXEdge && dz == r - 1);
             level.setBlock(pos, state, 3);
+            return true;
         }
+        return false;
     }
 }
