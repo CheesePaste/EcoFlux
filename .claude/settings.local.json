@@ -22,7 +22,13 @@
       "Bash(unzip *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(javap -cp ~/.gradle/caches/modules-2/files-2.1/net.neoforged/neoforge/21.1.227/3183dd3c5d69205a5c46e2f22a20fc6960be8601/neoforge-21.1.227-userdev.jar net.neoforged.neoforge.event.entity.player.BonemealEvent)"
+      "Bash(javap -cp ~/.gradle/caches/modules-2/files-2.1/net.neoforged/neoforge/21.1.227/3183dd3c5d69205a5c46e2f22a20fc6960be8601/neoforge-21.1.227-userdev.jar net.neoforged.neoforge.event.entity.player.BonemealEvent)",
+      "Bash(git merge *)",
+      "Bash(git show *)",
+      "Read(//tmp/**)",
+      "Bash(git push *)",
+      "Bash(git restore *)",
+      "Bash(git commit *)"
     ]
   }
 }
