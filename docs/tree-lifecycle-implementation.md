@@ -366,9 +366,10 @@ public final class TreeDecayHandler {
 - [ ] JSON 配置文件支持树参数
 - [ ] 端到端测试：树苗 → 森林 biome 演替
 
-### Step 6: 客户端视觉效果 ✅ 预计 3-4h
-- [ ] 生长中的树苗有视觉反馈（scale 逐渐增大）
-- [ ] 衰老的树有枯黄效果
+### Step 6: 客户端视觉效果 ✅ 部分完成 (BlockDisplay 动画)
+- [x] **BlockDisplay 实体动画** — 生长阶段使用 Display 实体播放缩放动画，非瞬间放置方块
+- [ ] 生长中的树苗有视觉反馈（scale 逐渐增大） — 现有 SaplingVisualLifecycleAdapter 已支持
+- [ ] 衰老的树有枯黄效果 — 现有 VisualLifecycleAdapter.shiftColor() 已支持
 - [ ] 腐烂动画
 
 ---

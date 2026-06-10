@@ -2,6 +2,8 @@ package com.s.ecoflux.network;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.plant.VegetationTracker;
+import java.util.List;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -29,12 +31,31 @@ public final class ModNetworking {
         PacketDistributor.sendToPlayersTrackingChunk(level, chunk.getPos(), buildChunkSyncPayload(level, chunk));
     }
 
+    /**
+     * Send growth animation triggers to all players tracking the chunk.
+     * Called after each tree growth stage places blocks.
+     */
+    public static void sendGrowthAnimation(ServerLevel level, LevelChunk chunk, List<BlockPos> positions, byte animType) {
+        List<GrowthAnimationSyncPayload.GrowthAnimEntry> entries = positions.stream()
+                .map(pos -> new GrowthAnimationSyncPayload.GrowthAnimEntry(pos, animType))
+                .toList();
+        if (entries.isEmpty()) return;
+        GrowthAnimationSyncPayload payload = new GrowthAnimationSyncPayload(chunk.getPos(), entries);
+        EcofluxConstants.LOGGER.info("[Ecoflux] SENDING growth anim packet: chunk={}, entries={}, animType={}",
+                chunk.getPos(), entries.size(), animType);
+        PacketDistributor.sendToPlayersTrackingChunk(level, chunk.getPos(), payload);
+    }
+
     private static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(NETWORK_VERSION);
         registrar.playToClient(
                 VegetationVisualChunkSyncPayload.TYPE,
                 VegetationVisualChunkSyncPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> handleClientSync(payload)));
+        registrar.playToClient(
+                GrowthAnimationSyncPayload.TYPE,
+                GrowthAnimationSyncPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> handleGrowthAnimSync(payload)));
     }
 
     private static void onChunkSent(ChunkWatchEvent.Sent event) {
@@ -63,10 +84,16 @@ public final class ModNetworking {
 
     private static void handleClientSync(VegetationVisualChunkSyncPayload payload) {
         if (!FMLEnvironment.dist.isClient()) {
-            EcofluxConstants.LOGGER.debug("已在专用服务器忽略区块 {} 的客户端视觉同步载荷", payload.chunkPos());
             return;
         }
         ClientHooks.handle(payload);
+    }
+
+    private static void handleGrowthAnimSync(GrowthAnimationSyncPayload payload) {
+        if (!FMLEnvironment.dist.isClient()) {
+            return;
+        }
+        ClientHooks.handleGrowthAnim(payload);
     }
 
     private static final class ClientHooks {
@@ -78,6 +105,20 @@ public final class ModNetworking {
                     payload.dimensionId(),
                     payload.chunkPos(),
                     payload.entries());
+        }
+
+        private static void handleGrowthAnim(GrowthAnimationSyncPayload payload) {
+            EcofluxConstants.LOGGER.info("[Ecoflux] CLIENT RECEIVED growth anim packet: chunk={}, entries={}",
+                    payload.chunkPos(), payload.entries().size());
+            com.s.ecoflux.client.growth.ClientGrowthAnimationManager mgr =
+                    com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE;
+            for (GrowthAnimationSyncPayload.GrowthAnimEntry entry : payload.entries()) {
+                EcofluxConstants.LOGGER.info("[Ecoflux] CLIENT adding anim: pos={}, type={}",
+                        entry.pos(), entry.animType());
+                mgr.addSingle(entry.pos(), entry.animType());
+            }
+            EcofluxConstants.LOGGER.info("[Ecoflux] CLIENT total active anims after add: {}",
+                    mgr.activeCount());
         }
     }
 }

@@ -3,6 +3,7 @@ package com.s.ecoflux.plant.tree;
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.init.ModAttachments;
+import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.TreeStructureAdapter;
 import com.s.ecoflux.plant.tree.profiles.AcaciaGrowthProfile;
 import com.s.ecoflux.plant.tree.profiles.BirchGrowthProfile;
@@ -241,6 +242,9 @@ public final class TreeGrowthHandler {
             chunkData.removeVegetation(basePos);
             level.setBlock(basePos, logBlock.defaultBlockState(), 3);
         }
+
+        ModNetworking.sendGrowthAnimation(level, chunk,
+                List.of(basePos), (byte) 0);
 
         ActiveVegetationRecord treeRecord = TreeStructureAdapter.INSTANCE.captureBirth(
                 level,

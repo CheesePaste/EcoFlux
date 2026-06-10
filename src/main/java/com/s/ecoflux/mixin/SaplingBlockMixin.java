@@ -40,6 +40,8 @@ public abstract class SaplingBlockMixin {
                 return;
             }
             ci.cancel();
+            com.s.ecoflux.EcofluxConstants.LOGGER.info(
+                    "[Ecoflux] SaplingBlockMixin: INTERCEPTED at {}, forcing advance stage", pos);
             TreeGrowthHandler handler = TreeGrowthHandler.INSTANCE;
             handler.interceptGrowth(level, pos, record);
             handler.forceAdvanceStage(level, pos);

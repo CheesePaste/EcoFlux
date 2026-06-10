@@ -498,6 +498,42 @@ TreeGrowthHandler.tickAll()
 
 - 编译通过 (`./gradlew compileJava`)
 
+## 2026-06-08：树生长 BlockDisplay 动画系统
+
+### 变更概要
+
+- 树生长阶段不再瞬间放置方块，改为生成 `BlockDisplay` 实体播放平滑缩放动画
+- 动画完成后自动替换实体为真实方块
+- 三种动画风格：树干挤出 (TRUNK_EXTRUDE)、树叶膨胀 (LEAF_INFLATE)、树冠簇 (LEAF_CLUSTER)
+
+### 新增文件
+
+- `plant/tree/animation/AnimationStyle.java` — 动画风格枚举（起止缩放 + 持续时间）
+- `plant/tree/animation/BlockDisplayAnimator.java` — BlockDisplay 实体生命周期管理（生成、缩放动画、完成替换），使用反射访问 Display 私有 EntityDataAccessor
+
+### 修改文件
+
+- `plant/tree/TreeGrowthProfile.java` — `growStage()` 签名新增 `BlockDisplayAnimator` 参数
+- `plant/tree/profiles/OakGrowthProfile.java` — `growStage()` 替换所有 `level.setBlock()` 为 `animator.animateBlock()`
+- `plant/tree/TreeGrowthHandler.java` — 持有 `BlockDisplayAnimator` 实例，`tickAll()` 开头调用 `animator.tick()`，`onGrowthComplete()` 使用动画替换树苗
+
+### 动画效果细节
+
+| 风格 | 方块类型 | 起始缩放 | 目标缩放 | 持续时间 |
+|------|---------|---------|---------|---------|
+| TRUNK_EXTRUDE | 原木 | (0.9, 0.05, 0.9) | (1.0, 1.0, 1.0) | 15 tick |
+| LEAF_INFLATE | 树叶 | (0.05, 0.05, 0.05) | (1.08, 1.08, 1.08) | 20 tick |
+| LEAF_CLUSTER | 顶部树叶 | (0.05, 0.05, 0.05) | (1.05, 1.05, 1.05) | 12 tick |
+
+树干动画产生"从地面挤出"的视觉效果（Y 轴从 0.05 拉伸到 1.0），树叶动画产生"气球膨胀"效果（全轴从极小放大到正常尺寸，LEAF_INFLATE 带轻微 overshoot 至 1.08）。
+
+### 技术实现要点
+
+- 使用 Java 反射绕过 Mojang 未公开的 `DATA_SCALE_ID` / `DATA_BLOCK_STATE_ID` 等 EntityDataAccessor
+- 利用 Minecraft 内置的 Display 变换插值系统，服务端设置 `interpolation_duration` 后客户端自动平滑过渡
+- 两帧式触发：第 0 tick 生成实体（初始缩放 + 插值 0 = 瞬时），第 1 tick 设置目标缩放 + 插值持续时间（触发客户度动画）
+- 实体意外消失（如区块卸载）时自动补放真实方块
+
 ## 建议的下一步
 
 详见 `todolist.md` 底部「下一步计划」章节，以及 `docs/tree-lifecycle-implementation.md` 树生命周期完整方案。
