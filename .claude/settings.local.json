@@ -28,7 +28,9 @@
       "Read(//tmp/**)",
       "Bash(git push *)",
       "Bash(git restore *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.world.level.Level)",
+      "Bash(./gradlew.bat compileJava)"
     ]
   }
 }

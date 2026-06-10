@@ -37,12 +37,6 @@ public abstract class BlockRenderDispatcherMixin {
         VisualLifecycleRenderState renderState = VisualLifecycleClientRuntime.INSTANCE.getRenderState(pos, state);
         if (renderState != null && Math.abs(renderState.scale() - 1.0F) >= 0.0001F) {
             ci.cancel();
-            return;
-        }
-
-        if (com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE.isAnimating(pos)
-                && !com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE.isRenderPassActive()) {
-            ci.cancel();
         }
     }
 
@@ -67,12 +61,6 @@ public abstract class BlockRenderDispatcherMixin {
 
         VisualLifecycleRenderState renderState = VisualLifecycleClientRuntime.INSTANCE.getRenderState(pos, state);
         if (renderState != null && Math.abs(renderState.scale() - 1.0F) >= 0.0001F) {
-            ci.cancel();
-            return;
-        }
-
-        if (com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE.isAnimating(pos)
-                && !com.s.ecoflux.client.growth.ClientGrowthAnimationManager.INSTANCE.isRenderPassActive()) {
             ci.cancel();
         }
     }

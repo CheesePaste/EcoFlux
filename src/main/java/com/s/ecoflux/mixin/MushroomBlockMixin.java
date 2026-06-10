@@ -25,10 +25,7 @@ public abstract class MushroomBlockMixin {
         if (!EcofluxServerConfig.gradualTreeGrowth()) {
             return;
         }
-
         ci.cancel();
-        com.s.ecoflux.EcofluxConstants.LOGGER.info(
-                "[Ecoflux] MushroomBlockMixin: INTERCEPTED at {}", pos);
         TreeGrowthHandler.INSTANCE.interceptMushroomGrowth(level, pos, state);
         TreeGrowthHandler.INSTANCE.forceAdvanceStage(level, pos);
     }

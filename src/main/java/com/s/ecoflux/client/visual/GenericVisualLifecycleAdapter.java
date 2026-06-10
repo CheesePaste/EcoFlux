@@ -2,6 +2,8 @@ package com.s.ecoflux.client.visual;
 
 import com.s.ecoflux.EcofluxConstants;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class GenericVisualLifecycleAdapter implements VisualLifecycleAdapter {
@@ -18,6 +20,10 @@ public final class GenericVisualLifecycleAdapter implements VisualLifecycleAdapt
 
     @Override
     public boolean matches(BlockState state) {
+        // Exclude structural blocks that should always render at full scale
+        if (state.is(BlockTags.LOGS) || state.is(Blocks.MUSHROOM_STEM)) {
+            return false;
+        }
         return !state.isAir();
     }
 
@@ -38,6 +44,6 @@ public final class GenericVisualLifecycleAdapter implements VisualLifecycleAdapt
 
     @Override
     public String supportSummary() {
-        return "any tracked non-air block";
+        return "any tracked non-air block (excluding logs and stems)";
     }
 }

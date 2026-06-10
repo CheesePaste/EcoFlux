@@ -272,15 +272,14 @@ public final class TreeGrowthHandler {
         if (profile != null && profile.is2x2()) {
             for (BlockPos trunkPos : TreeShapeUtils.trunk2x2Positions(basePos, basePos.getY())) {
                 chunkData.removeVegetation(trunkPos);
+                level.removeBlock(trunkPos, false);
                 level.setBlock(trunkPos, logBlock.defaultBlockState(), 3);
             }
         } else {
             chunkData.removeVegetation(basePos);
+            level.removeBlock(basePos, false);
             level.setBlock(basePos, logBlock.defaultBlockState(), 3);
         }
-
-        ModNetworking.sendGrowthAnimation(level, chunk,
-                List.of(new GrowthPlacement(basePos, (byte) 0))); // TRUNK
 
         ActiveVegetationRecord treeRecord = TreeStructureAdapter.INSTANCE.captureBirth(
                 level,

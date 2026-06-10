@@ -36,7 +36,8 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
     public boolean canGrowStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                                 int totalStages, int resolvedHeight) {
         if (currentStage < resolvedHeight) {
-            BlockPos check = saplingPos.above(currentStage);
+            // Stem starts at +1 above mushroom to avoid destroying it
+            BlockPos check = saplingPos.above(currentStage + 1);
             if (check.getY() >= level.getMaxBuildHeight()) return false;
             BlockState s = level.getBlockState(check);
             return s.isAir() || s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS)
@@ -51,15 +52,15 @@ public final class BrownMushroomGrowthProfile implements TreeGrowthProfile {
     public void growStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                           int totalStages, int resolvedHeight, RandomSource random) {
         if (currentStage < resolvedHeight) {
-            placeStem(level, saplingPos, currentStage);
+            placeStem(level, saplingPos, currentStage + 1); // offset +1 to skip mushroom itself
         } else {
             int capStage = currentStage - resolvedHeight;
-            placeCap(level, saplingPos, resolvedHeight, capStage);
+            placeCap(level, saplingPos, resolvedHeight + 1, capStage); // cap start above stem
         }
     }
 
-    private void placeStem(ServerLevel level, BlockPos saplingPos, int y) {
-        BlockPos stemPos = saplingPos.above(y);
+    private void placeStem(ServerLevel level, BlockPos saplingPos, int yAbove) {
+        BlockPos stemPos = saplingPos.above(yAbove);
         BlockState existing = level.getBlockState(stemPos);
         if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
                 || existing.is(Blocks.BROWN_MUSHROOM) || existing.is(Blocks.RED_MUSHROOM)
