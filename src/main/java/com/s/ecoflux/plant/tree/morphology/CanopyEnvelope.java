@@ -37,8 +37,12 @@ public final class CanopyEnvelope {
             double subClusterRadius,
             List<BlockPos> branchNodes,
             List<Double> branchNodeRadii,
-            double stageProgress
-    ) {}
+            double stageProgress,
+            boolean is2x2
+    ) {
+        public double centerX() { return is2x2 ? trunkCenterX + 0.5 : trunkCenterX; }
+        public double centerZ() { return is2x2 ? trunkCenterZ + 0.5 : trunkCenterZ; }
+    }
 
     public static DensityFunction createDensityFunction(CanopyConfig cfg) {
         return switch (cfg.type()) {
@@ -63,8 +67,8 @@ public final class CanopyEnvelope {
         double finalCenterY = cfg.finalTrunkY() + cfg.resolvedHeight() * cfg.canopyCenterYBias();
         double startCenterY = cfg.trunkBaseY() + 2;
         double centerY = startCenterY + (finalCenterY - startCenterY) * stageFactor;
-        final int cx = cfg.trunkCenterX();
-        final int cz = cfg.trunkCenterZ();
+        final double cx = cfg.centerX();
+        final double cz = cfg.centerZ();
 
         return (x, y, z) -> {
             double dx = (x - cx) / rx;
@@ -86,8 +90,8 @@ public final class CanopyEnvelope {
         double finalCenterY = cfg.finalTrunkY() - 2;
         double startCenterY = cfg.trunkBaseY() + 4;
         double centerY = startCenterY + (finalCenterY - startCenterY) * stageFactor;
-        final int cx = cfg.trunkCenterX();
-        final int cz = cfg.trunkCenterZ();
+        final double cx = cfg.centerX();
+        final double cz = cfg.centerZ();
 
         return (x, y, z) -> {
             double dx = (x - cx) / rx;
@@ -106,18 +110,22 @@ public final class CanopyEnvelope {
         double fullBaseRadius = cfg.resolvedHeight() * cfg.canopyRadiusXZ();
         double stageFactor = cfg.stageProgress();
         double maxRadius = 1.5 + (fullBaseRadius - 1.5) * stageFactor;
-        final int cx = cfg.trunkCenterX();
-        final int cz = cfg.trunkCenterZ();
+        final double cx = cfg.centerX();
+        final double cz = cfg.centerZ();
 
         return (x, y, z) -> {
-            if (y < foliageStartY || y > tipY) return 0;
-            double heightRatio = (double) (y - foliageStartY) / Math.max(1, tipY - foliageStartY);
-            double sliceRadius = maxRadius * (1.0 - heightRatio);
-            if (sliceRadius < 0.5) return 0;
-            double dist = Math.sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz));
-            if (dist > sliceRadius) return 0;
-            double normDist = dist / sliceRadius;
-            double main = flatTopRadialDensity(normDist, cfg.edgeFeather());
+            double main = 0;
+            if (y >= foliageStartY && y <= tipY) {
+                double heightRatio = (double) (y - foliageStartY) / Math.max(1, tipY - foliageStartY);
+                double sliceRadius = maxRadius * (1.0 - heightRatio);
+                if (sliceRadius >= 0.5) {
+                    double dist = Math.sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz));
+                    if (dist <= sliceRadius) {
+                        double normDist = dist / sliceRadius;
+                        main = flatTopRadialDensity(normDist, cfg.edgeFeather());
+                    }
+                }
+            }
             double branch = branchNodeDensity(x, y, z, cfg);
             return Math.max(main, branch);
         };
@@ -133,8 +141,8 @@ public final class CanopyEnvelope {
         double finalCenterY = cfg.finalTrunkY() + cfg.resolvedHeight() * cfg.canopyCenterYBias();
         double startCenterY = cfg.trunkBaseY() + 3;
         double mainCenterY = startCenterY + (finalCenterY - startCenterY) * stageFactor;
-        final int cx = cfg.trunkCenterX();
-        final int cz = cfg.trunkCenterZ();
+        final double cx = cfg.centerX();
+        final double cz = cfg.centerZ();
 
         return (x, y, z) -> {
             double dx = (x - cx) / rx;
@@ -156,18 +164,20 @@ public final class CanopyEnvelope {
         double finalCenterY = cfg.finalTrunkY() + cfg.resolvedHeight() * cfg.canopyCenterYBias();
         double startCenterY = cfg.trunkBaseY() + 2;
         double centerY = startCenterY + (finalCenterY - startCenterY) * stageFactor;
-        final int cx = cfg.trunkCenterX();
-        final int cz = cfg.trunkCenterZ();
+        final double cx = cfg.centerX();
+        final double cz = cfg.centerZ();
 
         return (x, y, z) -> {
+            double main = 0;
             double hDist = Math.sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz));
             double vDist = Math.abs(y - centerY);
-            if (hDist > rx || vDist > ry) return 0;
-            double hNorm = hDist / rx;
-            double vNorm = vDist / ry;
-            double main = Math.min(
-                    flatTopRadialDensity(hNorm, cfg.edgeFeather()),
-                    flatTopRadialDensity(vNorm, cfg.edgeFeather()));
+            if (hDist <= rx && vDist <= ry) {
+                double hNorm = hDist / rx;
+                double vNorm = vDist / ry;
+                main = Math.min(
+                        flatTopRadialDensity(hNorm, cfg.edgeFeather()),
+                        flatTopRadialDensity(vNorm, cfg.edgeFeather()));
+            }
             double branch = branchNodeDensity(x, y, z, cfg);
             return Math.max(main, branch);
         };
@@ -181,8 +191,8 @@ public final class CanopyEnvelope {
         double ry = 0.8 + (fullRy - 0.8) * stageFactor;
 
         double discCenterY = cfg.finalTrunkY() - 1;
-        final int cx = cfg.trunkCenterX();
-        final int cz = cfg.trunkCenterZ();
+        final double cx = cfg.centerX();
+        final double cz = cfg.centerZ();
 
         return (x, y, z) -> {
             double dx = (x - cx) / rx;

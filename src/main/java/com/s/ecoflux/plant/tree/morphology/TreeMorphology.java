@@ -167,7 +167,8 @@ public final class TreeMorphology {
                 params.subClusterRadius(),
                 branchNodes,
                 branchNodeRadii,
-                stageProgress
+                stageProgress,
+                params.is2x2()
         );
 
         CanopyEnvelope.DensityFunction densityFn = CanopyEnvelope.createDensityFunction(canopyConfig);

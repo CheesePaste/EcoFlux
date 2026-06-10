@@ -7,9 +7,11 @@ import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.TreeStructureAdapter;
 import com.s.ecoflux.plant.tree.profiles.AcaciaGrowthProfile;
 import com.s.ecoflux.plant.tree.profiles.BirchGrowthProfile;
+import com.s.ecoflux.plant.tree.profiles.BrownMushroomGrowthProfile;
 import com.s.ecoflux.plant.tree.profiles.DarkOakGrowthProfile;
 import com.s.ecoflux.plant.tree.profiles.JungleGrowthProfile;
 import com.s.ecoflux.plant.tree.profiles.OakGrowthProfile;
+import com.s.ecoflux.plant.tree.profiles.RedMushroomGrowthProfile;
 import com.s.ecoflux.plant.tree.profiles.SpruceGrowthProfile;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,6 +46,8 @@ public final class TreeGrowthHandler {
         PROFILES.put(id("dark_oak_sapling"), DarkOakGrowthProfile.INSTANCE);
         PROFILES.put(id("acacia"), AcaciaGrowthProfile.INSTANCE);
         PROFILES.put(id("acacia_sapling"), AcaciaGrowthProfile.INSTANCE);
+        PROFILES.put(id("brown_mushroom"), BrownMushroomGrowthProfile.INSTANCE);
+        PROFILES.put(id("red_mushroom"), RedMushroomGrowthProfile.INSTANCE);
     }
 
     private static ResourceLocation id(String path) {
@@ -87,6 +91,28 @@ public final class TreeGrowthHandler {
         EcofluxConstants.LOGGER.info(
                 "[Ecoflux] Intercepted tree growth at {} (type={}), height={}, totalStages={}, morphology={}",
                 sessionPos, saplingId, height, stages, morphologyParams != null);
+    }
+
+    public void interceptMushroomGrowth(ServerLevel level, BlockPos pos, BlockState state) {
+        ResourceLocation mushroomId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        TreeGrowthProfile profile = resolveProfile(mushroomId);
+        if (profile == null) return;
+
+        BlockPos sessionPos = pos.immutable();
+        if (activeGrowths.containsKey(sessionPos)) return;
+
+        int height = profile.resolveHeight(level.random);
+        int stages = profile.totalStagesForHeight(height);
+        int interval = profile.ticksPerStage();
+
+        TreeGrowthSession session = new TreeGrowthSession(
+                sessionPos, mushroomId, level.getGameTime(), stages, interval, height);
+
+        activeGrowths.put(sessionPos, session);
+
+        EcofluxConstants.LOGGER.info(
+                "[Ecoflux] Intercepted mushroom growth at {} (type={}), height={}, totalStages={}",
+                sessionPos, mushroomId, height, stages);
     }
 
     @Nullable

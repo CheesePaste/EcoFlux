@@ -4,6 +4,7 @@
   "package": "com.s.ecoflux.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "MushroomBlockMixin",
     "SaplingBlockMixin"
   ],
   "client": [
