@@ -3,6 +3,7 @@ package com.s.ecoflux.plant.tree.profiles;
 import com.s.ecoflux.plant.tree.TreeGrowthProfile;
 import com.s.ecoflux.plant.tree.TreeShapeUtils;
 import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -12,24 +13,24 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class OakGrowthProfile implements TreeGrowthProfile {
-    public static final OakGrowthProfile INSTANCE = new OakGrowthProfile();
-    private static final ResourceLocation TYPE = ResourceLocation.withDefaultNamespace("oak");
+public final class JungleGrowthProfile implements TreeGrowthProfile {
+    public static final JungleGrowthProfile INSTANCE = new JungleGrowthProfile();
+    private static final ResourceLocation TYPE = ResourceLocation.withDefaultNamespace("jungle");
 
-    private OakGrowthProfile() {
+    private JungleGrowthProfile() {
     }
 
     @Override public ResourceLocation treeType() { return TYPE; }
-    @Override public int minTrunkHeight() { return 5; }
-    @Override public int maxTrunkHeight() { return 8; }
-    @Override public int ticksPerStage() { return 3600; }
-    @Override public Block logBlock() { return Blocks.OAK_LOG; }
-    @Override public Block leavesBlock() { return Blocks.OAK_LEAVES; }
-    @Override public boolean is2x2() { return false; }
+    @Override public int minTrunkHeight() { return 10; }
+    @Override public int maxTrunkHeight() { return 15; }
+    @Override public int ticksPerStage() { return 4800; }
+    @Override public Block logBlock() { return Blocks.JUNGLE_LOG; }
+    @Override public Block leavesBlock() { return Blocks.JUNGLE_LEAVES; }
+    @Override public boolean is2x2() { return true; }
 
     @Override
     public MorphologyParams morphologyParams() {
-        return MorphologyParams.oak();
+        return MorphologyParams.jungle();
     }
 
     @Override
@@ -37,6 +38,13 @@ public final class OakGrowthProfile implements TreeGrowthProfile {
                                 int totalStages, int resolvedHeight) {
         BlockPos checkPos = saplingPos.above(currentStage + 2);
         if (checkPos.getY() >= level.getMaxBuildHeight()) return false;
+        if (is2x2()) {
+            for (BlockPos tp : TreeShapeUtils.trunk2x2Positions(saplingPos, checkPos.getY())) {
+                BlockState s = level.getBlockState(tp);
+                if (!s.isAir() && !s.is(BlockTags.LEAVES) && !s.is(BlockTags.LOGS)) return false;
+            }
+            return true;
+        }
         BlockState state = level.getBlockState(checkPos);
         return state.isAir() || state.is(BlockTags.LEAVES) || state.is(BlockTags.LOGS);
     }
@@ -54,30 +62,20 @@ public final class OakGrowthProfile implements TreeGrowthProfile {
 
     private void placeTrunkStage(ServerLevel level, BlockPos saplingPos, int stage,
                                  int resolvedHeight, RandomSource random) {
-        BlockPos trunkPos = saplingPos.above(stage + 1);
-        TreeShapeUtils.tryPlaceLog(level, trunkPos, logBlock());
+        int y = saplingPos.getY() + stage + 1;
+        for (BlockPos tp : TreeShapeUtils.trunk2x2Positions(saplingPos, y)) {
+            TreeShapeUtils.tryPlaceLog(level, tp, logBlock());
+        }
 
         double progress = (double) stage / resolvedHeight;
-        double radius = 0.8 + progress * 1.2;
-
-        if (radius >= 1.0) {
-            TreeShapeUtils.placeLeafDisc(level, trunkPos, radius, leavesBlock(),
-                    trunkPos, 0.20, random);
-        }
-
-        if (stage >= resolvedHeight / 2 && random.nextDouble() < 0.25) {
-            placeBranch(level, saplingPos, trunkPos, random);
-        }
-    }
-
-    private void placeBranch(ServerLevel level, BlockPos saplingPos, BlockPos trunkPos, RandomSource random) {
-        int dx = random.nextInt(3) - 1;
-        int dz = random.nextInt(3) - 1;
-        if (dx == 0 && dz == 0) dx = 1;
-        BlockPos branchPos = trunkPos.offset(dx, random.nextInt(2) - 1, dz);
-        if (TreeShapeUtils.tryPlaceLog(level, branchPos, logBlock())) {
-            TreeShapeUtils.placeLeafDisc(level, branchPos, 1.5, leavesBlock(),
-                    trunkPos, 0.15, random);
+        if (progress > 0.5 && random.nextDouble() < 0.30) {
+            List<BlockPos> branches = TreeShapeUtils.generateBranchPositions(
+                    saplingPos, resolvedHeight, random, 2, 2);
+            for (BlockPos bp : branches) {
+                if (TreeShapeUtils.tryPlaceLog(level, bp, logBlock())) {
+                    TreeShapeUtils.placeLeafDisc(level, bp, 1.8, leavesBlock(), bp, 0.20, random);
+                }
+            }
         }
     }
 
@@ -85,19 +83,15 @@ public final class OakGrowthProfile implements TreeGrowthProfile {
                                   int totalStages, int resolvedHeight, RandomSource random) {
         int canopyStage = stage - resolvedHeight;
         int canopyDepth = totalStages - resolvedHeight;
-        BlockPos trunkTop = saplingPos.above(resolvedHeight);
+        double ratio = (double) canopyStage / canopyDepth;
+        BlockPos trunkTop = saplingPos.atY(saplingPos.getY() + resolvedHeight);
         int y = canopyStage;
         BlockPos layerCenter = trunkTop.above(y);
-        double radius = TreeShapeUtils.oakCanopyRadius(y, canopyDepth);
 
-        if (radius > 0) {
-            TreeShapeUtils.placeLeafDisc(level, layerCenter, radius, leavesBlock(),
-                    trunkTop, 0.18, random);
-        }
+        double radius = 3.0 + ratio * 1.5;
+        if (canopyStage == canopyDepth - 1) radius = 1.0;
 
-        if (canopyStage == canopyDepth - 1) {
-            TreeShapeUtils.placeLeafDisc(level, layerCenter.above(), 1.0, leavesBlock(),
-                    trunkTop, 0.10, random);
-        }
+        TreeShapeUtils.placeLeafDisc(level, layerCenter, radius, leavesBlock(),
+                trunkTop, 0.22, random);
     }
 }
