@@ -44,7 +44,12 @@
       "Bash(./gradlew runClient)",
       "Bash(./gradlew tasks *)",
       "Bash(./gradlew createRunData)",
-      "Bash(./gradlew prepareClientRun)"
+      "Bash(./gradlew prepareClientRun)",
+      "WebFetch(domain:docs.minecraftforge.net)",
+      "Bash(bash *)",
+      "Bash(mkdir -p src/main/java/com/s/ecoflux/gametest)",
+      "Bash(mkdir -p src/main/resources/data/ecoflux/gametest/structure)",
+      "Bash(./gradlew runGameTestServer)"
     ]
   }
 }

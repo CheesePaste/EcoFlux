@@ -191,3 +191,16 @@ idea {
         downloadJavadoc = true
     }
 }
+
+// Copy GameTest structure .snbt files to the run/ directory so the GameTest framework can find them.
+// The StructureTemplateManager loads test structures from gameteststructures/ on the filesystem,
+// not from the resource pack. This task ensures the run/ directory is always up to date.
+tasks.register('copyGameTestStructures', Copy) {
+    from fileTree(dir: 'src/main/resources/data/ecoflux/gameteststructures', include: '**/*.snbt')
+    into layout.projectDirectory.dir('run/gameteststructures')
+    outputs.upToDateWhen { false }
+}
+
+tasks.named('runGameTestServer') {
+    dependsOn 'copyGameTestStructures'
+}

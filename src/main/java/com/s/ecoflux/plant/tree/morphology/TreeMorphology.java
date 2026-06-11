@@ -103,8 +103,12 @@ public final class TreeMorphology {
             int perStage = Math.max(1, allRemaining.size() / canopyStages);
             for (int c = 0; c < canopyStages; c++) {
                 int start = c * perStage;
-                int end = (c == canopyStages - 1) ? allRemaining.size() : (c + 1) * perStage;
-                stageGroups.add(new ArrayList<>(allRemaining.subList(start, Math.min(end, allRemaining.size()))));
+                if (start >= allRemaining.size()) {
+                    stageGroups.add(Collections.emptyList());
+                } else {
+                    int end = (c == canopyStages - 1) ? allRemaining.size() : (c + 1) * perStage;
+                    stageGroups.add(new ArrayList<>(allRemaining.subList(start, Math.min(end, allRemaining.size()))));
+                }
             }
         }
 
