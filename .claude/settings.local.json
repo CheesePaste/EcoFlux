@@ -44,7 +44,8 @@
       "Bash(./gradlew runClient)",
       "Bash(./gradlew tasks *)",
       "Bash(./gradlew createRunData)",
-      "Bash(./gradlew prepareClientRun)"
+      "Bash(./gradlew prepareClientRun)",
+      "Bash(./gradlew compileJava --no-daemon)"
     ]
   }
 }

@@ -24,7 +24,9 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -54,6 +56,16 @@ public final class VisualLifecycleWorldRenderer {
         for (VisualLifecycleInstance instance : VisualLifecycleClientRuntime.INSTANCE.trackedInCurrentLevel()) {
             BlockPos pos = instance.pos();
             BlockState state = minecraft.level.getBlockState(pos);
+
+            // Skip upper half of double plants — rendered by the lower half below
+            if (state.hasProperty(DoublePlantBlock.HALF) && state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.UPPER) {
+                VisualLifecycleRenderState lowerRS = VisualLifecycleClientRuntime.INSTANCE.getRenderState(
+                        pos.below(), minecraft.level.getBlockState(pos.below()));
+                if (lowerRS != null) {
+                    continue;
+                }
+            }
+
             VisualLifecycleRenderState renderState = VisualLifecycleClientRuntime.INSTANCE.getRenderState(pos, state);
             if (renderState == null || Math.abs(renderState.scale() - 1.0F) < 0.0001F) {
                 continue;
@@ -79,6 +91,28 @@ public final class VisualLifecycleWorldRenderer {
                         bufferSource.getBuffer(ItemBlockRenderTypes.getChunkRenderType(state)),
                         false,
                         random);
+
+                // Render upper half of double plants from the same pivot so both
+                // halves scale together without a gap. translate(0,1,0) is applied
+                // after scale, so the upper half model sits exactly on top of the
+                // scaled lower half.
+                if (state.hasProperty(DoublePlantBlock.HALF) && state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER) {
+                    BlockPos upperPos = pos.above();
+                    BlockState upperState = minecraft.level.getBlockState(upperPos);
+                    VisualLifecycleRenderState upperRS = VisualLifecycleClientRuntime.INSTANCE.getRenderState(upperPos, upperState);
+                    if (upperRS != null && Math.abs(upperRS.scale() - 1.0F) >= 0.0001F) {
+                        poseStack.translate(0.0F, 1.0F, 0.0F);
+                        RandomSource upperRandom = RandomSource.create(upperState.getSeed(upperPos));
+                        minecraft.getBlockRenderer().renderBatched(
+                                upperState,
+                                upperPos,
+                                minecraft.level,
+                                poseStack,
+                                bufferSource.getBuffer(ItemBlockRenderTypes.getChunkRenderType(upperState)),
+                                false,
+                                upperRandom);
+                    }
+                }
             } finally {
                 VisualLifecycleClientRuntime.INSTANCE.endManualWorldRenderPass();
             }
