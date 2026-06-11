@@ -1,7 +1,6 @@
 package com.s.ecoflux.client.visual;
 
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +30,6 @@ public final class VisualLifecycleClientRuntime {
     private volatile List<VisualLifecycleInstance> cachedTrackedList = List.of();
     private volatile boolean trackedListDirty = true;
     private volatile boolean disabled = false;
-    private long lastRenderStateFrame = -1L;
-    private final Map<Long, VisualLifecycleRenderState> frameRenderStateCache = new HashMap<>();
 
     private VisualLifecycleClientRuntime() {
     }
@@ -242,34 +239,22 @@ public final class VisualLifecycleClientRuntime {
             return null;
         }
 
-        long gameTime = level.getGameTime();
-        if (gameTime != lastRenderStateFrame) {
-            frameRenderStateCache.clear();
-            lastRenderStateFrame = gameTime;
-        }
-
         Long posKey = pos.asLong();
-        if (frameRenderStateCache.containsKey(posKey)) {
-            return frameRenderStateCache.get(posKey);
-        }
-
         VisualLifecycleInstance instance = trackedInstancesByPos.get(posKey);
         if (instance == null) {
-            frameRenderStateCache.put(posKey, null);
+            baseColorCache.remove(posKey);
             return null;
         }
 
         Optional<VisualLifecycleAdapter> adapter = VisualLifecycleRegistry.INSTANCE.find(state);
         if (adapter.isEmpty() || !adapter.get().typeId().equals(instance.adapterId())) {
-            frameRenderStateCache.put(posKey, null);
             return null;
         }
 
         int baseColor = baseColorCache.computeIfAbsent(posKey,
                 k -> defaultColor(level, pos, state));
-        VisualLifecycleRenderState result = adapter.get().resolveState(instance, gameTime, baseColor);
-        frameRenderStateCache.put(posKey, result);
-        return result;
+        long gameTime = level.getGameTime();
+        return adapter.get().resolveState(instance, gameTime, baseColor);
     }
 
     public int adjustTint(BlockState state, BlockPos pos, int baseColor) {
@@ -302,7 +287,11 @@ public final class VisualLifecycleClientRuntime {
     public static final int DEAD_BUSH_COLOR = 0xA78F63;
 
     public static int defaultColor(BlockAndTintGetter getter, BlockPos pos, BlockState state) {
-        if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN)) {
+        if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN)
+                || state.is(Blocks.TALL_GRASS) || state.is(Blocks.LARGE_FERN)) {
+            return BiomeColors.getAverageGrassColor(getter, pos);
+        }
+        if (state.is(BlockTags.TALL_FLOWERS)) {
             return BiomeColors.getAverageGrassColor(getter, pos);
         }
         if (state.is(BlockTags.SAPLINGS)) {
@@ -366,6 +355,15 @@ public final class VisualLifecycleClientRuntime {
                 continue;
             }
 
+            VisualLifecycleExternalState newExternalState = new VisualLifecycleExternalState(
+                    mapVegetationStage(entry.stage()), entry.stageProgress(), level.getGameTime());
+
+            Long posKey = entry.pos().asLong();
+            VisualLifecycleInstance existing = trackedInstancesByPos.get(posKey);
+            boolean isNew = existing == null;
+            boolean stageChanged = !isNew && existing.externalState() != null
+                    && existing.externalState().stage() != newExternalState.stage();
+
             VisualLifecycleInstance instance = new VisualLifecycleInstance(
                     adapter.get().typeId(),
                     BuiltInRegistries.BLOCK.getKey(state.getBlock()),
@@ -373,12 +371,19 @@ public final class VisualLifecycleClientRuntime {
                     entry.birthGameTime(),
                     adapter.get().createProfile(state),
                     null,
-                    new VisualLifecycleExternalState(mapVegetationStage(entry.stage()), entry.stageProgress(), level.getGameTime()),
+                    newExternalState,
                     VisualLifecycleTrackingSource.VEGETATION_SYSTEM);
             trackedInstances.put(key(level, entry.pos()), instance);
             trackedInstancesByPos.put(entry.pos().asLong(), instance);
-            markDirty(entry.pos());
-            changed[0] = true;
+
+            // Only markDirty for new or stage-changed entries.
+            // Calling markDirty every tick prevents chunk mesh rebuilds from
+            // completing, causing persistent double-render (vanilla full-size
+            // block + our scaled render).
+            if (isNew || stageChanged) {
+                markDirty(entry.pos());
+                changed[0] = true;
+            }
         }
         if (changed[0]) {
             invalidateTrackedList();
