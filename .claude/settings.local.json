@@ -40,7 +40,11 @@
       "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.client.renderer.chunk.SectionCompiler)",
       "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.client.renderer.chunk.SectionRenderDispatcher)",
       "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh 'net.minecraft.client.renderer.chunk.SectionRenderDispatcher$RenderSection')",
-      "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh \"net.minecraft.world.level.block.MangrovePropaguleBlock\")"
+      "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh \"net.minecraft.world.level.block.MangrovePropaguleBlock\")",
+      "Bash(./gradlew runClient)",
+      "Bash(./gradlew tasks *)",
+      "Bash(./gradlew createRunData)",
+      "Bash(./gradlew prepareClientRun)"
     ]
   }
 }

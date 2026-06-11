@@ -114,7 +114,7 @@ public final class TreeGrowthHandler {
         int interval = profile.ticksPerStage();
 
         TreeGrowthSession session = new TreeGrowthSession(
-                sessionPos, saplingId, level.getGameTime(), stages, interval, height);
+                sessionPos, profile.treeType(), level.getGameTime(), stages, interval, height);
 
         var morphologyParams = profile.morphologyParams();
         if (morphologyParams != null) {
