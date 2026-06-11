@@ -20,6 +20,7 @@ import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.init.ModAttachments;
+import com.s.ecoflux.plant.TreeStructure;
 import com.s.ecoflux.plant.TreeStructureAdapter;
 import com.s.ecoflux.plant.tree.profiles.AcaciaGrowthProfile;
 import com.s.ecoflux.plant.tree.profiles.BirchGrowthProfile;
@@ -250,7 +251,8 @@ public final class TreeGrowthHandler {
                         com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
                                 level, skel, morphologyParams, plan,
                                 session.currentStage(), level.getSeed(), treeRandom,
-                                profile.logBlock(), profile.leavesBlock());
+                                profile.logBlock(), profile.leavesBlock(),
+                                session.placedLogs(), session.placedLeaves());
                     }
                     // Species-specific post-morphology behavior (e.g., mangrove prop roots)
                     profile.growStage(level, pos, session.currentStage(),
@@ -305,7 +307,8 @@ public final class TreeGrowthHandler {
                 com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
                         level, skel, morphologyParams, plan,
                         session.currentStage(), level.getSeed(), treeRandom,
-                        profile.logBlock(), profile.leavesBlock());
+                        profile.logBlock(), profile.leavesBlock(),
+                        session.placedLogs(), session.placedLeaves());
             }
             profile.growStage(level, session.saplingPos(), session.currentStage(),
                     session.totalStages(), session.resolvedHeight(), treeRandom);
@@ -362,12 +365,18 @@ public final class TreeGrowthHandler {
                 chunkData.removeVegetation(trunkPos);
                 level.removeBlock(trunkPos, false);
                 level.setBlock(trunkPos, logBlock.defaultBlockState(), 3);
+                session.placedLogs().add(trunkPos.immutable());
             }
         } else {
             chunkData.removeVegetation(basePos);
             level.removeBlock(basePos, false);
             level.setBlock(basePos, logBlock.defaultBlockState(), 3);
+            session.placedLogs().add(basePos.immutable());
         }
+
+        TreeStructure treeStructure = new TreeStructure(
+                session.placedLogs().stream().mapToLong(BlockPos::asLong).toArray(),
+                session.placedLeaves().stream().mapToLong(BlockPos::asLong).toArray());
 
         ActiveVegetationRecord treeRecord = TreeStructureAdapter.INSTANCE.captureBirth(
                 level,
@@ -376,9 +385,10 @@ public final class TreeGrowthHandler {
                 level.getGameTime(),
                 chunkData.getCurrentBiome().map(key -> key.location()),
                 chunkData.getActivePathId());
-        chunkData.trackVegetation(treeRecord);
+        chunkData.trackVegetation(treeRecord.withTreeStructure(treeStructure));
 
-        EcofluxConstants.LOGGER.info("[Ecoflux] Tree growth complete at {}, replaced with {}", basePos, logBlock);
+        EcofluxConstants.LOGGER.info("[Ecoflux] Tree growth complete at {}, {} logs + {} leaves stored",
+                basePos, treeStructure.logPositions().length, treeStructure.leafPositions().length);
     }
 
     @Nullable

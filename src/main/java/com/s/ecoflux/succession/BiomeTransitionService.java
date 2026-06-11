@@ -7,9 +7,10 @@ package com.s.ecoflux.succession;
  * advance a chunk to its target biome and {@code applyRegression()} to revert a
  * chunk to its fallback biome. Both methods call
  * {@code ChunkAccess.fillBiomesFromNoise()} to overwrite the chunk's biome data,
- * broadcast {@code ClientboundChunksBiomesPacket} to update all clients, plant
- * forest trees on transition via {@code ForestPlanter}, reset chunk runtime state,
- * and push a visual sync via {@code ModNetworking.syncChunkToTracking()}.
+ * broadcast {@code ClientboundChunksBiomesPacket} to update all clients, soft-reset
+ * chunk runtime state (preserving existing vegetation and tree growth sessions),
+ * re-resolve the succession target for the new biome, and push a visual sync via
+ * {@code ModNetworking.syncChunkToTracking()}.
  *
  * <p>Role in Ecoflux: the final step in the succession pipeline, invoked by
  * {@code SuccessionService} when evaluation determines a chunk has reached or
@@ -18,7 +19,6 @@ package com.s.ecoflux.succession;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;
-import com.s.ecoflux.plant.ForestPlanter;
 import com.s.ecoflux.network.ModNetworking;
 import java.util.List;
 import net.minecraft.core.Holder;
@@ -65,8 +65,9 @@ public final class BiomeTransitionService {
         ResourceKey<Biome> oldBiome = chunkData.getCurrentBiome().orElse(null);
         chunkData.setPreviousBiome(oldBiome);
         chunkData.setCurrentBiome(fallbackKey);
-        chunkData.clearRuntimeState();
+        chunkData.softReset();
         chunkData.setLastEvaluationGameTime(level.getGameTime());
+        SuccessionTargetResolver.resolveTarget(chunk);
         ModNetworking.syncChunkToTracking(level, chunk);
 
         EcofluxConstants.LOGGER.info(
@@ -98,24 +99,21 @@ public final class BiomeTransitionService {
                 .broadcastAll(
                         ClientboundChunksBiomesPacket.forChunks(List.of(chunk)),
                         level.dimension());
-        int plantedTrees = ForestPlanter.plantForestTrees(level, chunk, level.getGameTime());
-
         ResourceKey<Biome> oldBiome = data.getCurrentBiome().orElse(null);
         data.setPreviousBiome(oldBiome);
         data.setCurrentBiome(targetBiome.get());
-        data.clearRuntimeState();
+        data.softReset();
         data.setLastEvaluationGameTime(level.getGameTime());
+        SuccessionTargetResolver.resolveTarget(chunk);
         ModNetworking.syncChunkToTracking(level, chunk);
 
         EcofluxConstants.LOGGER.info(
-                "区块 {} 演替完成：{} -> {}，生成树木 {} 棵",
+                "区块 {} 演替完成：{} -> {}",
                 chunk.getPos(),
                 oldBiome == null ? "未知" : oldBiome.location(),
-                targetBiome.get().location(),
-                plantedTrees);
+                targetBiome.get().location());
         return "区块 " + chunk.getPos() + " 已从 "
                 + (oldBiome == null ? "未知" : oldBiome.location())
-                + " 转化为 " + targetBiome.get().location()
-                + "，生成树木 " + plantedTrees + " 棵。";
+                + " 转化为 " + targetBiome.get().location() + "。";
     }
 }

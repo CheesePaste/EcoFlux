@@ -38,6 +38,7 @@ public final class SuccessionService {
     }
 
     public static void initializeChunk(ChunkAccess chunk) {
+        chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA).clearRuntimeState();
         SuccessionTargetResolver.resolveTarget(chunk);
     }
 

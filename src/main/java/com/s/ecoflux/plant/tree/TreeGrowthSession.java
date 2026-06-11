@@ -18,6 +18,8 @@ import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
 import com.s.ecoflux.plant.tree.morphology.TreeMorphology;
 import com.s.ecoflux.plant.tree.morphology.TreeMorphology.GrowStagePlan;
 import com.s.ecoflux.plant.tree.morphology.TreeSkeleton;
+import java.util.HashSet;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -47,6 +49,8 @@ public final class TreeGrowthSession {
     private transient TreeSkeleton skeleton;
     private transient MorphologyParams morphologyParams;
     private transient GrowStagePlan stagePlan;
+    private final transient Set<BlockPos> placedLogs = new HashSet<>();
+    private final transient Set<BlockPos> placedLeaves = new HashSet<>();
 
     public TreeGrowthSession(
             BlockPos saplingPos,
@@ -118,6 +122,14 @@ public final class TreeGrowthSession {
 
     public long lastStageTime() {
         return lastStageTime;
+    }
+
+    public Set<BlockPos> placedLogs() {
+        return placedLogs;
+    }
+
+    public Set<BlockPos> placedLeaves() {
+        return placedLeaves;
     }
 
     public boolean isComplete() {

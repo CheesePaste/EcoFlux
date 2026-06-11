@@ -1,20 +1,6 @@
 package com.s.ecoflux.attachment;
 
-/**
- * Vegetation lifecycle record tracking an individual plant within a chunk.
- *
- * <p>Structure: immutable record holding a plant's identity (vegetation id,
- * adapter type, category), world position, lifecycle stage, timing data (birth,
- * last-observed, and expiry game times), point values (base and current), and
- * optional source biome/path references. Supports {@code withObservation()} and
- * {@code withTransformation()} for stage transitions, and NBT round-tripping via
- * {@code toTag()}/{@code fromTag()}.
- *
- * <p>Role in Ecoflux: stored per-position in {@code SuccessionChunkData}'s
- * vegetation records map. Used by {@code VegetationTracker} for lifecycle
- * observation and by the succession evaluator for point accounting.
- */
-
+import com.s.ecoflux.plant.TreeStructure;
 import com.s.ecoflux.plant.VegetationCategory;
 import com.s.ecoflux.plant.VegetationLifecycleStage;
 import net.minecraft.core.BlockPos;
@@ -34,7 +20,8 @@ public record ActiveVegetationRecord(
         int basePointValue,
         int currentPointValue,
         @Nullable ResourceLocation sourceBiomeId,
-        @Nullable ResourceLocation sourcePathId) {
+        @Nullable ResourceLocation sourcePathId,
+        @Nullable TreeStructure treeStructure) {
     private static final String VEGETATION_ID = "vegetation_id";
     private static final String ADAPTER_TYPE = "adapter_type";
     private static final String CATEGORY = "category";
@@ -47,6 +34,7 @@ public record ActiveVegetationRecord(
     private static final String CURRENT_POINT_VALUE = "current_point_value";
     private static final String SOURCE_BIOME_ID = "source_biome_id";
     private static final String SOURCE_PATH_ID = "source_path_id";
+    private static final String TREE_STRUCTURE = "tree_structure";
 
     public CompoundTag toTag() {
         CompoundTag tag = new CompoundTag();
@@ -66,23 +54,18 @@ public record ActiveVegetationRecord(
         if (sourcePathId != null) {
             tag.putString(SOURCE_PATH_ID, sourcePathId.toString());
         }
+        if (treeStructure != null && !treeStructure.isEmpty()) {
+            tag.put(TREE_STRUCTURE, treeStructure.toTag());
+        }
         return tag;
     }
 
     public ActiveVegetationRecord withObservation(VegetationLifecycleStage nextStage, int nextPointValue, long observedGameTime) {
         return new ActiveVegetationRecord(
-                vegetationId,
-                adapterType,
-                category,
-                position,
-                nextStage,
-                birthGameTime,
-                observedGameTime,
-                expireGameTime,
-                basePointValue,
-                nextPointValue,
-                sourceBiomeId,
-                sourcePathId);
+                vegetationId, adapterType, category, position,
+                nextStage, birthGameTime, observedGameTime, expireGameTime,
+                basePointValue, nextPointValue, sourceBiomeId, sourcePathId,
+                treeStructure);
     }
 
     public ActiveVegetationRecord withTransformation(
@@ -94,23 +77,26 @@ public record ActiveVegetationRecord(
             int nextCurrentPointValue,
             long observedGameTime) {
         return new ActiveVegetationRecord(
-                nextVegetationId,
-                nextAdapterType,
-                nextCategory,
-                position,
-                nextStage,
-                birthGameTime,
-                observedGameTime,
-                expireGameTime,
-                nextBasePointValue,
-                nextCurrentPointValue,
-                sourceBiomeId,
-                sourcePathId);
+                nextVegetationId, nextAdapterType, nextCategory, position,
+                nextStage, birthGameTime, observedGameTime, expireGameTime,
+                nextBasePointValue, nextCurrentPointValue, sourceBiomeId, sourcePathId,
+                treeStructure);
+    }
+
+    public ActiveVegetationRecord withTreeStructure(TreeStructure ts) {
+        return new ActiveVegetationRecord(
+                vegetationId, adapterType, category, position,
+                lifeStage, birthGameTime, lastObservedGameTime, expireGameTime,
+                basePointValue, currentPointValue, sourceBiomeId, sourcePathId, ts);
     }
 
     public static ActiveVegetationRecord fromTag(CompoundTag tag) {
         String sourceBiome = tag.getString(SOURCE_BIOME_ID);
         String sourcePath = tag.getString(SOURCE_PATH_ID);
+        TreeStructure ts = null;
+        if (tag.contains(TREE_STRUCTURE)) {
+            ts = TreeStructure.fromTag(tag.getCompound(TREE_STRUCTURE));
+        }
         return new ActiveVegetationRecord(
                 ResourceLocation.parse(tag.getString(VEGETATION_ID)),
                 ResourceLocation.parse(tag.getString(ADAPTER_TYPE)),
@@ -123,6 +109,7 @@ public record ActiveVegetationRecord(
                 tag.getInt(BASE_POINT_VALUE),
                 tag.getInt(CURRENT_POINT_VALUE),
                 sourceBiome.isEmpty() ? null : ResourceLocation.parse(sourceBiome),
-                sourcePath.isEmpty() ? null : ResourceLocation.parse(sourcePath));
+                sourcePath.isEmpty() ? null : ResourceLocation.parse(sourcePath),
+                ts);
     }
 }

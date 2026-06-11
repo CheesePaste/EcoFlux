@@ -140,7 +140,8 @@ public final class PrototypeChunkController {
                     record.basePointValue(),
                     visualStage.pointValue(record.basePointValue()),
                     record.sourceBiomeId(),
-                    record.sourcePathId()));
+                    record.sourcePathId(),
+                    record.treeStructure()));
         }
     }
 

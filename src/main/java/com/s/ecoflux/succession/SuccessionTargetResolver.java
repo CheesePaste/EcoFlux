@@ -46,7 +46,6 @@ public final class SuccessionTargetResolver {
                 climateSample.temperature(),
                 climateSample.downfall());
 
-        chunkData.clearRuntimeState();
         chunkData.setCurrentBiome(climateSample.biomeKey());
 
         if (matchedPath.isPresent()) {
@@ -66,7 +65,6 @@ public final class SuccessionTargetResolver {
             return;
         }
 
-        chunkData.clearRuntimeState();
         chunkData.setPreviousBiome(null);
         EcofluxConstants.LOGGER.debug(
                 "已初始化 Ecoflux 区块 {}：群系 {} 没有匹配的演替路径（温度={}，降水={}）",

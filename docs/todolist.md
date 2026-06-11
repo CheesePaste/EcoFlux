@@ -2,15 +2,16 @@
 
 以下待办基于当前代码实现状态整理。
 
-## 近期重构完成 (2026-06-11) ✅
+## 近期完成 (2026-06-11)
 
-- [x] P0-1 TreeGrowthSession NBT 持久化 — 树生长会话存入 `SuccessionChunkData`，服务器重启不丢树
-- [x] P1-1 拆分 ModChunkEvents — 迁出 `SuccessionSpeedConfig` + `ChunkTrackingState`
-- [x] P1-2 提取 ForestPlanter — 植树逻辑从 `BiomeTransitionService` 独立
-- [x] P1-4 合并 Tree Profile 重复 — `AbstractTreeGrowthProfile` 基类
-- [x] P2-2 删除死代码 — TreeShapeUtils 叶子方法、CURRENT_PLANT_COUNT、蘑菇 totalStagesForHeight
-- [x] P3-2 MorphologyParams → MorphologyPresets — 工厂方法独立
-- [x] P3-3 CanopyConfig.fromMorphology() — 简化 17 参数构造
+- [x] P0-1 TreeGrowthSession NBT 持久化
+- [x] P1-1 拆分 ModChunkEvents
+- [x] P1-2 提取 ForestPlanter
+- [x] P1-4 合并 Tree Profile 重复
+- [x] P2-2 删除死代码
+- [x] P3-2 MorphologyParams → MorphologyPresets
+- [x] P3-3 CanopyConfig.fromMorphology()
+- [x] **植物衰老死亡系统** — 三个 adapter 死亡检测 + VegetationTracker 方块移除 + 客户端 DEAD 视觉阶段
 
 ## P0：工程基础 ✅
 

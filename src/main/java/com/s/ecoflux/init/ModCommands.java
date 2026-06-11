@@ -74,6 +74,7 @@ public final class ModCommands {
                 .then(Commands.literal("track").then(positionArguments(LifecycleAction.TRACK)))
                 .then(Commands.literal("observe").then(positionArguments(LifecycleAction.OBSERVE)))
                 .then(Commands.literal("untrack").then(positionArguments(LifecycleAction.UNTRACK)))
+                .then(Commands.literal("kill").then(positionArguments(LifecycleAction.KILL)))
                 .then(Commands.literal("observe_chunk").executes(context -> runLifecycleChunkAction(context.getSource(), LifecycleChunkAction.OBSERVE)))
                 .then(Commands.literal("sync_chunk").executes(context -> runLifecycleChunkAction(context.getSource(), LifecycleChunkAction.SYNC)))
                 .then(Commands.literal("chunk").executes(context -> runLifecycleChunk(context.getSource())));
@@ -187,6 +188,7 @@ public final class ModCommands {
                     chunkData.getActivePathId());
             case OBSERVE -> VegetationTracker.INSTANCE.observeTracked(level, chunk, pos);
             case UNTRACK -> VegetationTracker.INSTANCE.untrack(chunk, pos);
+            case KILL -> VegetationTracker.INSTANCE.forceKill(level, chunk, pos);
         };
 
         source.sendSuccess(() -> Component.literal(message), false);
@@ -293,7 +295,8 @@ public final class ModCommands {
         INSPECT,
         TRACK,
         OBSERVE,
-        UNTRACK
+        UNTRACK,
+        KILL
     }
 
     private enum LifecycleChunkAction {

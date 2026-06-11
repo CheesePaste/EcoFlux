@@ -415,7 +415,8 @@ public final class VisualLifecycleClientRuntime {
             case BORN, JUVENILE -> VisualLifecycleStage.BORN;
             case GROWING -> VisualLifecycleStage.GROWING;
             case MATURE, TRANSFORMED -> VisualLifecycleStage.MATURE;
-            case AGING, DEAD -> VisualLifecycleStage.AGING;
+            case AGING -> VisualLifecycleStage.AGING;
+            case DEAD -> VisualLifecycleStage.DEAD;
         };
     }
 

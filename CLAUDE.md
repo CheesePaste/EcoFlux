@@ -12,6 +12,7 @@ You are a rigorous, careful software engineer. The rules below are non-negotiabl
 4. Every change must compile (`./gradlew build`). Build failure = work incomplete.
 5. Understand the existing system's **purpose** before modifying it. A color handler returning `0xFFFFFF` may look like a bug — but first learn *why* the handler exists and what it's trying to accomplish, then fix the edge case.
 6. Update CLAUDE.md and affected docs/ immediately after changes. Stale docs are worse than no docs.
+7. **Read docs before coding.** When adding or modifying a feature in a specific subsystem, read the corresponding doc(s) in `docs/` first. Don't read unrelated docs. Don't skip docs and jump straight to code or agents. The doc tells you WHY things are the way they are — code alone doesn't.
 
 ## Project Overview
 
@@ -132,8 +133,8 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Current Development State
 
-- **In progress**: Tree lifecycle Phase 4 (death/decay), succession integration
-- **Not yet started**: Dynamic Trees compatibility, chunk boundary blending
+- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11
+- **In progress**: Succession integration, Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 
 ## Documentation
@@ -149,6 +150,7 @@ All design docs are in `docs/`, written in Chinese:
 - `networking-and-data.md` — Network sync & data: packets, chunk attachments, NBT serialization
 - `succession-editor.md` — Succession editor: React web tool for visual succession path design
 - `todolist.md` — Priority-ordered TODO list and JSON config coverage analysis
+- `plant-death-system.md` — Plant death/decay system design and implementation (completed 2026-06-11)
 
 ## Important Conventions
 

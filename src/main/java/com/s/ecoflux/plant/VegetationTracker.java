@@ -25,6 +25,7 @@ package com.s.ecoflux.plant;
 
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.network.VegetationVisualSyncEntry;
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -121,7 +123,8 @@ public final class VegetationTracker {
                         0,
                         0,
                         upperRecord.sourceBiomeId(),
-                        upperRecord.sourcePathId());
+                        upperRecord.sourcePathId(),
+                        null);
                 chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA).trackVegetation(zeroPointUpper);
             }
         }
@@ -195,12 +198,39 @@ public final class VegetationTracker {
 
         VegetationObservation observation = adapter.get().observe(level, record, state, level.getGameTime());
         if (!observation.present()) {
+            if (record.treeStructure() != null && !record.treeStructure().isEmpty()) {
+                removeAllTreeBlocks(level, chunkData, pos, record.treeStructure());
+                return new ObserveResult(
+                        "已观察 " + pos + "：树木结构完全腐烂，方块已移除。",
+                        true, false, false);
+            }
+            BlockState currentState = level.getBlockState(pos);
+            if (!currentState.isAir()) {
+                level.destroyBlock(pos, false);
+            }
             chunkData.removeVegetation(pos);
             return new ObserveResult(
                     "已观察 " + pos + "：植被死亡或消失。详情=" + observation.detail(),
-                    true,
-                    false,
-                    false);
+                    true, false, false);
+        }
+
+        if (observation.stage() == VegetationLifecycleStage.DEAD
+                && record.treeStructure() != null
+                && !record.treeStructure().isEmpty()) {
+            TreeStructure reduced = processTreeDeath(level, record.treeStructure());
+            if (reduced.isEmpty()) {
+                chunkData.removeVegetation(pos);
+                return new ObserveResult(
+                        "已观察 " + pos + "：树木结构死亡，所有方块已移除。",
+                        true, false, false);
+            }
+            chunkData.trackVegetation(record.withObservation(
+                    observation.stage(), observation.currentPointValue(), level.getGameTime())
+                    .withTreeStructure(reduced));
+            return new ObserveResult(
+                    "已观察 " + pos + "：阶段=DEAD，树木腐烂中（剩余 "
+                            + reduced.totalBlocks() + " 方块）。",
+                    false, false, true);
         }
 
         if (observation.transformation().isPresent()) {
@@ -248,6 +278,63 @@ public final class VegetationTracker {
                 : "已取消追踪位置 " + pos + " 的植被。";
     }
 
+    private TreeStructure processTreeDeath(ServerLevel level, TreeStructure ts) {
+        long[] leaves = ts.leafPositions();
+        long[] logs = ts.logPositions();
+        int removedCount = 0;
+        int maxRemove = Math.max(1, (leaves.length + logs.length) / 8);
+
+        if (leaves.length > 0) {
+            int removeLeaves = Math.min(maxRemove, leaves.length);
+            for (int i = 0; i < removeLeaves; i++) {
+                BlockPos leafPos = BlockPos.of(leaves[i]);
+                BlockState leafState = level.getBlockState(leafPos);
+                if (leafState.is(BlockTags.LEAVES)) {
+                    level.destroyBlock(leafPos, false);
+                }
+                removedCount++;
+            }
+            long[] remainingLeaves = new long[leaves.length - removeLeaves];
+            System.arraycopy(leaves, removeLeaves, remainingLeaves, 0, remainingLeaves.length);
+            return new TreeStructure(logs, remainingLeaves);
+        }
+
+        if (logs.length > 0) {
+            int removeLogs = Math.min(maxRemove, logs.length);
+            for (int i = 0; i < removeLogs; i++) {
+                BlockPos logPos = BlockPos.of(logs[i]);
+                BlockState logState = level.getBlockState(logPos);
+                if (logState.is(BlockTags.LOGS)) {
+                    level.destroyBlock(logPos, false);
+                }
+            }
+            long[] remainingLogs = new long[logs.length - removeLogs];
+            System.arraycopy(logs, removeLogs, remainingLogs, 0, remainingLogs.length);
+            return new TreeStructure(remainingLogs, new long[0]);
+        }
+
+        return ts;
+    }
+
+    private void removeAllTreeBlocks(ServerLevel level, SuccessionChunkData chunkData,
+                                      BlockPos recordPos, TreeStructure ts) {
+        for (long packed : ts.leafPositions()) {
+            BlockPos pos = BlockPos.of(packed);
+            if (!level.getBlockState(pos).isAir()) {
+                level.destroyBlock(pos, false);
+            }
+            chunkData.removeVegetation(pos);
+        }
+        for (long packed : ts.logPositions()) {
+            BlockPos pos = BlockPos.of(packed);
+            if (!level.getBlockState(pos).isAir()) {
+                level.destroyBlock(pos, false);
+            }
+            chunkData.removeVegetation(pos);
+        }
+        chunkData.removeVegetation(recordPos);
+    }
+
     public String describeChunk(LevelChunk chunk) {
         SuccessionChunkData chunkData = chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA);
         if (chunkData.getVegetationRecords().isEmpty()) {
@@ -263,6 +350,114 @@ public final class VegetationTracker {
                 + " 已追踪植被=" + chunkData.getVegetationRecords().size()
                 + " 总积分=" + chunkData.getTotalVegetationPoints()
                 + " 样本=[" + joined + "]";
+    }
+
+    public String advanceStage(ServerLevel level, LevelChunk chunk, BlockPos pos) {
+        SuccessionChunkData chunkData = chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA);
+        ActiveVegetationRecord record = chunkData.getVegetationRecords().get(pos);
+        if (record == null) {
+            return "位置 " + pos + " 没有已追踪植被。";
+        }
+
+        BlockState state = level.getBlockState(pos);
+        Optional<VegetationTypeAdapter> adapter = findAdapter(record.adapterType());
+        if (adapter.isEmpty()) {
+            return "位置 " + pos + " 的适配器未注册。";
+        }
+
+        VegetationObservation obs = adapter.get().observe(level, record, state, level.getGameTime());
+        if (!obs.present()) {
+            return "位置 " + pos + " 的植被已不存在。";
+        }
+
+        long now = level.getGameTime();
+        float speed = SuccessionSpeedConfig.getSpeedMultiplier();
+        long newBirth = record.birthGameTime();
+        long newExpire = record.expireGameTime();
+
+        String nextStageName = switch (obs.stage()) {
+            case BORN -> {
+                newBirth = now - (long) (200L / speed);
+                yield "GROWING";
+            }
+            case JUVENILE -> {
+                newBirth = now - (long) (1200L / speed);
+                yield "GROWING";
+            }
+            case GROWING -> {
+                if (record.adapterType().equals(SaplingAdapter.TYPE_ID)) {
+                    // Sapling GROWING → kill (saplings don't have MATURE/AGING)
+                    newExpire = now - 1;
+                    yield "DEAD";
+                }
+                newBirth = now - (long) (1200L / speed);
+                yield "MATURE";
+            }
+            case MATURE -> {
+                long threshold = record.adapterType().equals(TreeStructureAdapter.TYPE_ID) ? 96000L : 48000L;
+                newBirth = now - (long) (threshold / speed);
+                yield "AGING";
+            }
+            case AGING -> {
+                newExpire = now - 1;
+                yield "DEAD";
+            }
+            case DEAD -> {
+                newExpire = -100000L;
+                yield "REMOVED";
+            }
+            case TRANSFORMED -> {
+                yield "TRANSFORMED";
+            }
+        };
+
+        ActiveVegetationRecord updated = new ActiveVegetationRecord(
+                record.vegetationId(),
+                record.adapterType(),
+                record.category(),
+                record.position(),
+                record.lifeStage(),
+                newBirth,
+                now,
+                newExpire,
+                record.basePointValue(),
+                record.currentPointValue(),
+                record.sourceBiomeId(),
+                record.sourcePathId(),
+                record.treeStructure());
+        chunkData.trackVegetation(updated);
+        ModNetworking.syncChunkToTracking(level, chunk);
+
+        String result = observeTracked(level, chunk, pos);
+        return "点击推进 " + pos.toShortString() + " → " + nextStageName + " | " + result;
+    }
+
+    public String forceKill(ServerLevel level, LevelChunk chunk, BlockPos pos) {
+        SuccessionChunkData chunkData = chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA);
+        ActiveVegetationRecord record = chunkData.getVegetationRecords().get(pos);
+        if (record == null) {
+            return "位置 " + pos + " 跳过强制死亡：没有已追踪植被记录。";
+        }
+
+        long now = level.getGameTime();
+        ActiveVegetationRecord killed = new ActiveVegetationRecord(
+                record.vegetationId(),
+                record.adapterType(),
+                record.category(),
+                record.position(),
+                VegetationLifecycleStage.AGING,
+                record.birthGameTime(),
+                now,
+                now - 1,
+                record.basePointValue(),
+                Math.max(1, record.currentPointValue()),
+                record.sourceBiomeId(),
+                record.sourcePathId(),
+                record.treeStructure());
+        chunkData.trackVegetation(killed);
+        ModNetworking.syncChunkToTracking(level, chunk);
+
+        return observeTracked(level, chunk, pos);
     }
 
     private record ObserveResult(String message, boolean removed, boolean transformed, boolean updated) {

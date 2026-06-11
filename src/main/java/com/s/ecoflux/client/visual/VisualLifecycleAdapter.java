@@ -15,7 +15,6 @@ package com.s.ecoflux.client.visual;
  * fallback) to have its own scale curve, timing, and color-degradation parameters.
  */
 
-import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.config.VisualLifecycleClientConfig;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
@@ -53,6 +52,7 @@ public interface VisualLifecycleAdapter {
                         case GROWING -> profile.growingTicks();
                         case MATURE -> profile.matureTicks();
                         case AGING -> profile.agingTicks();
+                        case DEAD -> 0;
                     };
                     if (duration <= 0) {
                         break;
@@ -67,6 +67,7 @@ public interface VisualLifecycleAdapter {
                             case GROWING -> VisualLifecycleStage.MATURE;
                             case MATURE -> VisualLifecycleStage.AGING;
                             case AGING -> VisualLifecycleStage.AGING;
+                            case DEAD -> VisualLifecycleStage.DEAD;
                         };
                     } else {
                         accumulated += (float) remaining / duration;
@@ -77,14 +78,6 @@ public interface VisualLifecycleAdapter {
                     stage = VisualLifecycleStage.AGING;
                 }
                 progress = accumulated;
-
-                long age = Math.max(0L, gameTime - instance.startGameTime());
-                VisualLifecycleStage ageStage = resolveStageByAge(profile, age);
-                if (ageStage != stage) {
-                    EcofluxConstants.LOGGER.warn(
-                            "视觉生命周期 {} 阶段不一致：服务端外推={} 客户端年龄={} age={} ticks",
-                            instance.pos(), stage, ageStage, age);
-                }
             } else {
                 long age = Math.max(0L, gameTime - instance.startGameTime());
                 if (age < profile.bornTicks()) {
@@ -115,8 +108,9 @@ public interface VisualLifecycleAdapter {
             case GROWING -> lerp(growingStartScale, matureScale, progress);
             case MATURE -> matureScale;
             case AGING -> lerp(matureScale, agingScale, progress);
+            case DEAD -> lerp(agingScale, 0.0F, progress);
         };
-        int tintedColor = stage == VisualLifecycleStage.AGING
+        int tintedColor = stage == VisualLifecycleStage.AGING || stage == VisualLifecycleStage.DEAD
                 ? shiftColor(baseColor, profile, progress)
                 : baseColor;
         return new VisualLifecycleRenderState(stage, clamp01(progress), scale, tintedColor);
@@ -128,19 +122,6 @@ public interface VisualLifecycleAdapter {
 
     private static float clamp01(float value) {
         return Math.max(0.0F, Math.min(1.0F, value));
-    }
-
-    private static VisualLifecycleStage resolveStageByAge(VisualLifecycleProfile profile, long age) {
-        if (age < profile.bornTicks()) {
-            return VisualLifecycleStage.BORN;
-        }
-        if (age < profile.bornTicks() + profile.growingTicks()) {
-            return VisualLifecycleStage.GROWING;
-        }
-        if (age < profile.bornTicks() + profile.growingTicks() + profile.matureTicks()) {
-            return VisualLifecycleStage.MATURE;
-        }
-        return VisualLifecycleStage.AGING;
     }
 
     private static int shiftColor(int baseColor, VisualLifecycleProfile profile, float progress) {

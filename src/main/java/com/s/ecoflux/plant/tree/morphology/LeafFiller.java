@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
@@ -49,7 +50,8 @@ public final class LeafFiller {
             int currentStage,
             int totalStages,
             long worldSeed,
-            RandomSource random
+            RandomSource random,
+            Set<BlockPos> outLeaves
     ) {
         double stageProgress = (double) currentStage / totalStages;
         double densityThreshold = 0.08 + stageProgress * 0.06;
@@ -112,6 +114,7 @@ public final class LeafFiller {
             level.setBlock(pos, leavesBlock.defaultBlockState()
                     .setValue(LeavesBlock.DISTANCE, Math.min(distance, 7))
                     .setValue(LeavesBlock.PERSISTENT, true), 3);
+            outLeaves.add(pos.immutable());
             placed++;
         }
     }

@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -119,7 +120,9 @@ public final class TreeMorphology {
             long worldSeed,
             RandomSource random,
             Block logBlock,
-            Block leavesBlock
+            Block leavesBlock,
+            Set<BlockPos> outLogs,
+            Set<BlockPos> outLeaves
     ) {
         if (currentStage >= plan.totalStages()) return;
 
@@ -133,7 +136,9 @@ public final class TreeMorphology {
             BlockPos pos = node.pos();
             if (pos.getY() > worldMaxY) continue;
             Direction.Axis axis = resolveAxis(skeleton, idx);
-            TreeShapeUtils.tryPlaceLog(level, pos, logBlock, axis);
+            if (TreeShapeUtils.tryPlaceLog(level, pos, logBlock, axis)) {
+                outLogs.add(pos.immutable());
+            }
         }
 
         BlockPos saplingPos = skeleton.saplingPos();
@@ -175,7 +180,7 @@ public final class TreeMorphology {
         LeafFiller.fillLeaves(
                 level, skeleton, densityFn, leavesBlock, saplingPos.above(currentTrunkY - trunkBaseY),
                 params.leafDensity(), params.branchClustering(), params.edgeFeather(),
-                currentStage, plan.totalStages(), worldSeed, random
+                currentStage, plan.totalStages(), worldSeed, random, outLeaves
         );
     }
 

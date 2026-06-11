@@ -100,13 +100,13 @@
 ### 正向演替 (applyTransition)
 1. 使用 `ChunkAccess.fillBiomesFromNoise()` 将 chunk 内群系替换为目标群系
 2. 发送 `ClientboundChunksBiomesPacket` 通知客户端
-3. 在合适位置种植树木（作为演替奖励）
-4. 重置 chunk 状态：progress = 0、清空队列、重新填充
+3. 软重置（保留现有植被记录和树木生长会话），重新解析新群系的演替目标
+4. 现有植物继续其生命周期，新植物随新群系路径逐渐生成
 
 ### 负向退化 (applyRegression)
 1. 群系切换到 `fallbackBiome`（或 `previousBiome` 作为兜底）
 2. 发送同步包
-3. 重置状态，不种树
+3. 软重置，重新解析新群系的演替目标
 
 ## ChunkSamplingHelper
 

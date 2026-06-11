@@ -16,5 +16,6 @@ public enum VisualLifecycleStage {
     BORN,
     GROWING,
     MATURE,
-    AGING
+    AGING,
+    DEAD
 }

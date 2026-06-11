@@ -32,6 +32,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class TreeStructureAdapter implements VegetationTypeAdapter {
     public static final TreeStructureAdapter INSTANCE = new TreeStructureAdapter();
     public static final ResourceLocation TYPE_ID = EcofluxConstants.id("tree_structure");
+    private static final long DECAY_TICKS = 24000L;
 
     private TreeStructureAdapter() {
     }
@@ -71,7 +72,8 @@ public final class TreeStructureAdapter implements VegetationTypeAdapter {
                 4,
                 5,
                 sourceBiomeId.orElse(null),
-                sourcePathId.orElse(null));
+                sourcePathId.orElse(null),
+                null);
     }
 
     @Override
@@ -83,6 +85,21 @@ public final class TreeStructureAdapter implements VegetationTypeAdapter {
         long age = Math.max(0L, gameTime - record.birthGameTime());
         VegetationLifecycleStage stage = age < 96000L ? VegetationLifecycleStage.MATURE : VegetationLifecycleStage.AGING;
         int pointValue = stage == VegetationLifecycleStage.MATURE ? 5 : 3;
+
+        if (gameTime >= record.expireGameTime() + DECAY_TICKS) {
+            return VegetationObservation.absent("树木结构已死亡并腐烂。");
+        }
+        if (gameTime >= record.expireGameTime()) {
+            return new VegetationObservation(
+                    true,
+                    VegetationLifecycleStage.DEAD,
+                    0,
+                    false,
+                    false,
+                    Optional.empty(),
+                    "树木结构已死亡。");
+        }
+
         return new VegetationObservation(
                 true,
                 stage,
@@ -100,6 +117,7 @@ public final class TreeStructureAdapter implements VegetationTypeAdapter {
         return switch (record.lifeStage()) {
             case MATURE -> new VegetationVisualState(VegetationLifecycleStage.MATURE, VegetationTypeAdapter.progress(age, 0L, 96000L));
             case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, VegetationTypeAdapter.progress(age, 96000L, totalLifetime));
+            case DEAD -> new VegetationVisualState(VegetationLifecycleStage.DEAD, VegetationTypeAdapter.progress(gameTime, record.expireGameTime(), record.expireGameTime() + DECAY_TICKS));
             default -> new VegetationVisualState(record.lifeStage(), 1.0F);
         };
     }

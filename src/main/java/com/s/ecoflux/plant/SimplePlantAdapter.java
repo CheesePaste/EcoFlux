@@ -36,6 +36,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class SimplePlantAdapter implements VegetationTypeAdapter {
     public static final SimplePlantAdapter INSTANCE = new SimplePlantAdapter();
     private static final ResourceLocation TYPE_ID = EcofluxConstants.id("simple_plant");
+    private static final long DECAY_TICKS = 6000L;
 
     private SimplePlantAdapter() {
     }
@@ -88,7 +89,8 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
                     maxPoints,
                     maxPoints,
                     sourceBiomeId.orElse(null),
-                    sourcePathId.orElse(null));
+                    sourcePathId.orElse(null),
+                    null);
         }
         return new ActiveVegetationRecord(
                 net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()),
@@ -102,7 +104,8 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
                 basePointValue,
                 Math.max(0, basePointValue / 2),
                 sourceBiomeId.orElse(null),
-                sourcePathId.orElse(null));
+                sourcePathId.orElse(null),
+                null);
     }
 
     @Override
@@ -143,6 +146,20 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
             aging = true;
         }
 
+        if (gameTime >= record.expireGameTime() + DECAY_TICKS) {
+            return VegetationObservation.absent("简单植物已死亡并腐烂。");
+        }
+        if (gameTime >= record.expireGameTime()) {
+            return new VegetationObservation(
+                    true,
+                    VegetationLifecycleStage.DEAD,
+                    0,
+                    false,
+                    false,
+                    Optional.empty(),
+                    "简单植物已死亡。");
+        }
+
         return new VegetationObservation(
                 true,
                 stage,
@@ -164,6 +181,7 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
             case GROWING -> new VegetationVisualState(VegetationLifecycleStage.GROWING, VegetationTypeAdapter.progress(age, 200L, 1200L));
             case MATURE -> new VegetationVisualState(VegetationLifecycleStage.MATURE, VegetationTypeAdapter.progress(age, 1200L, 48000L));
             case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, VegetationTypeAdapter.progress(age, 48000L, record.expireGameTime() - record.birthGameTime()));
+            case DEAD -> new VegetationVisualState(VegetationLifecycleStage.DEAD, VegetationTypeAdapter.progress(gameTime, record.expireGameTime(), record.expireGameTime() + DECAY_TICKS));
             default -> new VegetationVisualState(record.lifeStage(), 1.0F);
         };
     }

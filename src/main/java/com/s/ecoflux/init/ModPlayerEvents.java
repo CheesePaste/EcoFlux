@@ -15,10 +15,12 @@ import com.s.ecoflux.plant.VegetationTracker;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
 public final class ModPlayerEvents {
@@ -28,6 +30,7 @@ public final class ModPlayerEvents {
     public static void register() {
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onBlockPlaced);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onBlockBroken);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onClockRightClick);
     }
 
     private static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
@@ -59,6 +62,27 @@ public final class ModPlayerEvents {
         }
 
         VegetationTracker.INSTANCE.untrack(chunk, pos);
+    }
+
+    private static void onClockRightClick(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getLevel().isClientSide()) {
+            return;
+        }
+        if (!event.getItemStack().is(Items.CLOCK)) {
+            return;
+        }
+
+        ServerLevel level = (ServerLevel) event.getLevel();
+        BlockPos pos = event.getPos();
+        LevelChunk chunk = getChunk(level, pos);
+        if (chunk == null) {
+            return;
+        }
+
+        String result = VegetationTracker.INSTANCE.advanceStage(level, chunk, pos);
+        event.getEntity().displayClientMessage(
+                net.minecraft.network.chat.Component.literal(result), false);
+        event.setCanceled(true);
     }
 
     private static LevelChunk getChunk(ServerLevel level, BlockPos pos) {

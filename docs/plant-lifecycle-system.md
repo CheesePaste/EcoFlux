@@ -51,9 +51,22 @@ BORN → MATURING → MATURE → AGING → DEAD → DECAYING → GONE
 | `MATURING` | 生长中 |
 | `MATURE` | 成熟，标准大小，提供点数 |
 | `AGING` | 老化，着色变化，触发评估 gate |
-| `DEAD` | 死亡，视觉凋零 |
-| `DECAYING` | 腐烂中 |
-| `GONE` | 已消失，等待清理 |
+| `DEAD` | 死亡，视觉凋零，方块即将移除 |
+| `DECAYING` | 腐烂中（合并入 DEAD 阶段后期） |
+| `GONE` | 已消失，等待清理（由 VegetationTracker 自动处理） |
+
+### 死亡系统（2026-06-11 实现）
+
+所有 adapter 的 `observe()` 方法在 `gameTime >= expireGameTime` 时返回 DEAD 阶段。
+`gameTime >= expireGameTime + DECAY_TICKS` 时返回 `present=false`，触发 VegetationTracker 破坏方块并清理记录。
+
+| 植物类型 | expireGameTime | DECAY_TICKS |
+|---------|---------------|-------------|
+| 花草/灌木 | 72000 ticks (1h) | 6000 ticks (5min) |
+| 树木 | 288000 ticks (4h) | 24000 ticks (20min) |
+| 树苗（未生长） | 144000 ticks (2h) | 6000 ticks (5min) |
+
+详见 [plant-death-system.md](plant-death-system.md)。
 
 ### ActiveVegetationRecord
 

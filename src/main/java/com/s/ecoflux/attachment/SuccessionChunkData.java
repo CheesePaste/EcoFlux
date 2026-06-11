@@ -245,6 +245,17 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         markDirty();
     }
 
+    public void softReset() {
+        activePathId = null;
+        targetBiome = null;
+        consumingValue = 0;
+        maxPlantCount = 0;
+        progress = 0.0D;
+        lastEvaluationGameTime = 0L;
+        plantQueue.clear();
+        markDirty();
+    }
+
     @Override
     public CompoundTag serializeNBT(HolderLookup.Provider provider) {
         CompoundTag tag = new CompoundTag();
