@@ -1,6 +1,17 @@
 package com.s.ecoflux.plant.tree.profiles;
 
-import com.s.ecoflux.plant.tree.TreeGrowthProfile;
+/**
+ * Acacia tree growth profile (singleton).
+ *
+ * <p>Structure: flat disc + scattered sphere cluster canopy, 8-14 block height,
+ * 3600 ticks/stage (~27 real minutes), 15-18 degree trunk lean (most angled),
+ * 4-7 branches, 4-block clear trunk. Distinctive leaning shape.
+ * Overrides {@link #canGrowStage} to check a 3x3 neighborhood for the leaning trunk.
+ * Delegates to the morphology system via {@link MorphologyPresets#acacia()}.
+ * <p>Role in Ecoflux: defines the parametric growth parameters for acacia trees
+ * in the ecological succession tree lifecycle system.
+ */
+
 import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -10,7 +21,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class AcaciaGrowthProfile implements TreeGrowthProfile {
+public final class AcaciaGrowthProfile extends AbstractTreeGrowthProfile {
     public static final AcaciaGrowthProfile INSTANCE = new AcaciaGrowthProfile();
     private static final ResourceLocation TYPE = ResourceLocation.withDefaultNamespace("acacia");
 
@@ -25,7 +36,7 @@ public final class AcaciaGrowthProfile implements TreeGrowthProfile {
 
     @Override
     public MorphologyParams morphologyParams() {
-        return MorphologyParams.acacia();
+        return MorphologyPresets.acacia();
     }
 
     @Override

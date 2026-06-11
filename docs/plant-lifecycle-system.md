@@ -116,10 +116,10 @@ public interface VegetationTypeAdapter {
 ## 当前 Adapter 实现
 
 ### SimplePlantAdapter
-负责单格小型植物：花、草、蕨、小型蘑菇。根据年龄给出 BORN → MATURING → MATURE → AGING 阶段。
+负责单格小型植物：花、草、蕨、小型蘑菇、枯萎的灌木、两格高植物（高草丛、向日葵等）。根据年龄给出 BORN → MATURING → MATURE → AGING 阶段。**两格高植物的上半部分会自动追踪，但贡献 0 积分避免重复计数。**
 
 ### SaplingAdapter
-负责树苗。处理树苗出生、观察、消失。当树苗生长被 `SaplingBlockMixin` 拦截后，通过 `VegetationTransformation` 转换为 TreeStructure。树苗阶段 0→1 放行（视觉成熟），阶段 1→树 拦截。
+负责树苗和红树繁殖体。处理树苗出生、观察、消失。当树苗生长被 `SaplingBlockMixin` 拦截后，通过 `VegetationTransformation` 转换为 TreeStructure。树苗阶段 0→1 放行（视觉成熟），阶段 1→树 拦截。支持 9 种树种：橡树、白桦、云杉、丛林(2×2)、丛林(1×1)、深色橡树、金合欢、樱花、红树。
 
 ### TreeStructureAdapter
 负责成熟树结构。支持 MATURE → AGING → DEAD 阶段。是树苗转化后的承接点。

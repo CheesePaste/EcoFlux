@@ -1,5 +1,20 @@
 package com.s.ecoflux.client.visual;
 
+/**
+ * Client-side event subscriber for the visual lifecycle system.
+ *
+ * <p>Structure: registers a block color handler for per-plant tinting via
+ * {@code RegisterColorHandlersEvent.Block}, debug commands under
+ * {@code /ecoflux visual} for manual start/stop/inspect/stage control, and a
+ * client tick handler that drives the {@link VisualLifecycleClientRuntime} each frame.
+ * <p>Role in Ecoflux: this is the client-side mod entry point for the visual
+ * lifecycle layer. The color handler delegates to
+ * {@link VisualLifecycleClientRuntime#getRenderState} to compute tint colors,
+ * which integrates with the {@code BlockRenderDispatcherMixin} to suppress
+ * vanilla rendering for scaled plants and with
+ * {@link VisualLifecycleWorldRenderer} to draw the scaled replacement.
+ */
+
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -55,7 +70,7 @@ public final class ModClientVisualLifecycle {
         event.register(
                 (state, getter, pos, tintIndex) -> {
                     if (getter == null || pos == null) {
-                        return 0xFFFFFF;
+                        return defaultItemTintColor(state);
                     }
                     VisualLifecycleRenderState renderState = VisualLifecycleClientRuntime.INSTANCE.getRenderState(pos, state);
                     if (renderState != null) {
@@ -120,6 +135,28 @@ public final class ModClientVisualLifecycle {
     private static int send(CommandSourceStack source, String message) {
         source.sendSuccess(() -> Component.literal(message), false);
         return 1;
+    }
+
+    private static int defaultItemTintColor(BlockState state) {
+        // Default grass green (same as GrassColor.getDefaultColor())
+        final int GRASS_DEFAULT = 0x7CBD2D;
+        // Default foliage green (same as FoliageColor.getDefaultColor())
+        final int FOLIAGE_DEFAULT = 0x48B518;
+
+        if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN)
+                || state.is(Blocks.TALL_GRASS) || state.is(Blocks.LARGE_FERN)) {
+            return GRASS_DEFAULT;
+        }
+        if (state.is(BlockTags.TALL_FLOWERS)) {
+            return GRASS_DEFAULT;
+        }
+        if (state.is(BlockTags.SAPLINGS) || state.is(BlockTags.LEAVES)) {
+            return FOLIAGE_DEFAULT;
+        }
+        if (state.is(Blocks.DEAD_BUSH)) {
+            return VisualLifecycleClientRuntime.DEAD_BUSH_COLOR;
+        }
+        return 0xFFFFFF;
     }
 
     private static int defaultTintColor(BlockState state, BlockAndTintGetter getter, BlockPos pos) {

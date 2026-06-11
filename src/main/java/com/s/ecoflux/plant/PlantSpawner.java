@@ -1,5 +1,27 @@
 package com.s.ecoflux.plant;
 
+/**
+ * Static utility class for plant spawning, queue management, and pruning.
+ *
+ * <p>Structure: all methods are static (utility class, no instances).
+ * {@link #trySpawnPlant} attempts to place a single plant from the chunk's
+ * queue at a valid surface position. {@link #ensureQueue} refills the queue
+ * from weighted plant definitions when empty. {@link #fillPlants} repeatedly
+ * spawns until a target population is reached. {@link #pruneInvalidPlants}
+ * removes expired or missing vegetation records. {@link #buildWeightedQueue}
+ * produces a randomized spawn queue from a succession path's plant list via
+ * weighted random selection.
+ *
+ * <p>Role in Ecoflux: called by
+ * {@link com.s.ecoflux.succession.SuccessionService} during chunk ticking to
+ * maintain plant populations, and by
+ * {@link com.s.ecoflux.succession.BiomeTransitionService} after biome
+ * transitions to seed new plant life. Works with
+ * {@link com.s.ecoflux.config.PlantDefinition} from the data-driven
+ * succession path config and {@link com.s.ecoflux.world.ChunkSamplingHelper}
+ * for valid spawn position resolution.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.PlantQueueEntry;
 import com.s.ecoflux.attachment.SuccessionChunkData;

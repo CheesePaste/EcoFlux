@@ -1,10 +1,26 @@
 package com.s.ecoflux.succession;
 
+/**
+ * Main orchestration entry point for the succession system.
+ *
+ * <p>Structure: static utility class providing {@code initializeChunk()},
+ * {@code step()}, {@code processChunkTick()}, {@code pruneChunk()},
+ * {@code spawnInChunk()}, {@code evaluateChunk()}, {@code forceTransition()},
+ * {@code hasActivePath()}, and {@code describeChunk()}. The private
+ * {@code doPipeline()} method chains pruning, spawning, observation, evaluation,
+ * and transition into a single pass.
+ *
+ * <p>Role in Ecoflux: coordinates all succession operations by delegating to
+ * {@code PlantSpawner}, {@code VegetationTracker}, {@code SuccessionEvaluator},
+ * and {@code BiomeTransitionService}. Called by chunk tick handlers, debug
+ * commands, and the prototype controller.
+ */
+
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionConfigRegistry;
 import com.s.ecoflux.config.SuccessionPathDefinition;
 import com.s.ecoflux.init.ModAttachments;
-import com.s.ecoflux.init.ModChunkEvents;
+import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.plant.VegetationTracker;
 import java.util.ArrayList;
@@ -107,7 +123,7 @@ public final class SuccessionService {
 
         SuccessionPathDefinition path = pathOptional.get();
         long gameTime = level.getGameTime();
-        float speed = ModChunkEvents.getSpeedMultiplier();
+        float speed = SuccessionSpeedConfig.getSpeedMultiplier();
 
         long effectivePruneInterval = (long) Math.max(1, PRUNE_INTERVAL_TICKS / speed);
         if (gameTime % effectivePruneInterval != 0L

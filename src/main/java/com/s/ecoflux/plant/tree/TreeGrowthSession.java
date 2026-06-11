@@ -1,5 +1,19 @@
 package com.s.ecoflux.plant.tree;
 
+/**
+ * Per-tree growth state holding all immutable and mutable data for one growing tree.
+ *
+ * <p>Structure: Immutable fields (position, tree type, start time, total stages,
+ * ticks-per-stage, resolved height) plus mutable stage counter and last-stage-time.
+ * Transient fields (skeleton, morphologyParams, stagePlan) are rebuilt on chunk reload
+ * via {@link #ensureSkeleton(net.minecraft.server.level.ServerLevel, MorphologyParams)}.
+ * NBT-serializable via {@link #toTag()} and {@link #fromTag(net.minecraft.nbt.CompoundTag)}.
+ *
+ * <p>Role in Ecoflux: The data model for progressive tree growth. One session exists
+ * per growing tree, stored in {@link com.s.ecoflux.attachment.SuccessionChunkData}'s
+ * tree growth session map. Drives the staged placement of logs and leaves over time.
+ */
+
 import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
 import com.s.ecoflux.plant.tree.morphology.TreeMorphology;
 import com.s.ecoflux.plant.tree.morphology.TreeMorphology.GrowStagePlan;
@@ -138,6 +152,9 @@ public final class TreeGrowthSession {
         TreeGrowthSession session = new TreeGrowthSession(pos, type, startTime, stages, interval, height);
         session.currentStage = tag.getInt(CURRENT_STAGE);
         session.lastStageTime = tag.getLong(LAST_STAGE_TIME);
+        if (session.currentStage > session.totalStages) {
+            session.currentStage = session.totalStages;
+        }
         return session;
     }
 }

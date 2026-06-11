@@ -1,6 +1,21 @@
 package com.s.ecoflux.attachment;
 
+/**
+ * Core per-chunk state attached via NeoForge {@code DataAttachment}.
+ *
+ * <p>Structure: holder for current/target/previous biome keys, succession progress
+ * (double), consuming threshold, plant count limits, a plant spawn queue, a
+ * vegetation records map keyed by position, and active tree growth sessions.
+ * Implements {@code INBTSerializable&lt;CompoundTag&gt;} for full NBT persistence
+ * across chunk unload/reload cycles.
+ *
+ * <p>Role in Ecoflux: this is the central data class for the entire succession
+ * system. Every chunk-scoped operation -- initialization, evaluation, planting,
+ * pruning, biome transition -- reads from and writes to an instance of this class.
+ */
+
 import com.s.ecoflux.plant.VegetationLifecycleStage;
+import com.s.ecoflux.plant.tree.TreeGrowthSession;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
@@ -29,10 +44,10 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private static final String PROGRESS = "progress";
     private static final String CONSUMING_VALUE = "consuming_value";
     private static final String MAX_PLANT_COUNT = "max_plant_count";
-    private static final String CURRENT_PLANT_COUNT = "current_plant_count";
     private static final String LAST_EVALUATION_GAME_TIME = "last_evaluation_game_time";
     private static final String PLANT_QUEUE = "plant_queue";
     private static final String VEGETATION_RECORDS = "vegetation_records";
+    private static final String TREE_GROWTH_SESSIONS = "tree_growth_sessions";
 
     private static final Set<VegetationLifecycleStage> CONTRIBUTING_STAGES = Set.of(
             VegetationLifecycleStage.GROWING,
@@ -50,6 +65,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private long lastEvaluationGameTime;
     private final Deque<PlantQueueEntry> plantQueue = new ArrayDeque<>();
     private final Map<BlockPos, ActiveVegetationRecord> vegetationRecords = new LinkedHashMap<>();
+    private final Map<BlockPos, TreeGrowthSession> treeGrowthSessions = new LinkedHashMap<>();
 
     public SuccessionChunkData(ChunkAccess owner) {
         this.owner = owner;
@@ -198,6 +214,24 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         markDirty();
     }
 
+    public Map<BlockPos, TreeGrowthSession> getTreeGrowthSessions() {
+        return treeGrowthSessions;
+    }
+
+    public void addTreeGrowthSession(BlockPos pos, TreeGrowthSession session) {
+        treeGrowthSessions.put(pos, session);
+        markDirty();
+    }
+
+    public void removeTreeGrowthSession(BlockPos pos) {
+        treeGrowthSessions.remove(pos);
+        markDirty();
+    }
+
+    public boolean hasTreeGrowthSessions() {
+        return !treeGrowthSessions.isEmpty();
+    }
+
     public void clearRuntimeState() {
         activePathId = null;
         targetBiome = null;
@@ -207,6 +241,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         lastEvaluationGameTime = 0L;
         plantQueue.clear();
         vegetationRecords.clear();
+        treeGrowthSessions.clear();
         markDirty();
     }
 
@@ -222,7 +257,6 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         tag.putDouble(PROGRESS, progress);
         tag.putInt(CONSUMING_VALUE, consumingValue);
         tag.putInt(MAX_PLANT_COUNT, maxPlantCount);
-        tag.putInt(CURRENT_PLANT_COUNT, vegetationRecords.size());
         tag.putLong(LAST_EVALUATION_GAME_TIME, lastEvaluationGameTime);
 
         ListTag queueTag = new ListTag();
@@ -236,6 +270,12 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
             vegetationTag.add(record.toTag());
         }
         tag.put(VEGETATION_RECORDS, vegetationTag);
+
+        ListTag sessionsTag = new ListTag();
+        for (TreeGrowthSession session : treeGrowthSessions.values()) {
+            sessionsTag.add(session.toTag());
+        }
+        tag.put(TREE_GROWTH_SESSIONS, sessionsTag);
         return tag;
     }
 
@@ -262,6 +302,13 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         for (Tag recordTag : vegetationTag) {
             ActiveVegetationRecord record = ActiveVegetationRecord.fromTag((CompoundTag) recordTag);
             vegetationRecords.put(record.position(), record);
+        }
+
+        treeGrowthSessions.clear();
+        ListTag sessionsTag = tag.getList(TREE_GROWTH_SESSIONS, Tag.TAG_COMPOUND);
+        for (Tag sessionTag : sessionsTag) {
+            TreeGrowthSession session = TreeGrowthSession.fromTag((CompoundTag) sessionTag);
+            treeGrowthSessions.put(session.saplingPos(), session);
         }
 
         markDirty();

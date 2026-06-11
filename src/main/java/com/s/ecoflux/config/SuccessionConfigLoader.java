@@ -1,5 +1,16 @@
 package com.s.ecoflux.config;
 
+/**
+ * Gson-based JSON loader that hot-reloads succession path definitions.
+ *
+ * <p>Structure: extends {@link net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener}
+ * to load JSON files from {@code data/ecoflux/succession_paths/} on startup and {@code /reload}.
+ * Parses each file into a {@link SuccessionPathDefinition} record and populates
+ * {@link SuccessionConfigRegistry} via {@link #apply}.
+ * <p>Role in Ecoflux: bridges data-pack JSON configuration into the in-memory config registry,
+ * enabling the data-driven succession path system.
+ */
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;

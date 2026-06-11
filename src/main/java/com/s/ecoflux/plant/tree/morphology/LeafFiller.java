@@ -1,5 +1,22 @@
 package com.s.ecoflux.plant.tree.morphology;
 
+/**
+ * Skeleton-aware leaf placement algorithm that fills the canopy volume with leaves.
+ *
+ * <p>Structure: Static utility class. {@link #fillLeaves} traverses the AABB around
+ * the tree, checks canopy density via {@link CanopyEnvelope.DensityFunction}, computes
+ * Chebyshev distance to the nearest skeleton node, applies noise-based probability,
+ * shuffles candidates deterministically, and places leaves with proper
+ * {@link net.minecraft.world.level.block.LeavesBlock#DISTANCE} and
+ * {@link net.minecraft.world.level.block.LeavesBlock#PERSISTENT} properties.
+ * Capped per growth stage (scales with stage progress from ~12 to ~212 leaves).
+ *
+ * <p>Role in Ecoflux: The final stage of the morphology pipeline. Called by
+ * {@link TreeMorphology#growStage} after log placement. Uses
+ * {@link com.s.ecoflux.plant.tree.TreeShapeUtils#positionNoise} for deterministic
+ * randomness.
+ */
+
 import com.s.ecoflux.plant.tree.TreeShapeUtils;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,7 +32,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public final class LeafFiller {
     private static int maxLeavesForStage(double stageProgress) {
-        return (int) (15 + stageProgress * stageProgress * 240);
+        return (int) (12 + stageProgress * stageProgress * 200);
     }
 
     private LeafFiller() {}
@@ -60,12 +77,12 @@ public final class LeafFiller {
                     if (density <= densityThreshold) continue;
 
                     double distToSkeleton = minDistanceToSkeleton(skeleton, x, y, z);
-                    double maxLeafDist = 6.0;
+                    double maxLeafDist = 4.0;
                     if (distToSkeleton > maxLeafDist) continue;
 
                     double distToBranch = minDistanceToBranch(skeleton, x, y, z);
                     double noise = TreeShapeUtils.positionNoise(worldSeed, x, y, z);
-                    double branchBoost = distToBranch < 4.0 ? (1.0 + (4.0 - distToBranch) * 1.5) : 1.0;
+                    double branchBoost = distToBranch < 3.0 ? (1.0 + (3.0 - distToBranch) * 1.2) : 1.0;
                     double proximity = 1.0 / (1.0 + distToSkeleton * 0.5);
 
                     double prob = proximity * density * effectiveDensity * branchBoost * (0.6 + branchClustering * 0.4)
@@ -87,7 +104,7 @@ public final class LeafFiller {
             BlockPos pos = candidate.pos;
             double distToSkeleton = candidate.distToSkeleton;
             int distance = Math.max(1, (int) Math.ceil(distToSkeleton));
-            if (distance > 7) continue;
+            if (distance > 5) continue;
 
             BlockState existing = level.getBlockState(pos);
             if (!existing.isAir() && !existing.is(BlockTags.LEAVES)) continue;
@@ -135,7 +152,7 @@ public final class LeafFiller {
         minZ -= padding;
         maxZ += padding;
 
-        minY = Math.max(minY, skeleton.saplingPos().getY());
+        minY = Math.max(minY, skeleton.saplingPos().getY() + 3);
 
         return new int[]{minX, maxX, minY, maxY, minZ, maxZ};
     }

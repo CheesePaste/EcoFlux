@@ -1,5 +1,20 @@
 package com.s.ecoflux.client.visual;
 
+/**
+ * Interface for visual lifecycle adapters, mirroring the server-side adapter pattern.
+ *
+ * <p>Structure: each implementation declares a {@code typeId()}, a {@code matches(BlockState)}
+ * predicate, a factory for a default {@link VisualLifecycleProfile}, and optional
+ * {@code demoBlocks()}/{@code supportSummary()} for command feedback. The default
+ * {@code resolveState()} method is the core algorithm: it determines the current
+ * {@link VisualLifecycleStage} from instance age (or server-synced external state
+ * with tick extrapolation), interpolates scale along the stage curve, and applies
+ * aging hue/saturation/brightness shifts via HSB color manipulation.
+ * <p>Role in Ecoflux: adapters decouple block-type recognition from visual
+ * computation, enabling each plant category (flowers, grass, saplings, generic
+ * fallback) to have its own scale curve, timing, and color-degradation parameters.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.config.VisualLifecycleClientConfig;
 import java.util.List;

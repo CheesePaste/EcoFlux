@@ -1,5 +1,14 @@
 package com.s.ecoflux;
 
+/**
+ * NeoForge {@code @Mod} entry point for Ecoflux.
+ *
+ * <p>Structure: constructor wires all subsystems&mdash;attachments, chunk events,
+ * commands, networking, config reload listeners, and vegetation tracker&mdash;and
+ * registers server and client config specs.
+ * <p>Role in Ecoflux: bootstrap; everything starts here.
+ */
+
 import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.VisualLifecycleClientConfig;
 import com.s.ecoflux.init.ModAttachments;

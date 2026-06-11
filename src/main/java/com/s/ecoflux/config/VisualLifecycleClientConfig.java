@@ -1,5 +1,16 @@
 package com.s.ecoflux.config;
 
+/**
+ * Client-side configuration for visual lifecycle rendering.
+ *
+ * <p>Structure: defines a {@link net.neoforged.neoforge.common.ModConfigSpec} with
+ * per-stage scale overrides (born, growing-start, mature, aging) and a toggle to
+ * use uniform configured scales instead of per-plant-type defaults. Also supports
+ * a debug uniform scale override for development.
+ * <p>Role in Ecoflux: controls how plant lifecycle stages are visually rendered
+ * on the client, allowing players to customize scale animations for growing plants.
+ */
+
 import com.s.ecoflux.client.visual.VisualLifecycleProfile;
 import net.neoforged.neoforge.common.ModConfigSpec;
 

@@ -1,5 +1,15 @@
 package com.s.ecoflux.mixin;
 
+/**
+ * Server-side mixin intercepting {@code MushroomBlock.performBonemeal()}.
+ *
+ * <p>Structure: {@code @Inject} at {@code HEAD} with {@code cancellable = true}.
+ * When gradual tree growth is enabled, cancels vanilla instant mushroom growth
+ * and delegates to {@code TreeGrowthHandler} for staged growth.
+ * <p>Role in Ecoflux: extends the staged growth system to mushroom blocks, which
+ * use a different vanilla growth method than saplings.
+ */
+
 import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import net.minecraft.core.BlockPos;

@@ -1,5 +1,24 @@
 package com.s.ecoflux.plant;
 
+/**
+ * {@link VegetationTypeAdapter} for mature tree structures (logs and leaves).
+ *
+ * <p>Structure: singleton matching any block in the {@code LOGS} or
+ * {@code LEAVES} block tags. A captured tree starts at MATURE with a base
+ * point value of 4 (current 5), representing its high biomass contribution.
+ * {@link #observe} divides the tree's lifetime into a long MATURE phase
+ * (~96k ticks) followed by AGING, with point values dropping from 5 to 3 as
+ * the tree senesces. {@link #visualState} provides progressive interpolation
+ * within each stage for smooth client-side rendering.
+ *
+ * <p>Role in Ecoflux: represents the final stage of the sapling-to-tree
+ * lifecycle. Records typically enter this adapter via
+ * {@link SaplingAdapter#detectTransformation} after the morphology system
+ * completes growth. Mature trees contribute the highest point values in the
+ * succession system, driving chunk-level biome progression toward forest
+ * states.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import java.util.Optional;

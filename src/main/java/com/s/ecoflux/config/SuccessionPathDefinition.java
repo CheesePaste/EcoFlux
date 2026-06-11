@@ -1,5 +1,17 @@
 package com.s.ecoflux.config;
 
+/**
+ * Core data model for one ecological succession transition.
+ *
+ * <p>Structure: a record holding path identity ({@code pathId}, {@code priority}),
+ * source/target/fallback biomes, a {@link ClimateCondition} for climate matching,
+ * {@link ChunkRules} for pacing and capacity, and a list of {@link PlantDefinition}s
+ * that drive the succession.
+ * <p>Role in Ecoflux: the central data object that defines "this biome can transition
+ * to that biome under these conditions." Every succession evaluation reads from
+ * {@code SuccessionPathDefinition} via the registry.
+ */
+
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;

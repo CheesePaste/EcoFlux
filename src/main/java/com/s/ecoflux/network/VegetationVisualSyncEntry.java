@@ -1,5 +1,17 @@
 package com.s.ecoflux.network;
 
+/**
+ * Individual plant entry within a {@code VegetationVisualChunkSyncPayload}.
+ *
+ * <p>Structure: record holding a plant's block position, lifecycle stage, stage
+ * progress (0.0-1.0), and birth game time. Includes a {@code StreamCodec} for
+ * network serialization.
+ *
+ * <p>Role in Ecoflux: each entry provides just enough data for the client-side
+ * visual system to compute scale, color tint, and other per-plant visual effects
+ * without needing the full server-side {@code ActiveVegetationRecord}.
+ */
+
 import com.s.ecoflux.plant.VegetationLifecycleStage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;

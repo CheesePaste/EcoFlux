@@ -1,5 +1,16 @@
 package com.s.ecoflux.mixin;
 
+/**
+ * Server-side mixin intercepting {@code SaplingBlock.advanceTree()}.
+ *
+ * <p>Structure: {@code @Inject} at {@code HEAD} with {@code cancellable = true}.
+ * When the sapling is tracked by Ecoflux and gradual tree growth is enabled,
+ * cancels vanilla instant growth and delegates to
+ * {@code TreeGrowthHandler} for staged growth.
+ * <p>Role in Ecoflux: replaces vanilla instant tree growth with the mod's
+ * multi-stage growth system on the server side.
+ */
+
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.EcofluxServerConfig;

@@ -2,6 +2,16 @@
 
 以下待办基于当前代码实现状态整理。
 
+## 近期重构完成 (2026-06-11) ✅
+
+- [x] P0-1 TreeGrowthSession NBT 持久化 — 树生长会话存入 `SuccessionChunkData`，服务器重启不丢树
+- [x] P1-1 拆分 ModChunkEvents — 迁出 `SuccessionSpeedConfig` + `ChunkTrackingState`
+- [x] P1-2 提取 ForestPlanter — 植树逻辑从 `BiomeTransitionService` 独立
+- [x] P1-4 合并 Tree Profile 重复 — `AbstractTreeGrowthProfile` 基类
+- [x] P2-2 删除死代码 — TreeShapeUtils 叶子方法、CURRENT_PLANT_COUNT、蘑菇 totalStagesForHeight
+- [x] P3-2 MorphologyParams → MorphologyPresets — 工厂方法独立
+- [x] P3-3 CanopyConfig.fromMorphology() — 简化 17 参数构造
+
 ## P0：工程基础 ✅
 
 - [x] 以 `Ecoflux` 为统一命名，同步修正 `mod_id`、包名和资源命名空间

@@ -1,5 +1,16 @@
 package com.s.ecoflux.init;
 
+/**
+ * Registers the {@code DataAttachment&lt;SuccessionChunkData&gt;} used for
+ * per-chunk succession state persistence.
+ *
+ * <p>Structure: deferred register {@code ATTACHMENT_TYPES} with a single
+ * serializable attachment {@link #SUCCESSION_CHUNK_DATA}. The factory enforces
+ * that the holder is a {@code ChunkAccess}.
+ * <p>Role in Ecoflux: provides the NBT-serializable chunk attachment that every
+ * other succession subsystem reads and writes.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import net.minecraft.world.level.chunk.ChunkAccess;

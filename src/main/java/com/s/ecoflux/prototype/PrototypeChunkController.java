@@ -1,5 +1,20 @@
 package com.s.ecoflux.prototype;
 
+/**
+ * Accelerated demo-mode controller for the 10-second succession showcase.
+ *
+ * <p>Structure: static utility class with {@code accelerate()} to kick off a
+ * sped-up succession run on a chunk, and {@code processAcceleratedTick()} to
+ * advance it each tick. Internally manages synthetic vegetation lifecycle stages
+ * (born, growing, mature, aging) and plant population growth mapped to progress
+ * (0.0-1.0), culminating in a biome transition at progress 1.0.
+ *
+ * <p>Role in Ecoflux: provides a visually compelling demonstration of the full
+ * succession cycle condensed into ~10 seconds. All standard succession logic has
+ * been extracted to the {@code succession/} service layer; this class only houses
+ * the accelerated timeline and synthetic stage progression.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;

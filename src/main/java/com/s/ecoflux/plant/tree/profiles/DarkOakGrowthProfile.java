@@ -1,6 +1,17 @@
 package com.s.ecoflux.plant.tree.profiles;
 
-import com.s.ecoflux.plant.tree.TreeGrowthProfile;
+/**
+ * Dark oak tree growth profile (singleton).
+ *
+ * <p>Structure: 2x2 trunk (requires 4 saplings), flat cylinder dense canopy,
+ * 9-14 block height, 3600 ticks/stage (~30 real minutes), 6-10 branches,
+ * 3-block clear trunk. Dense, wide canopy with thick foliage.
+ * Delegates to the morphology system via {@link MorphologyPresets#darkOak()}.
+ * Overrides {@link #canGrowStage} to check all 2x2 trunk positions.
+ * <p>Role in Ecoflux: defines the parametric growth parameters for dark oak trees
+ * in the ecological succession tree lifecycle system.
+ */
+
 import com.s.ecoflux.plant.tree.TreeShapeUtils;
 import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
 import net.minecraft.core.BlockPos;
@@ -11,7 +22,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class DarkOakGrowthProfile implements TreeGrowthProfile {
+public final class DarkOakGrowthProfile extends AbstractTreeGrowthProfile {
     public static final DarkOakGrowthProfile INSTANCE = new DarkOakGrowthProfile();
     private static final ResourceLocation TYPE = ResourceLocation.withDefaultNamespace("dark_oak");
 
@@ -26,7 +37,7 @@ public final class DarkOakGrowthProfile implements TreeGrowthProfile {
 
     @Override
     public MorphologyParams morphologyParams() {
-        return MorphologyParams.darkOak();
+        return MorphologyPresets.darkOak();
     }
 
     @Override

@@ -1,5 +1,18 @@
 package com.s.ecoflux.client.visual;
 
+/**
+ * Visual adapter for grass, ferns, and similar ground cover.
+ *
+ * <p>Structure: matches {@code Blocks.SHORT_GRASS}, {@code FERN},
+ * {@code TALL_GRASS}, and {@code LARGE_FERN}. Provides a profile with 200 born /
+ * 1000 growing / 46800 mature / 24000 aging ticks, a scale curve from 0.35 (born)
+ * through 1.0 (mature) to 0.92 (aging), and an aging color shift toward dull,
+ * desaturated green (hue -0.08, saturation x0.55, brightness x0.72).
+ * <p>Role in Ecoflux: the first adapter checked in {@link VisualLifecycleRegistry},
+ * giving grass and fern blocks a subtle growth animation and pronounced
+ * desaturation during aging.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;

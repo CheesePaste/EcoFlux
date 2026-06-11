@@ -1,5 +1,15 @@
 package com.s.ecoflux.config;
 
+/**
+ * Server-side mod configuration via the NeoForge config system.
+ *
+ * <p>Structure: defines a {@link net.neoforged.neoforge.common.ModConfigSpec} with
+ * server-wide toggles for gradual tree growth and gradual plant growth. Config values
+ * are read via static accessor methods.
+ * <p>Role in Ecoflux: provides server operators with a standard NeoForge config file
+ * to toggle between gradual lifecycle growth and instant-mature modes at runtime.
+ */
+
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 public final class EcofluxServerConfig {

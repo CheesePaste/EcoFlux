@@ -39,7 +39,8 @@
       "Bash(xargs -I{} basename {})",
       "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.client.renderer.chunk.SectionCompiler)",
       "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.client.renderer.chunk.SectionRenderDispatcher)",
-      "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh 'net.minecraft.client.renderer.chunk.SectionRenderDispatcher$RenderSection')"
+      "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh 'net.minecraft.client.renderer.chunk.SectionRenderDispatcher$RenderSection')",
+      "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh \"net.minecraft.world.level.block.MangrovePropaguleBlock\")"
     ]
   }
 }

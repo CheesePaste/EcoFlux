@@ -1,10 +1,24 @@
 package com.s.ecoflux.init;
 
+/**
+ * Chunk load, unload, and tick event handlers for the succession lifecycle.
+ *
+ * <p>Structure: registers NeoForge event listeners. On chunk load it initializes
+ * succession state and restores tree growth sessions. On level tick it drives
+ * automatic succession stepping, accelerated prototype transitions, and tree
+ * growth ticking.
+ * <p>Role in Ecoflux: the main server-side tick driver; connects chunk events
+ * to {@code SuccessionService}, {@code PrototypeChunkController}, and
+ * {@code TreeGrowthHandler}.
+ */
+
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.EcofluxServerConfig;
+import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import com.s.ecoflux.prototype.PrototypeChunkController;
 import com.s.ecoflux.succession.SuccessionService;
+import com.s.ecoflux.world.ChunkTrackingState;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -20,12 +34,10 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 public final class ModChunkEvents {
-    private static final Map<ResourceKey<Level>, LinkedHashSet<Long>> TRACKED_CHUNKS = new HashMap<>();
     private static final Map<ResourceKey<Level>, Map<Long, Long>> ACCELERATED_CHUNKS = new HashMap<>();
     private static final int ACCELERATED_TRANSITION_TICKS = 200;
     private static final int TREE_GROWTH_TICK_INTERVAL = 20;
     private static volatile boolean automaticProcessingEnabled;
-    private static volatile float speedMultiplier = 1.0f;
 
     private ModChunkEvents() {
     }
@@ -44,24 +56,21 @@ public final class ModChunkEvents {
         automaticProcessingEnabled = enabled;
     }
 
-    public static float getSpeedMultiplier() {
-        return speedMultiplier;
-    }
-
-    public static void setSpeedMultiplier(float multiplier) {
-        speedMultiplier = Math.max(0.1f, Math.min(1000.0f, multiplier));
-    }
-
     public static void syncChunkTracking(ServerLevel level, ChunkAccess chunk) {
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-        updateTrackedChunk(level, chunk.getPos().toLong(), SuccessionService.hasActivePath(chunkData));
+        long chunkPosLong = chunk.getPos().toLong();
+        if (SuccessionService.hasActivePath(chunkData)) {
+            ChunkTrackingState.addTrackedChunk(level.dimension(), chunkPosLong);
+        } else {
+            ChunkTrackingState.removeTrackedChunk(level.dimension(), chunkPosLong);
+        }
     }
 
     public static void startAcceleratedTransition(ServerLevel level, LevelChunk chunk) {
         ACCELERATED_CHUNKS
                 .computeIfAbsent(level.dimension(), ignored -> new HashMap<>())
                 .put(chunk.getPos().toLong(), level.getGameTime());
-        updateTrackedChunk(level, chunk.getPos().toLong(), true);
+        ChunkTrackingState.addTrackedChunk(level.dimension(), chunk.getPos().toLong());
     }
 
     private static void onChunkLoad(ChunkEvent.Load event) {
@@ -75,6 +84,10 @@ public final class ModChunkEvents {
             SuccessionService.initializeChunk(chunk);
         }
 
+        if (chunk instanceof LevelChunk levelChunk) {
+            TreeGrowthHandler.INSTANCE.onChunkLoad(serverLevel, levelChunk);
+        }
+
         syncChunkTracking(serverLevel, chunk);
     }
 
@@ -83,7 +96,7 @@ public final class ModChunkEvents {
             return;
         }
 
-        updateTrackedChunk(serverLevel, event.getChunk().getPos().toLong(), false);
+        ChunkTrackingState.removeTrackedChunk(serverLevel.dimension(), event.getChunk().getPos().toLong());
         Map<Long, Long> acceleratedChunks = ACCELERATED_CHUNKS.get(serverLevel.dimension());
         if (acceleratedChunks != null) {
             acceleratedChunks.remove(event.getChunk().getPos().toLong());
@@ -104,7 +117,7 @@ public final class ModChunkEvents {
             return;
         }
 
-        LinkedHashSet<Long> trackedChunks = TRACKED_CHUNKS.get(serverLevel.dimension());
+        LinkedHashSet<Long> trackedChunks = ChunkTrackingState.getTrackedChunks(serverLevel.dimension());
         if (trackedChunks == null || trackedChunks.isEmpty()) {
             return;
         }
@@ -116,26 +129,24 @@ public final class ModChunkEvents {
                 continue;
             }
 
-            LevelChunk chunk = serverLevel.getChunkSource().getChunkNow(net.minecraft.world.level.ChunkPos.getX(chunkPosLong), net.minecraft.world.level.ChunkPos.getZ(chunkPosLong));
+            LevelChunk chunk = serverLevel.getChunkSource().getChunkNow(
+                    net.minecraft.world.level.ChunkPos.getX(chunkPosLong),
+                    net.minecraft.world.level.ChunkPos.getZ(chunkPosLong));
             if (chunk == null) {
-                trackedChunks.remove(chunkPosLong);
+                ChunkTrackingState.removeTrackedChunk(serverLevel.dimension(), chunkPosLong);
                 continue;
             }
 
             SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
             if (!SuccessionService.hasActivePath(chunkData)) {
-                trackedChunks.remove(chunkPosLong);
+                ChunkTrackingState.removeTrackedChunk(serverLevel.dimension(), chunkPosLong);
                 continue;
             }
 
             SuccessionService.processChunkTick(serverLevel, chunk);
             if (!SuccessionService.hasActivePath(chunkData)) {
-                trackedChunks.remove(chunkPosLong);
+                ChunkTrackingState.removeTrackedChunk(serverLevel.dimension(), chunkPosLong);
             }
-        }
-
-        if (trackedChunks.isEmpty()) {
-            TRACKED_CHUNKS.remove(serverLevel.dimension());
         }
     }
 
@@ -176,23 +187,10 @@ public final class ModChunkEvents {
         if (!EcofluxServerConfig.gradualTreeGrowth()) {
             return;
         }
-        long effectiveInterval = (long) Math.max(1, TREE_GROWTH_TICK_INTERVAL / speedMultiplier);
+        long effectiveInterval = (long) Math.max(1, TREE_GROWTH_TICK_INTERVAL / SuccessionSpeedConfig.getSpeedMultiplier());
         if (level.getGameTime() % effectiveInterval != 0) {
             return;
         }
         TreeGrowthHandler.INSTANCE.tickAll(level);
-    }
-
-    private static void updateTrackedChunk(ServerLevel level, long chunkPosLong, boolean tracked) {
-        LinkedHashSet<Long> trackedChunks = TRACKED_CHUNKS.computeIfAbsent(level.dimension(), ignored -> new LinkedHashSet<>());
-        if (tracked) {
-            trackedChunks.add(chunkPosLong);
-            return;
-        }
-
-        trackedChunks.remove(chunkPosLong);
-        if (trackedChunks.isEmpty()) {
-            TRACKED_CHUNKS.remove(level.dimension());
-        }
     }
 }

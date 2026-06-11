@@ -1,5 +1,15 @@
 package com.s.ecoflux.config;
 
+/**
+ * Spawning constraints for a plant species in a succession path.
+ *
+ * <p>Structure: a record specifying sky access requirement ({@code requireSky}),
+ * local density cap ({@code maxLocalDensity}), and a list of allowed base blocks
+ * ({@code allowedBaseBlocks}) on which the plant can be placed.
+ * <p>Role in Ecoflux: attached to {@link PlantDefinition} to validate spawn placement
+ * during succession plant generation, ensuring plants only appear on valid surfaces.
+ */
+
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
 

@@ -1,5 +1,18 @@
 package com.s.ecoflux.client.visual;
 
+/**
+ * Visual adapter for small and tall flowers.
+ *
+ * <p>Structure: matches {@code BlockTags.SMALL_FLOWERS}, {@code TALL_FLOWERS},
+ * and the broader {@code FLOWERS} tag. Provides a profile with 200 born / 1000
+ * growing / 46800 mature / 24000 aging ticks, a scale curve from 0.30 (born)
+ * through 1.0 (mature) to 0.86 (aging), and an aging color shift toward
+ * desaturated, darkened brown tones (hue -0.03, saturation x0.72, brightness x0.84).
+ * <p>Role in Ecoflux: one of four registered adapters in
+ * {@link VisualLifecycleRegistry}, giving flower blocks their own visual
+ * lifecycle distinct from grass and saplings.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import java.util.List;
 import net.minecraft.tags.BlockTags;

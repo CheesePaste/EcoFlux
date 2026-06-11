@@ -1,5 +1,21 @@
 package com.s.ecoflux.client.visual;
 
+/**
+ * World renderer that draws scaled plant overlays for the visual lifecycle system.
+ *
+ * <p>Structure: subscribes to {@code RenderLevelStageEvent.AFTER_BLOCK_ENTITIES},
+ * iterates all tracked instances in the current dimension, and for each instance
+ * whose render state has a non-identity scale, renders a scaled copy of the block
+ * via the vanilla block renderer. The manual render pass flag (set via
+ * {@link VisualLifecycleClientRuntime#beginManualWorldRenderPass}) signals
+ * {@code BlockRenderDispatcherMixin} to suppress the vanilla unscaled render,
+ * avoiding double-draw.
+ * <p>Role in Ecoflux: this is the scale-animation rendering path. It works
+ * alongside the block color handler (which handles tint) to give each tracked
+ * plant its full visual lifecycle appearance: growing from small, peaking at
+ * maturity, and shrinking/fading during aging.
+ */
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.s.ecoflux.EcofluxConstants;
 import net.minecraft.client.Minecraft;

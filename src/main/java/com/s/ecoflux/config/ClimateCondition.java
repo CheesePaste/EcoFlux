@@ -1,5 +1,15 @@
 package com.s.ecoflux.config;
 
+/**
+ * Climate matching condition for succession path selection.
+ *
+ * <p>Structure: a record with {@link FloatRange} bounds for temperature and downfall.
+ * The {@link #matches} method tests whether a chunk's climate values fall within both ranges.
+ * <p>Role in Ecoflux: used by {@link SuccessionPathDefinition} to filter which paths
+ * are eligible for a chunk based on its biome climate, ensuring succession only
+ * progresses when environmental conditions are appropriate.
+ */
+
 public record ClimateCondition(FloatRange temperature, FloatRange downfall) {
     public ClimateCondition {
         if (temperature == null) {

@@ -1,5 +1,20 @@
 package com.s.ecoflux.client.visual;
 
+/**
+ * Registry mapping block types to their {@link VisualLifecycleAdapter} implementations.
+ *
+ * <p>Structure: holds an ordered list of adapters (grass, flower, sapling, generic)
+ * and resolves the first match via sequential {@code matches()} checks.
+ * {@code colorHandledBlocks()} collects all blocks matched by non-generic adapters
+ * for registration with the block color handler.
+ * {@code supportSummary()} aggregates adapter descriptions for debug command output.
+ * <p>Role in Ecoflux: this is the adapter lookup hub. Both the block color handler
+ * (in {@link ModClientVisualLifecycle}) and the runtime (in
+ * {@link VisualLifecycleClientRuntime}) query this registry to find the correct
+ * adapter for a given block state. The ordered list ensures specific adapters
+ * take priority over the generic fallback.
+ */
+
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;

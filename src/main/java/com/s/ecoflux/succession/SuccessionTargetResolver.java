@@ -1,5 +1,19 @@
 package com.s.ecoflux.succession;
 
+/**
+ * Chunk initialization: resolves the succession target for a newly loaded chunk.
+ *
+ * <p>Structure: static utility class with a single {@code resolveTarget()} method.
+ * Samples the chunk's center biome and climate via {@code ChunkSamplingHelper},
+ * queries {@code SuccessionConfigRegistry} for the best-matching succession path,
+ * and populates all fields of {@code SuccessionChunkData} (path id, target/fallback
+ * biomes, consuming value, plant count limit, weighted plant queue).
+ *
+ * <p>Role in Ecoflux: called by {@code SuccessionService.initializeChunk()} when a
+ * chunk is first loaded. This is the entry point that determines what succession
+ * path (if any) governs a given chunk.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionConfigRegistry;

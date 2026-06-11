@@ -1,9 +1,24 @@
 package com.s.ecoflux.succession;
 
+/**
+ * Progress evaluation engine for chunk succession.
+ *
+ * <p>Structure: static utility class with {@code evaluate()} comparing
+ * contributing vegetation points against the consuming threshold, then advancing
+ * or retreating chunk progress by the configured step amounts. Also provides
+ * {@code shouldRegress()} to detect when progress has fallen to -1.0 or below.
+ * Respects the evaluation interval defined in the succession path's chunk rules
+ * (optionally bypassed for manual steps).
+ *
+ * <p>Role in Ecoflux: called by {@code SuccessionService} during chunk ticks and
+ * manual evaluation commands. Determines whether a chunk is ready for biome
+ * transition (progress &gt;= 1.0) or regression (progress &lt;= -1.0).
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionPathDefinition;
-import com.s.ecoflux.init.ModChunkEvents;
+import com.s.ecoflux.config.SuccessionSpeedConfig;
 import net.minecraft.util.Mth;
 
 public final class SuccessionEvaluator {
@@ -18,7 +33,7 @@ public final class SuccessionEvaluator {
             long gameTime,
             boolean ignoreInterval) {
         int evaluationInterval = path.chunkRules().resolvedEvaluationIntervalTicks(DEFAULT_DAY_TICKS);
-        long effectiveInterval = (long) Math.max(1, evaluationInterval / ModChunkEvents.getSpeedMultiplier());
+        long effectiveInterval = (long) Math.max(1, evaluationInterval / SuccessionSpeedConfig.getSpeedMultiplier());
         if (!ignoreInterval && gameTime - chunkData.getLastEvaluationGameTime() < effectiveInterval) {
             return "跳过评估：等待评估间隔。";
         }

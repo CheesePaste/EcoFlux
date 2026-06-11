@@ -1,5 +1,21 @@
 package com.s.ecoflux.network;
 
+/**
+ * NeoForge network setup: registers custom payload handlers and wires chunk-watch
+ * events for vegetation visual sync.
+ *
+ * <p>Structure: static utility class with {@code register()} to bind the
+ * {@code VegetationVisualChunkSyncPayload} handler on the mod event bus, and
+ * chunk watch/unwatch listeners on the NeoForge event bus.
+ * {@code syncChunkToTracking()} sends the current vegetation visual state to all
+ * clients tracking a given chunk.
+ *
+ * <p>Role in Ecoflux: the single entry point for all network communication.
+ * Ensures that whenever a client starts or stops watching a chunk, the server
+ * pushes the latest visual lifecycle data so plants render with correct scale
+ * and tint on the client side.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.plant.VegetationTracker;
 import java.util.List;

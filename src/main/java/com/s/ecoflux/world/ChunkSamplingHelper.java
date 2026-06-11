@@ -1,5 +1,19 @@
 package com.s.ecoflux.world;
 
+/**
+ * Static utility methods for chunk-level world queries.
+ *
+ * <p>Structure: helper class providing {@code sampleChunkCenterBiome()},
+ * {@code sampleChunkClimate()}, {@code sampleSurfaceY()}, {@code findSpawnPos()},
+ * {@code canPlantAt()}, {@code isAllowedBaseBlock()},
+ * {@code countNearbyTrackedPlants()}, and {@code toBiomeKey()}. Also contains the
+ * {@code ChunkClimateSample} record bundling biome key, temperature, and downfall.
+ *
+ * <p>Role in Ecoflux: used throughout the succession service layer (target
+ * resolution, planting, evaluation) and by {@code PlantSpawner} to validate
+ * spawn positions and check density limits.
+ */
+
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.PlantDefinition;

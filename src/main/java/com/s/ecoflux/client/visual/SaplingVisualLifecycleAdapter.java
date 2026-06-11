@@ -1,5 +1,19 @@
 package com.s.ecoflux.client.visual;
 
+/**
+ * Visual adapter for tree saplings.
+ *
+ * <p>Structure: matches {@code BlockTags.SAPLINGS} (all vanilla sapling types).
+ * Provides a profile with 200 born / 1000 growing / 46800 mature / 24000 aging
+ * ticks, and a scale curve that overshoots slightly at maturity (0.45 born ->
+ * 1.08 mature -> 0.94 aging), representing the sapling's growth surge before the
+ * tree transformation event.
+ * <p>Role in Ecoflux: one of four registered adapters in
+ * {@link VisualLifecycleRegistry}. The mature overshoot scale (>1.0) visually
+ * signals that the sapling is approaching its transformation into a full tree
+ * via the server-side {@code TreeGrowthHandler}.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;

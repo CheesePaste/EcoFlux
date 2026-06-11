@@ -1,6 +1,19 @@
 package com.s.ecoflux.plant.tree.profiles;
 
-import com.s.ecoflux.plant.tree.TreeGrowthProfile;
+/**
+ * Giant red mushroom growth profile (singleton).
+ *
+ * <p>Structure: mushroom-shaped with a stem (3-7 blocks) and a domed red cap
+ * of radius 2, 2400 ticks/stage. The cap uses dome rings
+ * ({@link #placeDomeRing}) spread across 3 vertical layers for a rounded top.
+ * Uses custom block types ({@code MUSHROOM_STEM}, {@code RED_MUSHROOM_BLOCK})
+ * with {@link net.minecraft.world.level.block.HugeMushroomBlock} face properties.
+ * Does NOT use the parametric morphology system; uses legacy
+ * {@link #growStage} with {@link #placeStem} and {@link #placeCap}.
+ * <p>Role in Ecoflux: defines growth parameters for giant red mushrooms
+ * in the ecological succession tree lifecycle system.
+ */
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -11,7 +24,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HugeMushroomBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
+public final class RedMushroomGrowthProfile extends AbstractTreeGrowthProfile {
     public static final RedMushroomGrowthProfile INSTANCE = new RedMushroomGrowthProfile();
     private static final ResourceLocation TYPE = ResourceLocation.withDefaultNamespace("red_mushroom");
     private static final int CAP_RADIUS = 2;
@@ -26,11 +39,6 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
     @Override public Block logBlock() { return Blocks.MUSHROOM_STEM; }
     @Override public Block leavesBlock() { return Blocks.RED_MUSHROOM_BLOCK; }
     @Override public boolean is2x2() { return false; }
-
-    @Override
-    public int totalStagesForHeight(int resolvedHeight) {
-        return resolvedHeight + 2;
-    }
 
     @Override
     public boolean canGrowStage(ServerLevel level, BlockPos saplingPos, int currentStage,
@@ -59,14 +67,7 @@ public final class RedMushroomGrowthProfile implements TreeGrowthProfile {
     }
 
     private void placeStem(ServerLevel level, BlockPos saplingPos, int yAbove) {
-        BlockPos stemPos = saplingPos.above(yAbove);
-        BlockState existing = level.getBlockState(stemPos);
-        if (existing.isAir() || existing.is(BlockTags.REPLACEABLE) || existing.is(BlockTags.LEAVES)
-                || existing.is(Blocks.BROWN_MUSHROOM) || existing.is(Blocks.RED_MUSHROOM)
-                || existing.is(Blocks.BROWN_MUSHROOM_BLOCK) || existing.is(Blocks.RED_MUSHROOM_BLOCK)
-                || existing.is(Blocks.MUSHROOM_STEM)) {
-            level.setBlock(stemPos, Blocks.MUSHROOM_STEM.defaultBlockState(), 3);
-        }
+        placeMushroomStem(level, saplingPos, yAbove);
     }
 
     private void placeCap(ServerLevel level, BlockPos saplingPos, int stemHeight, int capStage) {

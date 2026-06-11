@@ -1,5 +1,20 @@
 package com.s.ecoflux.attachment;
 
+/**
+ * Vegetation lifecycle record tracking an individual plant within a chunk.
+ *
+ * <p>Structure: immutable record holding a plant's identity (vegetation id,
+ * adapter type, category), world position, lifecycle stage, timing data (birth,
+ * last-observed, and expiry game times), point values (base and current), and
+ * optional source biome/path references. Supports {@code withObservation()} and
+ * {@code withTransformation()} for stage transitions, and NBT round-tripping via
+ * {@code toTag()}/{@code fromTag()}.
+ *
+ * <p>Role in Ecoflux: stored per-position in {@code SuccessionChunkData}'s
+ * vegetation records map. Used by {@code VegetationTracker} for lifecycle
+ * observation and by the succession evaluator for point accounting.
+ */
+
 import com.s.ecoflux.plant.VegetationCategory;
 import com.s.ecoflux.plant.VegetationLifecycleStage;
 import net.minecraft.core.BlockPos;

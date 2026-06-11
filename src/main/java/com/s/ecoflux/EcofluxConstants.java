@@ -1,5 +1,14 @@
 package com.s.ecoflux;
 
+/**
+ * Central constants for the Ecoflux mod.
+ *
+ * <p>Structure: holds {@code MOD_ID}, {@code MOD_NAME}, {@code LOGGER}, and a
+ * {@code ResourceLocation} factory helper {@link #id(String)}.
+ * <p>Role in Ecoflux: single source of truth for the mod namespace and logging,
+ * used by every subsystem.
+ */
+
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

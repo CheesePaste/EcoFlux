@@ -1,5 +1,16 @@
 package com.s.ecoflux.config;
 
+/**
+ * Thread-safe cached lookup for succession path definitions.
+ *
+ * <p>Structure: stores all loaded {@link SuccessionPathDefinition} instances in volatile
+ * collections indexed by path ID and source biome. The primary entry point
+ * {@link #findBestMatch} resolves the highest-priority path for a given biome ID,
+ * temperature, and downfall value.
+ * <p>Role in Ecoflux: provides O(1) path lookups for the succession service layer,
+ * decoupling config storage from runtime queries.
+ */
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;

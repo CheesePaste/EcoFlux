@@ -17,7 +17,8 @@ com.s.ecoflux/
 │   ├── PlantSpawnRules              # Record: 生成规则 (权重、位置)
 │   ├── FloatRange / IntRange        # Record: 范围工具类型
 │   ├── EcofluxServerConfig          # 服务端 TOML 配置
-│   └── VisualLifecycleClientConfig  # 客户端 TOML 配置
+│   ├── VisualLifecycleClientConfig  # 客户端 TOML 配置
+│   └── SuccessionSpeedConfig        # 全局速度倍率 (迁自 ModChunkEvents)
 │
 ├── attachment/                  # 数据附件 (NBT 持久化)
 │   ├── SuccessionChunkData          # 核心 per-chunk 状态
@@ -28,11 +29,12 @@ com.s.ecoflux/
 │   ├── SuccessionService            # 主编排入口 (init/step/tick/prune/spawn/evaluate)
 │   ├── SuccessionTargetResolver     # 初始化：采样 biome/climate → 匹配 config
 │   ├── SuccessionEvaluator          # 进度评估：aging gate + 点数 vs consuming
-│   └── BiomeTransitionService       # 群系替换：fillBiomesFromNoise + 发包 + 植树
+│   └── BiomeTransitionService       # 群系替换：fillBiomesFromNoise + 发包，植树下放 ForestPlanter
 │
 ├── plant/                       # 植物生命周期系统
 │   ├── VegetationTypeAdapter        # 核心接口：matches/captureBirth/observe/visualState
 │   ├── VegetationTracker            # 单例：追踪/观察/同步所有植被
+│   ├── ForestPlanter                # 演替完成后植树 (迁自 BiomeTransitionService)
 │   ├── PlantSpawner                 # 生成/修剪：trySpawnPlant/pruneInvalid/ensureQueue
 │   ├── VegetationObservation        # Record: 观察结果
 │   ├── VegetationTransformation     # Record: 转换描述
@@ -44,22 +46,24 @@ com.s.ecoflux/
 │   └── TreeStructureAdapter         # 成熟树适配器
 │   │
 │   └── tree/                    # 树木生长子系统
-│       ├── TreeGrowthHandler        # 单例：管理所有生长会话
-│       ├── TreeGrowthSession        # 每棵树状态 (NBT 可序列化)
+│       ├── TreeGrowthHandler        # 单例：通过 chunk data 管理生长会话 (NBT 持久化)
+│       ├── TreeGrowthSession        # 每棵树状态 (NBT 可序列化，含 transient skeleton)
 │       ├── TreeGrowthProfile        # 接口：树种生长参数 + morphologyParams()
-│       ├── TreeShapeUtils           # 共享工具 (噪声/冠形/2x2/枝干)
+│       ├── TreeShapeUtils           # 共享工具 (噪声/2x2/枝干/原木放置)
 │       │
 │       ├── morphology/          # 形态学系统
 │       │   ├── TreeMorphology        # 集成入口 (generateSkeleton→planStages→growStage)
 │       │   ├── SkeletonGenerator     # 参数化递归分枝
-│       │   ├── CanopyEnvelope        # 5 种 3D 冠形密度函数
+│       │   ├── CanopyEnvelope        # 6 种 3D 冠形密度函数 + CanopyConfig.fromMorphology()
 │       │   ├── LeafFiller            # 骨架感知叶块放置
-│       │   ├── MorphologyParams      # 每树种形态参数 record
+│       │   ├── MorphologyParams      # 纯数据 record (工厂方法迁至 MorphologyPresets)
 │       │   ├── TreeSkeleton          # 骨架数据结构
 │       │   ├── SkeletonNode          # Record: pos, type, radius, parentIndex, depth
 │       │   └── NodeType              # Enum: TRUNK/PRIMARY_BRANCH/SECONDARY_BRANCH/TWIG
 │       │
-│       ├── profiles/            # 树种生长配置
+│       ├── profiles/            # 树种生长配置 (全部继承 AbstractTreeGrowthProfile)
+│       │   ├── AbstractTreeGrowthProfile  # 基类：共享 canGrowStage + placeMushroomStem
+│       │   ├── MorphologyPresets          # 6 树种 morphology 工厂方法
 │       │   ├── OakGrowthProfile / BirchGrowthProfile / SpruceGrowthProfile
 │       │   ├── JungleGrowthProfile / DarkOakGrowthProfile / AcaciaGrowthProfile
 │       │   └── BrownMushroomGrowthProfile / RedMushroomGrowthProfile
@@ -87,7 +91,8 @@ com.s.ecoflux/
 │   ├── VegetationVisualSyncEntry        # 单植物同步条目
 │
 ├── world/                       # 世界工具
-│   └── ChunkSamplingHelper      # 采样 biome/climate/surface/findSpawnPos
+│   ├── ChunkSamplingHelper      # 采样 biome/climate/surface/findSpawnPos
+│   └── ChunkTrackingState       # 全局追踪区块注册表 (迁自 ModChunkEvents)
 │
 ├── init/                        # 初始化与事件
 │   ├── ModAttachments           # DataAttachment<SuccessionChunkData> 注册

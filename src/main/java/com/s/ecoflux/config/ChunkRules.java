@@ -1,5 +1,17 @@
 package com.s.ecoflux.config;
 
+/**
+ * Per-chunk succession pacing and capacity rules.
+ *
+ * <p>Structure: a record holding the consuming threshold ({@code consuming}),
+ * maximum plant count ({@code maxPlantCount}), queue fill factor,
+ * evaluation/processing intervals, and positive/negative progress step amounts.
+ * Helper methods {@link #queueCapacity} and {@link #resolvedEvaluationIntervalTicks}
+ * derive runtime values from these parameters.
+ * <p>Role in Ecoflux: controls how fast and how large each succession path's
+ * plant population can grow, defining the pacing of biome transitions.
+ */
+
 public record ChunkRules(
         int consuming,
         int maxPlantCount,

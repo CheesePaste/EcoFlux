@@ -1,5 +1,19 @@
 package com.s.ecoflux.plant.tree;
 
+/**
+ * Interface defining species-specific tree growth parameters and behavior.
+ *
+ * <p>Structure: Provides tree type identifier, log/leaf block references, 2x2 flag,
+ * ticks-per-stage, height range, stage count calculation, and a {@link #growStage}
+ * default method for placing blocks per stage. The optional {@link #morphologyParams()}
+ * method enables the parametric morphology pipeline.
+ *
+ * <p>Role in Ecoflux: Abstraction layer over tree species. Nine implementations
+ * ({@code OakGrowthProfile}, {@code BirchGrowthProfile}, etc.) in the
+ * {@code profiles/} package supply species-specific morphology parameters and
+ * growth logic. Used by {@link TreeGrowthHandler} to drive staged growth.
+ */
+
 import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;

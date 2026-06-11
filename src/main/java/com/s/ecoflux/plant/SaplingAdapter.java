@@ -1,9 +1,31 @@
 package com.s.ecoflux.plant;
 
+/**
+ * {@link VegetationTypeAdapter} for tree saplings and propagules (e.g.
+ * mangrove).
+ *
+ * <p>Structure: singleton recognizing any block that is an {@code instanceof}
+ * {@link net.minecraft.world.level.block.SaplingBlock} or in the
+ * {@code SAPLINGS} block tag. Implements the BORN/JUVENILE/GROWING lifecycle
+ * and overrides {@link #detectTransformation} to detect when the sapling has
+ * been replaced by a log or leaf block — at which point it emits a
+ * {@link VegetationTransformation} targeting
+ * {@link TreeStructureAdapter#TYPE_ID}, effectively promoting the tracked
+ * record from sapling to mature tree.
+ *
+ * <p>Role in Ecoflux: bridges the gap between block-level sapling growth
+ * (intercepted by {@code SaplingBlockMixin} and routed through
+ * {@link com.s.ecoflux.plant.tree.TreeGrowthHandler}) and the succession
+ * tracker. When the morphology system finishes growing a tree, the sapling
+ * block is replaced with wood/leaves; this adapter detects that change and
+ * transitions the vegetation record to the tree category so it continues
+ * contributing points as mature tree biomass.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.config.EcofluxServerConfig;
-import com.s.ecoflux.init.ModChunkEvents;
+import com.s.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -106,7 +128,7 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
                     "树苗（跳过生命周期阶段推进）。");
         }
 
-        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
+        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
         VegetationLifecycleStage stage = age < 1200L ? VegetationLifecycleStage.JUVENILE : VegetationLifecycleStage.GROWING;
         int pointValue = age < 24000L ? 1 : 2;
         return new VegetationObservation(
@@ -124,7 +146,7 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
         if (!EcofluxServerConfig.gradualPlantGrowth()) {
             return new VegetationVisualState(VegetationLifecycleStage.GROWING, 1.0F);
         }
-        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
+        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
         long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
         return switch (record.lifeStage()) {
             case BORN, JUVENILE -> new VegetationVisualState(VegetationLifecycleStage.JUVENILE, VegetationTypeAdapter.progress(age, 0L, 1200L));

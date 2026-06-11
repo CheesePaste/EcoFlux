@@ -1,5 +1,16 @@
 package com.s.ecoflux.init;
 
+/**
+ * Player-triggered block event handlers for vegetation tracking.
+ *
+ * <p>Structure: listens to {@code BlockEvent.EntityPlaceEvent} and
+ * {@code BlockEvent.BreakEvent} on the NeoForge event bus. On place it calls
+ * {@code VegetationTracker.trackAt}; on break it calls
+ * {@code VegetationTracker.untrack}.
+ * <p>Role in Ecoflux: keeps vegetation records in sync when players manually
+ * place or destroy plants.
+ */
+
 import com.s.ecoflux.plant.VegetationTracker;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;

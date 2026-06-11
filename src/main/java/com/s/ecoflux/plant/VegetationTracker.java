@@ -1,5 +1,28 @@
 package com.s.ecoflux.plant;
 
+/**
+ * Central singleton that tracks, observes, and synchronizes all vegetation in
+ * the world.
+ *
+ * <p>Structure: holds a registry of {@link VegetationTypeAdapter}
+ * implementations and provides the main entry points — {@link #trackAt}
+ * records a plant at a position (with automatic tracking of upper halves for
+ * double-height plants at 0 points), {@link #observeTracked} advances a
+ * single plant's lifecycle, {@link #observeChunk} advances all plants in a
+ * chunk, and {@link #buildVisualSyncEntries} packages visual state for
+ * network transmission. Lookup methods {@link #findAdapter(BlockState)} and
+ * {@link #findAdapter(ResourceLocation)} resolve the correct adapter by block
+ * or type ID.
+ *
+ * <p>Role in Ecoflux: {@code VegetationTracker} is the hub of the plant
+ * lifecycle subsystem. It is constructed once at startup with the three
+ * concrete adapters (sapling, tree structure, simple plant), then invoked
+ * from {@link com.s.ecoflux.plant.PlantSpawner},
+ * {@link com.s.ecoflux.succession.SuccessionService}, and chunk event
+ * handlers. All vegetation observations flow through this class, keeping
+ * lifecycle logic centralized and adapter-agnostic.
+ */
+
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.network.ModNetworking;
@@ -10,7 +33,9 @@ import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class VegetationTracker {
@@ -74,6 +99,33 @@ public final class VegetationTracker {
                 sourceBiomeId,
                 sourcePathId);
         chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA).trackVegetation(record);
+
+        // Also track upper half of double-height plants so both halves scale together
+        if (state.hasProperty(DoublePlantBlock.HALF) && state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER) {
+            BlockPos upperPos = pos.above();
+            BlockState upperState = level.getBlockState(upperPos);
+            Optional<VegetationTypeAdapter> upperAdapter = findAdapter(upperState);
+            if (upperAdapter.isPresent()) {
+                ActiveVegetationRecord upperRecord = upperAdapter.get().captureBirth(
+                        level, upperPos, upperState, level.getGameTime(),
+                        sourceBiomeId, sourcePathId);
+                ActiveVegetationRecord zeroPointUpper = new ActiveVegetationRecord(
+                        upperRecord.vegetationId(),
+                        upperRecord.adapterType(),
+                        upperRecord.category(),
+                        upperRecord.position(),
+                        upperRecord.lifeStage(),
+                        upperRecord.birthGameTime(),
+                        upperRecord.lastObservedGameTime(),
+                        upperRecord.expireGameTime(),
+                        0,
+                        0,
+                        upperRecord.sourceBiomeId(),
+                        upperRecord.sourcePathId());
+                chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA).trackVegetation(zeroPointUpper);
+            }
+        }
+
         ModNetworking.syncChunkToTracking(level, chunk);
         return "已追踪位置 " + pos + " 的植被，适配器=" + adapter.get().typeId() + "。";
     }
@@ -185,7 +237,10 @@ public final class VegetationTracker {
     public String untrack(LevelChunk chunk, BlockPos pos) {
         SuccessionChunkData chunkData = chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA);
         ActiveVegetationRecord removed = chunkData.removeVegetation(pos);
-        if (removed != null && chunk.getLevel() instanceof ServerLevel serverLevel) {
+        // Also untrack upper half of double plants
+        BlockPos upperPos = pos.above();
+        ActiveVegetationRecord upperRemoved = chunkData.removeVegetation(upperPos);
+        if ((removed != null || upperRemoved != null) && chunk.getLevel() instanceof ServerLevel serverLevel) {
             ModNetworking.syncChunkToTracking(serverLevel, chunk);
         }
         return removed == null

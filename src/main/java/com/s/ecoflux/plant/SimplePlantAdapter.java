@@ -1,9 +1,30 @@
 package com.s.ecoflux.plant;
 
+/**
+ * {@link VegetationTypeAdapter} for simple (non-tree) plants: flowers, grass,
+ * ferns, mushrooms, dead bushes, and double-height plants (tall grass, large
+ * ferns, sunflowers).
+ *
+ * <p>Structure: singleton with {@link #matches} covering a broad set of block
+ * tags and specific blocks. {@link #captureBirth} derives the
+ * {@link VegetationCategory} (FLOWER, MUSHROOM, GROUND_COVER, or OTHER) and
+ * assigns base point values (2 for flowers, 1 otherwise). {@link #observe}
+ * drives the standard BORN/GROWING/MATURE/AGING lifecycle over scaled game
+ * time, returning point values and maturity flags for succession scoring.
+ * {@link #visualState} maps each stage to a normalized progress value for
+ * client-side scale/tint interpolation.
+ *
+ * <p>Role in Ecoflux: handles the majority of ground-cover and decorative
+ * plants. Its lifecycle progression and point values feed directly into
+ * succession evaluation — mature flowers contribute more points, while aging
+ * plants trigger the aging gate in
+ * {@link com.s.ecoflux.succession.SuccessionEvaluator}.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.config.EcofluxServerConfig;
-import com.s.ecoflux.init.ModChunkEvents;
+import com.s.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -39,7 +60,8 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
                 || state.is(BlockTags.SMALL_FLOWERS)
                 || state.is(BlockTags.TALL_FLOWERS)
                 || state.is(Blocks.BROWN_MUSHROOM)
-                || state.is(Blocks.RED_MUSHROOM);
+                || state.is(Blocks.RED_MUSHROOM)
+                || state.is(Blocks.DEAD_BUSH);
     }
 
     @Override
@@ -100,7 +122,7 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
                     "简单植物（跳过生命周期阶段推进）。");
         }
 
-        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
+        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
         VegetationLifecycleStage stage;
         int pointValue;
         boolean mature = false;
@@ -136,7 +158,7 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
         if (!EcofluxServerConfig.gradualPlantGrowth()) {
             return new VegetationVisualState(VegetationLifecycleStage.MATURE, 1.0F);
         }
-        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * ModChunkEvents.getSpeedMultiplier());
+        long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
         return switch (record.lifeStage()) {
             case BORN -> new VegetationVisualState(VegetationLifecycleStage.BORN, VegetationTypeAdapter.progress(age, 0L, 200L));
             case GROWING -> new VegetationVisualState(VegetationLifecycleStage.GROWING, VegetationTypeAdapter.progress(age, 200L, 1200L));
@@ -153,7 +175,7 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
         if (state.is(Blocks.BROWN_MUSHROOM) || state.is(Blocks.RED_MUSHROOM)) {
             return VegetationCategory.MUSHROOM;
         }
-        if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN) || state.is(Blocks.TALL_GRASS) || state.is(Blocks.LARGE_FERN)) {
+        if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN) || state.is(Blocks.TALL_GRASS) || state.is(Blocks.LARGE_FERN) || state.is(Blocks.DEAD_BUSH)) {
             return VegetationCategory.GROUND_COVER;
         }
         return VegetationCategory.OTHER;

@@ -1,5 +1,22 @@
 package com.s.ecoflux.plant.tree.morphology;
 
+/**
+ * Integration entry point for the morphology-based tree growth pipeline.
+ *
+ * <p>Structure: Three-stage static pipeline --
+ * {@link #generateSkeleton} (delegates to {@link SkeletonGenerator#generate}),
+ * {@link #planStages} (partitions nodes into per-stage groups: trunk levels first,
+ * then branch and canopy nodes distributed across canopy stages),
+ * {@link #growStage} (places log blocks for the current stage's nodes, then fills
+ * leaves via {@link CanopyEnvelope} and {@link LeafFiller}).
+ * The inner record {@link GrowStagePlan} maps stage indices to node-index groups.
+ *
+ * <p>Role in Ecoflux: Called by {@link com.s.ecoflux.plant.tree.TreeGrowthHandler#tickAll}
+ * and {@link com.s.ecoflux.plant.tree.TreeGrowthHandler#forceAdvanceStage} for profiles
+ * returning non-null {@link MorphologyParams}. Replaces Minecraft's instant tree growth
+ * with progressive staged growth (trunk rises, branches extend, canopy fills in).
+ */
+
 import com.s.ecoflux.plant.tree.TreeShapeUtils;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
@@ -114,7 +132,8 @@ public final class TreeMorphology {
 
             BlockPos pos = node.pos();
             if (pos.getY() > worldMaxY) continue;
-            TreeShapeUtils.tryPlaceLog(level, pos, logBlock);
+            Direction.Axis axis = resolveAxis(skeleton, idx);
+            TreeShapeUtils.tryPlaceLog(level, pos, logBlock, axis);
         }
 
         BlockPos saplingPos = skeleton.saplingPos();
@@ -143,24 +162,12 @@ public final class TreeMorphology {
             }
         }
         double stageProgress = (double) currentStage / Math.max(1, plan.totalStages());
-        CanopyEnvelope.CanopyConfig canopyConfig = new CanopyEnvelope.CanopyConfig(
-                params.canopyType(),
-                trunkCenterX,
-                trunkCenterZ,
-                trunkBaseY,
-                currentTrunkY,
-                finalTrunkY,
-                skeleton.trunkHeight(),
-                params.canopyRadiusXZ(),
-                params.canopyRadiusY(),
-                params.canopyCenterYBias(),
-                params.edgeFeather(),
-                params.subClusters(),
-                params.subClusterRadius(),
-                branchNodes,
-                branchNodeRadii,
-                stageProgress,
-                params.is2x2()
+        CanopyEnvelope.CanopyConfig canopyConfig = CanopyEnvelope.CanopyConfig.fromMorphology(
+                params,
+                trunkCenterX, trunkCenterZ,
+                trunkBaseY, currentTrunkY, finalTrunkY, skeleton.trunkHeight(),
+                branchNodes, branchNodeRadii,
+                stageProgress
         );
 
         CanopyEnvelope.DensityFunction densityFn = CanopyEnvelope.createDensityFunction(canopyConfig);
@@ -170,6 +177,23 @@ public final class TreeMorphology {
                 params.leafDensity(), params.branchClustering(), params.edgeFeather(),
                 currentStage, plan.totalStages(), worldSeed, random
         );
+    }
+
+    private static Direction.Axis resolveAxis(TreeSkeleton skeleton, int nodeIdx) {
+        SkeletonNode node = skeleton.getNode(nodeIdx);
+        if (node.type() == NodeType.TRUNK) {
+            return Direction.Axis.Y;
+        }
+        if (node.parentIndex() < 0) {
+            return Direction.Axis.Y;
+        }
+        SkeletonNode parent = skeleton.getNode(node.parentIndex());
+        int dx = Math.abs(node.pos().getX() - parent.pos().getX());
+        int dz = Math.abs(node.pos().getZ() - parent.pos().getZ());
+        if (dx >= dz) {
+            return Direction.Axis.X;
+        }
+        return Direction.Axis.Z;
     }
 
     public record GrowStagePlan(int totalStages, List<List<Integer>> stageGroups) {}

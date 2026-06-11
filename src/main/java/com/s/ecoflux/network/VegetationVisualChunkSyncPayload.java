@@ -1,5 +1,18 @@
 package com.s.ecoflux.network;
 
+/**
+ * Network packet carrying per-plant visual snapshots for an entire chunk.
+ *
+ * <p>Structure: record implementing {@code CustomPacketPayload} with a dimension
+ * id, chunk position, and a list of {@code VegetationVisualSyncEntry} records.
+ * Uses a {@code StreamCodec} for efficient encode/decode over the network.
+ *
+ * <p>Role in Ecoflux: sent from server to clients when they start watching a
+ * chunk (and on periodic visual syncs), so the client-side
+ * {@code VisualLifecycleClientRuntime} can render correct plant scale, tint, and
+ * stage-dependent visual effects.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import java.util.ArrayList;
 import java.util.List;

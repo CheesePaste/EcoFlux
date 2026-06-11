@@ -1,5 +1,21 @@
 package com.s.ecoflux.plant.tree.morphology;
 
+/**
+ * Parametric recursive branching algorithm that generates a {@link TreeSkeleton}
+ * from {@link MorphologyParams}.
+ *
+ * <p>Structure: Static entry point {@link #generate} with three internal phases --
+ * {@code generateTrunk} (vertical core with configurable lean and noise),
+ * {@code generatePrimaryBranches} (rays from trunk nodes with radial and upward
+ * angles), {@code generateSecondaryBranches} (sub-branches from primary branch
+ * midpoints at a configurable probability). Supports 1x1 and 2x2 trunk modes.
+ *
+ * <p>Role in Ecoflux: The algorithmic core of the morphology system. Called by
+ * {@link TreeMorphology#generateSkeleton}. Uses
+ * {@link com.s.ecoflux.plant.tree.TreeShapeUtils#positionNoise} for deterministic
+ * randomness, ensuring reproducible tree shapes from a given world seed.
+ */
+
 import com.s.ecoflux.plant.tree.TreeShapeUtils;
 import java.util.ArrayList;
 import java.util.List;

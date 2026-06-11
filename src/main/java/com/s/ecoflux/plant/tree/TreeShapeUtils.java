@@ -1,13 +1,27 @@
 package com.s.ecoflux.plant.tree;
 
+/**
+ * Shared static utility methods for tree shape generation.
+ *
+ * <p>Structure: Position-deterministic noise and random functions, 2x2 sapling
+ * detection, 2x2 trunk position generation, and a safe log placement helper that
+ * respects block replaceability (air, leaves, replaceable tags).
+ *
+ * <p>Role in Ecoflux: Common utility layer used by both legacy growth profiles and
+ * the morphology system ({@link com.s.ecoflux.plant.tree.morphology.SkeletonGenerator},
+ * {@link com.s.ecoflux.plant.tree.morphology.LeafFiller}). Ensures consistent
+ * deterministic randomness for reproducible tree shapes across server restarts.
+ */
+
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.SaplingBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -36,53 +50,13 @@ public final class TreeShapeUtils {
         return RandomSource.create(h);
     }
 
-    public static boolean shouldPlaceLeaf(double distFromTrunk, double expectedRadius,
-                                          RandomSource random, double skipChance) {
-        if (distFromTrunk > expectedRadius + 0.8) return false;
-        if (distFromTrunk > expectedRadius * 0.7) {
-            double edgeFactor = (distFromTrunk - expectedRadius * 0.7) / (expectedRadius * 0.3 + 0.01);
-            skipChance += edgeFactor * 0.4;
-        }
-        return random.nextDouble() > skipChance;
-    }
-
-    public static int computeLeafDistance(BlockPos leafPos, BlockPos trunkPos) {
-        return Math.max(1, Math.abs(leafPos.getX() - trunkPos.getX())
-                + Math.abs(leafPos.getZ() - trunkPos.getZ()));
-    }
-
-    public static void placeLeaf(ServerLevel level, BlockPos pos, Block leavesBlock, int distance) {
-        BlockState existing = level.getBlockState(pos);
-        if (!existing.isAir() && !existing.is(BlockTags.LEAVES)) return;
-        level.setBlock(pos, leavesBlock.defaultBlockState()
-                .setValue(LeavesBlock.DISTANCE, Math.min(distance, 7))
-                .setValue(LeavesBlock.PERSISTENT, false), 3);
-    }
-
-    public static boolean tryPlaceLog(ServerLevel level, BlockPos pos, Block logBlock) {
+    public static boolean tryPlaceLog(ServerLevel level, BlockPos pos, Block logBlock, Direction.Axis axis) {
         BlockState existing = level.getBlockState(pos);
         if (existing.isAir() || existing.is(BlockTags.LEAVES) || existing.is(BlockTags.REPLACEABLE)) {
-            level.setBlock(pos, logBlock.defaultBlockState(), 3);
+            level.setBlock(pos, logBlock.defaultBlockState().setValue(RotatedPillarBlock.AXIS, axis), 3);
             return true;
         }
         return false;
-    }
-
-    public static void placeLeafDisc(ServerLevel level, BlockPos center, double radius,
-                                     Block leavesBlock, BlockPos trunkPos,
-                                     double skipChance, RandomSource random) {
-        int intRadius = (int) Math.ceil(radius);
-        for (int dx = -intRadius; dx <= intRadius; dx++) {
-            for (int dz = -intRadius; dz <= intRadius; dz++) {
-                if (dx == 0 && dz == 0) continue;
-                double dist = Math.sqrt(dx * dx + dz * dz);
-                if (!shouldPlaceLeaf(dist, radius, random, skipChance)) continue;
-                BlockPos leafPos = center.offset(dx, 0, dz);
-                int distance = computeLeafDistance(leafPos, trunkPos);
-                if (distance > 7) continue;
-                placeLeaf(level, leafPos, leavesBlock, distance);
-            }
-        }
     }
 
     public static BlockPos find2x2NWCorner(ServerLevel level, BlockPos pos) {

@@ -1,3 +1,18 @@
+You are a rigorous, careful software engineer. The rules below are non-negotiable. Violating any of them means the job is not done.
+
+## Core Constraints
+1. Think before you code. If uncertain, **verify** — never guess.
+   - Check Minecraft class hierarchy (`instanceof` chain) before adding redundant conditions.
+   - Verify API availability (methods, constants, tags) before using them. Use `minecraft-source` skill or grep existing usages.
+   - If a block state check already covers the target, don't add another.
+2. Only touch what the task requires. No drive-by refactoring, no cleaning up code outside the task scope.
+3. Simplest solution wins. No coding for "future needs", no unrequested abstractions.
+   - Don't add a new enum/category/class when an existing one already fits.
+   - Don't add a condition that's already covered by a broader check (e.g., `instanceof SaplingBlock` already catches `MangrovePropaguleBlock`).
+4. Every change must compile (`./gradlew build`). Build failure = work incomplete.
+5. Understand the existing system's **purpose** before modifying it. A color handler returning `0xFFFFFF` may look like a bug — but first learn *why* the handler exists and what it's trying to accomplish, then fix the edge case.
+6. Update CLAUDE.md and affected docs/ immediately after changes. Stale docs are worse than no docs.
+
 ## Project Overview
 
 Ecoflux is a **NeoForge 1.21.1** Minecraft mod implementing chunk-scale ecological succession. Each 16×16 chunk undergoes biome evolution driven by plant life: plants grow, age, die, and their collective "points" determine whether the chunk's biome progresses (e.g., plains → forest) or regresses. The system is data-driven via JSON configuration files.
@@ -50,12 +65,13 @@ Extracted from `PrototypeChunkController`. Follows the architecture.md design:
 The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `VegetationTypeAdapter` — Core interface: `matches(BlockState)`, `captureBirth(BlockState)`, `observe(record, gameTime)`, `visualState(record, gameTime)`
 - `VegetationTracker` — Singleton that tracks/observes/syncs all vegetation. Key methods: `trackAt()`, `observeTracked()`, `observeChunk()`
-- Adapters: `SimplePlantAdapter` (flowers, grass, ferns, mushrooms), `SaplingAdapter` (tree saplings → tree transformation), `TreeStructureAdapter` (mature trees)
+- Adapters: `SimplePlantAdapter` (flowers, grass, ferns, mushrooms, dead bushes, double plants), `SaplingAdapter` (tree saplings/propagules → tree transformation), `TreeStructureAdapter` (mature trees)
+- `VegetationTracker.trackAt()` automatically tracks upper halves of double-height plants (tall grass, sunflowers) with 0 points to keep both halves visually synced
 - `VegetationTransformation` — Descriptor for sapling→tree conversion
 - `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`
 - `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted. Maps sapling IDs → `TreeGrowthProfile`, supports 1x1 and 2x2 trees. If profile has `morphologyParams()`, calls `TreeMorphology.growStage()`; otherwise falls back to legacy `profile.growStage()`
 - `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, resolved height, timing), NBT-serializable. Transient fields: skeleton, morphologyParams, stagePlan (rebuilt from seed on reload)
-- `tree/TreeGrowthProfile` — Interface: species-specific growth parameters (height range, block types, stage count, spacing) + optional `morphologyParams()`. 6 implementations in `tree/profiles/`
+- `tree/TreeGrowthProfile` — Interface: species-specific growth parameters (height range, block types, stage count, spacing) + optional `morphologyParams()`. 9 implementations in `tree/profiles/` (oak, birch, spruce, jungle 2x2, jungle 1x1, dark oak, acacia, cherry, mangrove + 2 mushroom)
 - `tree/TreeShapeUtils` — Shared utilities: position-deterministic noise, canopy radius functions, leaf disc placement, 2x2 detection, branch generation, log/leaf block placement helpers
 - `tree/morphology/` — **New morphology system** (2026-06-10):
   - `NodeType` — Enum: TRUNK, PRIMARY_BRANCH, SECONDARY_BRANCH, TWIG
@@ -66,12 +82,15 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
   - `LeafFiller` — Skeleton-aware leaf placement: AABB traversal, canopy density check, skeleton distance, noise probability, sorted by proximity, max 50/stage, Chebyshev distance to nearest skeleton node
   - `MorphologyParams` — Species morphology parameter record with factory methods (oak/birch/spruce/jungle/darkOak/acacia)
   - `TreeMorphology` — Integration entry: generateSkeleton → planStages → growStage (place logs + fill leaves)
-- `tree/profiles/OakGrowthProfile` — Oak: flat ellipsoid canopy, 5-8 high, 3600 ticks/stage (~27 min), slight lean, 3-5 primary + secondary branches
-- `tree/profiles/BirchGrowthProfile` — Birch: tall slender ellipsoid, 6-10 high, 2400 ticks/stage (~20 min), nearly vertical, 0-2 short branches at top
-- `tree/profiles/SpruceGrowthProfile` — Spruce: conical full-height foliage, 8-15 high, 4800 ticks/stage (~48 min), vertical, 8-15 horizontal branches, clear trunk bottom 2-3
-- `tree/profiles/JungleGrowthProfile` — Jungle: 2x2 trunk, large ellipsoid + 4 sub-clusters, 10-15 high, 4800 ticks/stage (~64 min), 5-8 long branches + secondary
-- `tree/profiles/DarkOakGrowthProfile` — Dark oak: 2x2 trunk, flat cylinder dense canopy, 6-10 high, 3600 ticks/stage (~30 min), 4-6 branches, near-opaque leaves
-- `tree/profiles/AcaciaGrowthProfile` — Acacia: flat disc + scattered sphere clusters, 5-10 high, 3600 ticks/stage (~27 min), 10-25° lean, sparse irregular canopy
+- `tree/profiles/OakGrowthProfile` — Oak: flat ellipsoid canopy, 8-13 trunk, 3600 ticks/stage (~27 min), slight lean, 5-9 branches, 3-block clear trunk
+- `tree/profiles/BirchGrowthProfile` — Birch: tall slender ellipsoid, 10-16 trunk, 2400 ticks/stage (~20 min), nearly vertical, 0-3 short branches at top, 4-block clear trunk
+- `tree/profiles/SpruceGrowthProfile` — Spruce: conical full-height foliage, 13-22 trunk, 4800 ticks/stage (~48 min), vertical, 12-20 horizontal branches, 3-block clear trunk
+- `tree/profiles/JungleGrowthProfile` — Jungle: 2x2 trunk, 15-22 trunk, 4800 ticks/stage (~64 min), large ellipsoid + 5 sub-clusters, 7-12 long branches + secondary, 4-block clear trunk
+- `tree/profiles/DarkOakGrowthProfile` — Dark oak: 2x2 trunk, flat cylinder dense canopy, 9-14 trunk, 3600 ticks/stage (~30 min), 6-10 branches, 3-block clear trunk
+- `tree/profiles/AcaciaGrowthProfile` — Acacia: flat disc + scattered sphere clusters, 8-14 trunk, 3600 ticks/stage (~27 min), 15-18° lean, 4-7 branches, 4-block clear trunk
+- `tree/profiles/Jungle1x1GrowthProfile` — Jungle 1×1: clustered ellipsoid, 12-18 trunk, 4200 ticks/stage, 5-9 branches, 4 sub-clusters, 3-block clear trunk
+- `tree/profiles/CherryGrowthProfile` — Cherry: wide ellipsoid canopy, 8-14 trunk, 3600 ticks/stage, 4-8 spreading branches, pink wood/leaves
+- `tree/profiles/MangroveGrowthProfile` — Mangrove: rounded ellipsoid, 6-10 trunk, 3200 ticks/stage, 3-6 branches + prop roots at base
 
 ### Mixins (`mixin/`)
 - `client/BlockRenderDispatcherMixin` — Client-side: suppresses vanilla block render for visually-tracked blocks with non-1.0 scale
@@ -139,4 +158,3 @@ All design docs are in `docs/`, written in Chinese:
 - Logging goes through `EcofluxConstants.LOGGER` (SLF4J via NeoForge)
 - The repo directory is still named `Succession` (historical); the mod itself is `Ecoflux`
 - **CRITICAL**: After any significant code changes (new packages, extracted classes, new features, changed architecture), immediately update `CLAUDE.md` and the relevant files in `docs/` (`latest_progress.md`, `todolist.md`, etc.) to reflect the new state. Stale documentation is worse than no documentation
-- **

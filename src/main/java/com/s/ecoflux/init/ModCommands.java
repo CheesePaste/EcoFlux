@@ -1,11 +1,24 @@
 package com.s.ecoflux.init;
 
+/**
+ * Debug and administration commands under {@code /ecoflux}.
+ *
+ * <p>Structure: registers a {@code /ecoflux} command tree with subcommands for
+ * prototype stepping ({@code init, status, spawn, evaluate, step, accelerate,
+ * transition}), automatic processing ({@code auto on/off}), lifecycle inspection
+ * ({@code lifecycle inspect/track/observe/untrack}), and speed control
+ * ({@code speed}).
+ * <p>Role in Ecoflux: interactive debugging and manual control of the succession
+ * pipeline for development and testing.
+ */
+
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionConfigRegistry;
+import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.plant.VegetationTracker;
@@ -222,7 +235,7 @@ public final class ModCommands {
     }
 
     private static int setSpeed(CommandSourceStack source, float multiplier) {
-        ModChunkEvents.setSpeedMultiplier(multiplier);
+        SuccessionSpeedConfig.setSpeedMultiplier(multiplier);
         source.sendSuccess(
                 () -> Component.literal("Ecoflux 演替速度倍率已设置为 " + String.format("%.1f", multiplier) + "x。"),
                 true);
@@ -232,7 +245,7 @@ public final class ModCommands {
     private static int speedStatus(CommandSourceStack source) {
         source.sendSuccess(
                 () -> Component.literal(
-                        "Ecoflux 当前演替速度倍率为 " + String.format("%.1f", ModChunkEvents.getSpeedMultiplier()) + "x。"),
+                        "Ecoflux 当前演替速度倍率为 " + String.format("%.1f", SuccessionSpeedConfig.getSpeedMultiplier()) + "x。"),
                 false);
         return 1;
     }

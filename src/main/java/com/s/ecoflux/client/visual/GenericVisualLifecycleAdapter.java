@@ -1,5 +1,20 @@
 package com.s.ecoflux.client.visual;
 
+/**
+ * Fallback visual adapter for any non-air block not matched by a specific adapter.
+ *
+ * <p>Structure: matches any non-air block, excluding structural blocks (logs,
+ * mushroom stems) that should always render at full scale. Provides a default
+ * profile with 200 born / 1000 growing / 46800 mature / 24000 aging ticks,
+ * scale from 0.35 to 1.0 to 0.90, and a mild aging color shift (hue -0.05,
+ * saturation x0.75, brightness x0.82).
+ * <p>Role in Ecoflux: the last adapter in {@link VisualLifecycleRegistry}'s
+ * ordered list, ensuring every tracked block has at least a default visual
+ * lifecycle. Excluding logs and stems prevents structural tree blocks from
+ * being visually distorted while still allowing unrecognized plant types to
+ * participate in the visual system.
+ */
+
 import com.s.ecoflux.EcofluxConstants;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;

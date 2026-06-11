@@ -1,5 +1,21 @@
 package com.s.ecoflux.client.visual;
 
+/**
+ * Client singleton that receives and manages visual lifecycle state from the server.
+ *
+ * <p>Structure: stores {@link VisualLifecycleInstance} records keyed by dimension and
+ * block position. {@code syncVegetationChunk()} processes
+ * {@code VegetationVisualChunkSyncPayload} entries to add/update/remove tracked
+ * instances from the {@code VEGETATION_SYSTEM} source. The tick method prunes
+ * instances whose block type no longer matches. {@code getRenderState()} is the
+ * primary per-frame lookup used by both the block color handler and the world
+ * renderer; it resolves the adapter, caches the base biome color, and delegates
+ * to {@link VisualLifecycleAdapter#resolveState}.
+ * <p>Role in Ecoflux: this is the hub connecting server-synced vegetation state,
+ * per-adapter visual computation, and the two rendering paths (tint via color
+ * handler, scale via {@link VisualLifecycleWorldRenderer}).
+ */
+
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;

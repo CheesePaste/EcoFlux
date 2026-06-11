@@ -1,5 +1,18 @@
 package com.s.ecoflux.mixin.client;
 
+/**
+ * Client-side mixin suppressing vanilla block rendering for Ecoflux-tracked
+ * blocks with non-1.0 visual scale.
+ *
+ * <p>Structure: {@code @Inject} on both overloads of
+ * {@code BlockRenderDispatcher.renderBatched()} at {@code HEAD}, cancellable.
+ * If the block has a non-identity scale in {@code VisualLifecycleRenderState},
+ * vanilla rendering is skipped so Ecoflux's custom renderer can draw the scaled
+ * version instead.
+ * <p>Role in Ecoflux: prevents vanilla and Ecoflux renders from overlapping,
+ * enabling the plant growth/death scaling animations on the client.
+ */
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.s.ecoflux.client.visual.VisualLifecycleClientRuntime;
 import com.s.ecoflux.client.visual.VisualLifecycleRenderState;
