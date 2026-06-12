@@ -17,6 +17,9 @@ public record PlantSpawnRules(
         boolean requireSky,
         int maxLocalDensity,
         List<ResourceLocation> allowedBaseBlocks) {
+
+    public static final PlantSpawnRules EMPTY = new PlantSpawnRules(false, 1, List.of());
+
     public PlantSpawnRules {
         if (maxLocalDensity <= 0) {
             throw new IllegalArgumentException("maxLocalDensity must be positive");

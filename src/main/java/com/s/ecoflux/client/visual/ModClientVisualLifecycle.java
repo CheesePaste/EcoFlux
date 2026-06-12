@@ -20,12 +20,12 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.s.ecoflux.EcofluxConstants;
+import com.s.ecoflux.config.EcofluxBlockTags;
 import com.s.ecoflux.config.VisualLifecycleClientConfig;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -143,14 +143,10 @@ public final class ModClientVisualLifecycle {
         // Default foliage green (same as FoliageColor.getDefaultColor())
         final int FOLIAGE_DEFAULT = 0x48B518;
 
-        if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN)
-                || state.is(Blocks.TALL_GRASS) || state.is(Blocks.LARGE_FERN)) {
+        if (state.is(EcofluxBlockTags.USES_GRASS_TINT)) {
             return GRASS_DEFAULT;
         }
-        if (state.is(BlockTags.TALL_FLOWERS)) {
-            return GRASS_DEFAULT;
-        }
-        if (state.is(BlockTags.SAPLINGS) || state.is(BlockTags.LEAVES)) {
+        if (state.is(EcofluxBlockTags.USES_FOLIAGE_TINT)) {
             return FOLIAGE_DEFAULT;
         }
         if (state.is(Blocks.DEAD_BUSH)) {

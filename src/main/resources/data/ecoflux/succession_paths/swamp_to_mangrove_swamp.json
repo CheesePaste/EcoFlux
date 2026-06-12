@@ -29,87 +29,23 @@
   "plants": [
     {
       "plant_id": "minecraft:mangrove_propagule",
-      "category": "tree",
-      "weight": 5,
-      "point_value": 5,
-      "max_age_ticks": 180000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 5,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt",
-          "minecraft:mud"
-        ]
-      }
+      "weight": 5
     },
     {
       "plant_id": "minecraft:fern",
-      "category": "ground_cover",
-      "weight": 6,
-      "point_value": 1,
-      "max_age_ticks": 60000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": false,
-        "max_local_density": 8,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt",
-          "minecraft:mud"
-        ]
-      }
+      "weight": 6
     },
     {
       "plant_id": "minecraft:brown_mushroom",
-      "category": "mushroom",
-      "weight": 3,
-      "point_value": 2,
-      "max_age_ticks": 48000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": false,
-        "max_local_density": 5,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt",
-          "minecraft:mud"
-        ]
-      }
+      "weight": 3
     },
     {
       "plant_id": "minecraft:red_mushroom",
-      "category": "mushroom",
-      "weight": 2,
-      "point_value": 2,
-      "max_age_ticks": 48000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": false,
-        "max_local_density": 3,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt",
-          "minecraft:mud"
-        ]
-      }
+      "weight": 2
     },
     {
       "plant_id": "minecraft:oak_sapling",
-      "category": "tree",
-      "weight": 3,
-      "point_value": 4,
-      "max_age_ticks": 144000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 3,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt"
-        ]
-      }
+      "weight": 3
     }
   ]
 }

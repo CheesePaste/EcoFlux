@@ -1,7 +1,6 @@
 package com.s.ecoflux.attachment;
 
 import com.s.ecoflux.plant.TreeStructure;
-import com.s.ecoflux.plant.VegetationCategory;
 import com.s.ecoflux.plant.VegetationLifecycleStage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -11,7 +10,6 @@ import org.jetbrains.annotations.Nullable;
 public record ActiveVegetationRecord(
         ResourceLocation vegetationId,
         ResourceLocation adapterType,
-        VegetationCategory category,
         BlockPos position,
         VegetationLifecycleStage lifeStage,
         long birthGameTime,
@@ -24,7 +22,6 @@ public record ActiveVegetationRecord(
         @Nullable TreeStructure treeStructure) {
     private static final String VEGETATION_ID = "vegetation_id";
     private static final String ADAPTER_TYPE = "adapter_type";
-    private static final String CATEGORY = "category";
     private static final String POSITION = "position";
     private static final String LIFE_STAGE = "life_stage";
     private static final String BIRTH_GAME_TIME = "birth_game_time";
@@ -40,7 +37,6 @@ public record ActiveVegetationRecord(
         CompoundTag tag = new CompoundTag();
         tag.putString(VEGETATION_ID, vegetationId.toString());
         tag.putString(ADAPTER_TYPE, adapterType.toString());
-        tag.putString(CATEGORY, category.name());
         tag.putLong(POSITION, position.asLong());
         tag.putString(LIFE_STAGE, lifeStage.name());
         tag.putLong(BIRTH_GAME_TIME, birthGameTime);
@@ -62,7 +58,7 @@ public record ActiveVegetationRecord(
 
     public ActiveVegetationRecord withObservation(VegetationLifecycleStage nextStage, int nextPointValue, long observedGameTime) {
         return new ActiveVegetationRecord(
-                vegetationId, adapterType, category, position,
+                vegetationId, adapterType, position,
                 nextStage, birthGameTime, observedGameTime, expireGameTime,
                 basePointValue, nextPointValue, sourceBiomeId, sourcePathId,
                 treeStructure);
@@ -71,14 +67,13 @@ public record ActiveVegetationRecord(
     public ActiveVegetationRecord withTransformation(
             ResourceLocation nextVegetationId,
             ResourceLocation nextAdapterType,
-            VegetationCategory nextCategory,
             VegetationLifecycleStage nextStage,
             int nextBasePointValue,
             int nextCurrentPointValue,
             long observedGameTime,
             long expireGameTime) {
         return new ActiveVegetationRecord(
-                nextVegetationId, nextAdapterType, nextCategory, position,
+                nextVegetationId, nextAdapterType, position,
                 nextStage, observedGameTime, observedGameTime, expireGameTime,
                 nextBasePointValue, nextCurrentPointValue, sourceBiomeId, sourcePathId,
                 treeStructure);
@@ -86,7 +81,7 @@ public record ActiveVegetationRecord(
 
     public ActiveVegetationRecord withTreeStructure(TreeStructure ts) {
         return new ActiveVegetationRecord(
-                vegetationId, adapterType, category, position,
+                vegetationId, adapterType, position,
                 lifeStage, birthGameTime, lastObservedGameTime, expireGameTime,
                 basePointValue, currentPointValue, sourceBiomeId, sourcePathId, ts);
     }
@@ -101,7 +96,6 @@ public record ActiveVegetationRecord(
         return new ActiveVegetationRecord(
                 ResourceLocation.parse(tag.getString(VEGETATION_ID)),
                 ResourceLocation.parse(tag.getString(ADAPTER_TYPE)),
-                VegetationCategory.valueOf(tag.getString(CATEGORY)),
                 BlockPos.of(tag.getLong(POSITION)),
                 VegetationLifecycleStage.valueOf(tag.getString(LIFE_STAGE)),
                 tag.getLong(BIRTH_GAME_TIME),

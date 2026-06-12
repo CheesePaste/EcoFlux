@@ -1,20 +1,4 @@
-package com.s.ecoflux.plant.tree.profiles;
-
-/**
- * Static factory providing pre-configured {@link MorphologyParams} instances
- * for each tree species.
- *
- * <p>Structure: one static factory method per species ({@link #oak()},
- * {@link #birch()}, {@link #spruce()}, {@link #jungle()}, {@link #darkOak()},
- * {@link #jungle1x1()}, {@link #cherry()}, {@link #mangrove()}, {@link #acacia()}),
- * each returning a {@link MorphologyParams} with species-specific values for
- * trunk height range, timing, lean, branching, and canopy envelope type.
- * <p>Role in Ecoflux: centralizes morphology parameter definitions so growth
- * profiles reference a single preset rather than duplicating dozens of magic numbers.
- */
-
-import com.s.ecoflux.plant.tree.morphology.CanopyEnvelope;
-import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
+package com.s.ecoflux.plant.tree.morphology;
 
 public final class MorphologyPresets {
 

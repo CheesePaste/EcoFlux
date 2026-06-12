@@ -14,6 +14,7 @@ package com.s.ecoflux.client.visual;
  */
 
 import com.s.ecoflux.EcofluxConstants;
+import com.s.ecoflux.config.EcofluxBlockTags;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
@@ -34,10 +35,7 @@ public final class GrassVisualLifecycleAdapter implements VisualLifecycleAdapter
 
     @Override
     public boolean matches(BlockState state) {
-        return state.is(Blocks.SHORT_GRASS)
-                || state.is(Blocks.FERN)
-                || state.is(Blocks.TALL_GRASS)
-                || state.is(Blocks.LARGE_FERN);
+        return state.is(EcofluxBlockTags.GRASS_COVER);
     }
 
     @Override

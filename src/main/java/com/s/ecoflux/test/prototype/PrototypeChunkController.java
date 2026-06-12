@@ -1,17 +1,4 @@
-package com.s.ecoflux.prototype;
-
-/**
- * Per-chunk accelerated succession entry point.
- *
- * <p>Structure: static utility class with {@code accelerate()} to bootstrap and
- * enable per-chunk auto-processing. Once started, the standard
- * {@link com.s.ecoflux.succession.SuccessionService#processChunkTick} pipeline
- * drives the chunk through its full succession lifecycle. Unlike global auto
- * ({@code /ecoflux auto on}), this only affects the caller's current chunk.
- *
- * <p>Role in Ecoflux: scoped "show me succession on this chunk" command for
- * testing and demonstration.
- */
+package com.s.ecoflux.test.prototype;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;

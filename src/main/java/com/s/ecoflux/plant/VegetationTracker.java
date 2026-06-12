@@ -1,30 +1,10 @@
 package com.s.ecoflux.plant;
 
-/**
- * Central singleton that tracks, observes, and synchronizes all vegetation in
- * the world.
- *
- * <p>Structure: holds a registry of {@link VegetationTypeAdapter}
- * implementations and provides the main entry points — {@link #trackAt}
- * records a plant at a position (with automatic tracking of upper halves for
- * double-height plants at 0 points), {@link #observeTracked} advances a
- * single plant's lifecycle, {@link #observeChunk} advances all plants in a
- * chunk, and {@link #buildVisualSyncEntries} packages visual state for
- * network transmission. Lookup methods {@link #findAdapter(BlockState)} and
- * {@link #findAdapter(ResourceLocation)} resolve the correct adapter by block
- * or type ID.
- *
- * <p>Role in Ecoflux: {@code VegetationTracker} is the hub of the plant
- * lifecycle subsystem. It is constructed once at startup with the three
- * concrete adapters (sapling, tree structure, simple plant), then invoked
- * from {@link com.s.ecoflux.plant.PlantSpawner},
- * {@link com.s.ecoflux.succession.SuccessionService}, and chunk event
- * handlers. All vegetation observations flow through this class, keeping
- * lifecycle logic centralized and adapter-agnostic.
- */
-
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.PlantDefinition;
+import com.s.ecoflux.config.PlantRegistry;
+import com.s.ecoflux.config.PlantSpawnRules;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.network.VegetationVisualSyncEntry;
@@ -71,10 +51,13 @@ public final class VegetationTracker {
             return "位置 " + pos + " 没有匹配的植被适配器（" + state.getBlock().getDescriptionId() + "）。";
         }
 
-        ActiveVegetationRecord preview = adapter.get().captureBirth(level, pos, state, level.getGameTime(), Optional.empty(), Optional.empty());
+        ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        PlantDefinition plantDef = PlantRegistry.INSTANCE.getDefinition(blockId)
+                .orElse(new PlantDefinition(blockId, 1, 72000L, PlantSpawnRules.EMPTY));
+
+        ActiveVegetationRecord preview = adapter.get().captureBirth(level, pos, state, level.getGameTime(), Optional.empty(), Optional.empty(), plantDef);
         VegetationObservation observation = adapter.get().observe(level, preview, state, level.getGameTime());
         return "适配器=" + adapter.get().typeId()
-                + " 分类=" + adapter.get().category()
                 + " 阶段=" + observation.stage()
                 + " 存在=" + observation.present()
                 + " 积分=" + observation.currentPointValue()
@@ -86,7 +69,8 @@ public final class VegetationTracker {
             LevelChunk chunk,
             BlockPos pos,
             Optional<ResourceLocation> sourceBiomeId,
-            Optional<ResourceLocation> sourcePathId) {
+            Optional<ResourceLocation> sourcePathId,
+            PlantDefinition plantDefinition) {
         BlockState state = level.getBlockState(pos);
         Optional<VegetationTypeAdapter> adapter = findAdapter(state);
         if (adapter.isEmpty()) {
@@ -99,10 +83,10 @@ public final class VegetationTracker {
                 state,
                 level.getGameTime(),
                 sourceBiomeId,
-                sourcePathId);
+                sourcePathId,
+                plantDefinition);
         chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA).trackVegetation(record);
 
-        // Also track upper half of double-height plants so both halves scale together
         if (state.hasProperty(DoublePlantBlock.HALF) && state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER) {
             BlockPos upperPos = pos.above();
             BlockState upperState = level.getBlockState(upperPos);
@@ -110,11 +94,11 @@ public final class VegetationTracker {
             if (upperAdapter.isPresent()) {
                 ActiveVegetationRecord upperRecord = upperAdapter.get().captureBirth(
                         level, upperPos, upperState, level.getGameTime(),
-                        sourceBiomeId, sourcePathId);
+                        sourceBiomeId, sourcePathId,
+                        plantDefinition);
                 ActiveVegetationRecord zeroPointUpper = new ActiveVegetationRecord(
                         upperRecord.vegetationId(),
                         upperRecord.adapterType(),
-                        upperRecord.category(),
                         upperRecord.position(),
                         upperRecord.lifeStage(),
                         upperRecord.birthGameTime(),
@@ -238,7 +222,6 @@ public final class VegetationTracker {
             ActiveVegetationRecord transformedRecord = record.withTransformation(
                     transformation.targetVegetationId(),
                     transformation.targetAdapterType(),
-                    transformation.targetCategory(),
                     transformation.targetStage(),
                     transformation.targetBasePointValue(),
                     transformation.targetCurrentPointValue(),
@@ -268,7 +251,6 @@ public final class VegetationTracker {
     public String untrack(LevelChunk chunk, BlockPos pos) {
         SuccessionChunkData chunkData = chunk.getData(com.s.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA);
         ActiveVegetationRecord removed = chunkData.removeVegetation(pos);
-        // Also untrack upper half of double plants
         BlockPos upperPos = pos.above();
         ActiveVegetationRecord upperRemoved = chunkData.removeVegetation(upperPos);
         if ((removed != null || upperRemoved != null) && chunk.getLevel() instanceof ServerLevel serverLevel) {
@@ -282,7 +264,6 @@ public final class VegetationTracker {
     private TreeStructure processTreeDeath(ServerLevel level, TreeStructure ts) {
         long[] leaves = ts.leafPositions();
         long[] logs = ts.logPositions();
-        int removedCount = 0;
         int maxRemove = Math.max(1, (leaves.length + logs.length) / 8);
 
         if (leaves.length > 0) {
@@ -293,7 +274,6 @@ public final class VegetationTracker {
                 if (leafState.is(BlockTags.LEAVES)) {
                     level.destroyBlock(leafPos, false);
                 }
-                removedCount++;
             }
             long[] remainingLeaves = new long[leaves.length - removeLeaves];
             System.arraycopy(leaves, removeLeaves, remainingLeaves, 0, remainingLeaves.length);
@@ -387,7 +367,6 @@ public final class VegetationTracker {
             }
             case GROWING -> {
                 if (record.adapterType().equals(SaplingAdapter.TYPE_ID)) {
-                    // Sapling GROWING → kill (saplings don't have MATURE/AGING)
                     newExpire = now - 1;
                     yield "DEAD";
                 }
@@ -415,7 +394,6 @@ public final class VegetationTracker {
         ActiveVegetationRecord updated = new ActiveVegetationRecord(
                 record.vegetationId(),
                 record.adapterType(),
-                record.category(),
                 record.position(),
                 record.lifeStage(),
                 newBirth,
@@ -444,7 +422,6 @@ public final class VegetationTracker {
         ActiveVegetationRecord killed = new ActiveVegetationRecord(
                 record.vegetationId(),
                 record.adapterType(),
-                record.category(),
                 record.position(),
                 VegetationLifecycleStage.AGING,
                 record.birthGameTime(),

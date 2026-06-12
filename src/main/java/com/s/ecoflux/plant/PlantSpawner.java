@@ -1,31 +1,11 @@
 package com.s.ecoflux.plant;
 
-/**
- * Static utility class for plant spawning, queue management, and pruning.
- *
- * <p>Structure: all methods are static (utility class, no instances).
- * {@link #trySpawnPlant} attempts to place a single plant from the chunk's
- * queue at a valid surface position. {@link #ensureQueue} refills the queue
- * from weighted plant definitions when empty. {@link #fillPlants} repeatedly
- * spawns until a target population is reached. {@link #pruneInvalidPlants}
- * removes expired or missing vegetation records. {@link #buildWeightedQueue}
- * produces a randomized spawn queue from a succession path's plant list via
- * weighted random selection.
- *
- * <p>Role in Ecoflux: called by
- * {@link com.s.ecoflux.succession.SuccessionService} during chunk ticking to
- * maintain plant populations, and by
- * {@link com.s.ecoflux.succession.BiomeTransitionService} after biome
- * transitions to seed new plant life. Works with
- * {@link com.s.ecoflux.config.PlantDefinition} from the data-driven
- * succession path config and {@link com.s.ecoflux.world.ChunkSamplingHelper}
- * for valid spawn position resolution.
- */
-
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.PlantQueueEntry;
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.PathPlantEntry;
 import com.s.ecoflux.config.PlantDefinition;
+import com.s.ecoflux.config.PlantRegistry;
 import com.s.ecoflux.config.SuccessionPathDefinition;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.world.ChunkSamplingHelper;
@@ -44,8 +24,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class PlantSpawner {
-    private PlantSpawner() {
-    }
+    private PlantSpawner() {}
 
     public static String trySpawnPlant(
             ServerLevel level,
@@ -62,9 +41,9 @@ public final class PlantSpawner {
             return "区块 " + chunk.getPos() + " 跳过生成：植物队列为空。";
         }
 
-        Optional<PlantDefinition> plantDefinition = findPlantDefinition(path, nextEntry.get().plantId());
+        Optional<PlantDefinition> plantDefinition = PlantRegistry.INSTANCE.getDefinition(nextEntry.get().plantId());
         if (plantDefinition.isEmpty()) {
-            return "区块 " + chunk.getPos() + " 生成失败：路径中找不到植物 " + nextEntry.get().plantId() + "。";
+            return "区块 " + chunk.getPos() + " 生成失败：植物注册表中找不到 " + nextEntry.get().plantId() + "。";
         }
 
         Optional<BlockPos> spawnPos = ChunkSamplingHelper.findSpawnPos(
@@ -92,7 +71,8 @@ public final class PlantSpawner {
                 chunk,
                 pos,
                 chunkData.getCurrentBiome().map(ResourceKey::location),
-                chunkData.getActivePathId());
+                chunkData.getActivePathId(),
+                plantDefinition.get());
 
         return "已在区块 " + chunk.getPos() + " 的 " + pos + " 种下 " + nextEntry.get().plantId() + "。";
     }
@@ -157,7 +137,7 @@ public final class PlantSpawner {
             SuccessionPathDefinition path,
             int queueCapacity,
             Random random) {
-        int totalWeight = path.plants().stream().mapToInt(PlantDefinition::weight).sum();
+        int totalWeight = path.plants().stream().mapToInt(PathPlantEntry::weight).sum();
         return buildWeightedQueue(path, queueCapacity, random, totalWeight);
     }
 
@@ -168,20 +148,24 @@ public final class PlantSpawner {
             int totalWeight) {
         List<PlantQueueEntry> queue = new ArrayList<>(queueCapacity);
         for (int i = 0; i < queueCapacity; i++) {
-            PlantDefinition plant = pickWeightedPlant(path.plants(), totalWeight, random);
-            queue.add(toQueueEntry(plant));
+            PathPlantEntry entry = pickWeightedPlant(path.plants(), totalWeight, random);
+            PlantDefinition def = PlantRegistry.INSTANCE.getDefinition(entry.plantId())
+                    .orElse(null);
+            if (def == null) {
+                EcofluxConstants.LOGGER.warn("植物 {} 未在注册表中找到，跳过队列生成。", entry.plantId());
+                continue;
+            }
+            queue.add(toQueueEntry(entry, def));
         }
         return List.copyOf(queue);
     }
 
     public static Optional<PlantDefinition> findPlantDefinition(SuccessionPathDefinition path, ResourceLocation plantId) {
-        return path.plants().stream()
-                .filter(plant -> plant.plantId().equals(plantId))
-                .findFirst();
+        return PlantRegistry.INSTANCE.getDefinition(plantId);
     }
 
-    public static PlantQueueEntry toQueueEntry(PlantDefinition plant) {
-        return new PlantQueueEntry(plant.plantId(), plant.pointValue(), plant.weight(), plant.maxAgeTicks());
+    public static PlantQueueEntry toQueueEntry(PathPlantEntry entry, PlantDefinition plant) {
+        return new PlantQueueEntry(plant.plantId(), plant.pointValue(), entry.weight(), plant.maxAgeTicks());
     }
 
     public static void forceRefillQueue(SuccessionChunkData chunkData, SuccessionPathDefinition path) {
@@ -208,10 +192,10 @@ public final class PlantSpawner {
         return String.format("队列=%d项(总权重=%d)[%s]", queue.size(), totalWeight, breakdown);
     }
 
-    public static PlantDefinition pickWeightedPlant(List<PlantDefinition> plants, int totalWeight, Random random) {
+    public static PathPlantEntry pickWeightedPlant(List<PathPlantEntry> plants, int totalWeight, Random random) {
         int roll = random.nextInt(totalWeight);
         int cursor = 0;
-        for (PlantDefinition plant : plants) {
+        for (PathPlantEntry plant : plants) {
             cursor += plant.weight();
             if (roll < cursor) {
                 return plant;

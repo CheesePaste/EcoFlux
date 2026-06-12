@@ -11,14 +11,17 @@ com.s.ecoflux/
 │   ├── SuccessionConfigLoader       # Gson JSON 加载器 (SimpleJsonResourceReloadListener)
 │   ├── SuccessionConfigRegistry     # 线程安全缓存查找 (findBestMatch)
 │   ├── SuccessionPathDefinition     # Record: 演替路径完整定义
+│   ├── PathPlantEntry               # Record: 路径中植物引用 (plant_id + weight)
 │   ├── ChunkRules                   # Record: max_plants, consuming, intervals
 │   ├── ClimateCondition             # Record: temperature/rainfall 范围
-│   ├── PlantDefinition              # Record: 植物配置条目
-│   ├── PlantSpawnRules              # Record: 生成规则 (权重、位置)
+│   ├── PlantDefinition              # Record: 中心植物注册表条目 (plant_id, pointValue, maxAgeTicks, spawnRules)
+│   ├── PlantRegistry                # 单例：中心植物注册表 (ConcurrentHashMap 缓存)
+│   ├── PlantRegistryLoader          # SimpleJsonResourceReloadListener，监听 plant_definitions/
+│   ├── PlantSpawnRules              # Record: 生成规则 (requireSky, maxLocalDensity, allowedBaseBlocks)
 │   ├── FloatRange / IntRange        # Record: 范围工具类型
 │   ├── EcofluxServerConfig          # 服务端 TOML 配置
 │   ├── VisualLifecycleClientConfig  # 客户端 TOML 配置
-│   └── SuccessionSpeedConfig        # 全局速度倍率 (迁自 ModChunkEvents)
+│   └── SuccessionSpeedConfig        # 全局速度倍率
 │
 ├── attachment/                  # 数据附件 (NBT 持久化)
 │   ├── SuccessionChunkData          # 核心 per-chunk 状态
@@ -34,14 +37,13 @@ com.s.ecoflux/
 ├── plant/                       # 植物生命周期系统
 │   ├── VegetationTypeAdapter        # 核心接口：matches/captureBirth/observe/visualState
 │   ├── VegetationTracker            # 单例：追踪/观察/同步所有植被
-│   ├── ForestPlanter                # 演替完成后植树 (迁自 BiomeTransitionService)
 │   ├── PlantSpawner                 # 生成/修剪：trySpawnPlant/pruneInvalid/ensureQueue
 │   ├── VegetationObservation        # Record: 观察结果
 │   ├── VegetationTransformation     # Record: 转换描述
 │   ├── VegetationVisualState        # Record: 视觉快照
-│   ├── VegetationCategory           # Enum: 植被分类
 │   ├── VegetationLifecycleStage     # Enum: 生命周期阶段
-│   ├── SimplePlantAdapter           # 小型植物适配器 (花/草/蕨/蘑菇)
+│   ├── TreeStructure                # Record: 树的多块结构数据
+│   ├── SimplePlantAdapter           # 小型植物适配器 (花/草/蕨/蘑菇/枯灌木)
 │   ├── SaplingAdapter               # 树苗适配器 (→ TreeGrowthHandler)
 │   └── TreeStructureAdapter         # 成熟树适配器
 │   │
@@ -61,12 +63,9 @@ com.s.ecoflux/
 │       │   ├── SkeletonNode          # Record: pos, type, radius, parentIndex, depth
 │       │   └── NodeType              # Enum: TRUNK/PRIMARY_BRANCH/SECONDARY_BRANCH/TWIG
 │       │
-│       ├── profiles/            # 树种生长配置 (全部继承 AbstractTreeGrowthProfile)
-│       │   ├── AbstractTreeGrowthProfile  # 基类：共享 canGrowStage + placeMushroomStem
-│       │   ├── MorphologyPresets          # 6 树种 morphology 工厂方法
-│       │   ├── OakGrowthProfile / BirchGrowthProfile / SpruceGrowthProfile
-│       │   ├── JungleGrowthProfile / DarkOakGrowthProfile / AcaciaGrowthProfile
-│       │   └── BrownMushroomGrowthProfile / RedMushroomGrowthProfile
+│       ├── profiles/            # 树种生长配置 (2 个参数化 record)
+│       │   ├── MorphologyTreeProfile      # 统一 9 种形态学树种 (CanGrowStageStrategy + GrowStageHook)
+│       │   └── MushroomGrowthProfile      # 统一 2 种蘑菇 (MushroomCapStyle: FLAT/DOMED)
 │       │
 │
 ├── client/                      # 客户端
@@ -91,8 +90,7 @@ com.s.ecoflux/
 │   ├── VegetationVisualSyncEntry        # 单植物同步条目
 │
 ├── world/                       # 世界工具
-│   ├── ChunkSamplingHelper      # 采样 biome/climate/surface/findSpawnPos
-│   └── ChunkTrackingState       # 全局追踪区块注册表 (迁自 ModChunkEvents)
+│   └── ChunkSamplingHelper      # 采样 biome/climate/surface/findSpawnPos
 │
 ├── init/                        # 初始化与事件
 │   ├── ModAttachments           # DataAttachment<SuccessionChunkData> 注册
@@ -104,12 +102,14 @@ com.s.ecoflux/
 ├── mixin/                       # Mixin 层
 │   ├── SaplingBlockMixin        # 拦截树苗瞬间生长 → TreeGrowthHandler
 │   ├── MushroomBlockMixin       # 拦截蘑菇瞬间生长
-│   ├── LevelMixin               # Level 相关钩子
 │   └── client/
 │       └── BlockRenderDispatcherMixin  # 抑制被追踪方块的 vanilla 渲染
 │
-└── prototype/                   # 加速演示
-    └── PrototypeChunkController # 10 秒加速演替演示模式
+└── test/                        # 测试 / 原型工具
+    ├── prototype/
+    │   └── PrototypeChunkController  # 10 秒加速演替演示模式
+    └── performance/
+        └── PerformanceProfiler       # 轻量级性能分析器
 ```
 
 ## 分层架构
@@ -193,10 +193,13 @@ Chunk Tick (每 20 tick / 1秒)
 ### 4. 统一 vegetationRecords
 所有植物追踪统一到 `vegetationRecords` (`Map<BlockPos, ActiveVegetationRecord>`)，不再有单独的 `activePlants` 系统。`SuccessionChunkData.getCurrentPlantCount()` 返回 `vegetationRecords.size()`。
 
-### 5. 形态学驱动树木生长
+### 5. 中心植物注册表 (PlantRegistry)
+植物定义 (`PlantDefinition`) 与演替路径分离：路径只通过 `PathPlantEntry(plantId, weight)` 引用植物，完整定义集中在 `data/ecoflux/plant_definitions/plants.json`，通过 `PlantRegistry` 单例按 ID 查找。不再在路径 JSON 中内联 `point_value`、`max_age_days`、`spawn_rules` 等字段。
+
+### 6. 形态学驱动树木生长
 树生长使用参数化递归骨架 + 3D 冠包络体 + 骨架感知叶填充，而非简单的"直杆+圆盘"。每个树种有独立的 `MorphologyParams`，骨架通过位置确定性种子生成以保证视觉一致性。
 
-### 6. BlockDisplay 动画
+### 7. BlockDisplay 动画
 树生长阶段不瞬间放置方块，而是生成临时 `BlockDisplay` 实体播放缩放动画（树干挤出/树叶膨胀），完成后替换为真实方块。利用 Minecraft 内置的 Display 插值系统实现客户端平滑过渡。
 
 ## 启动流程
@@ -220,9 +223,16 @@ src/main/resources/
 ├── assets/ecoflux/lang/
 │   ├── en_us.json                         # 英文翻译
 │   └── zh_cn.json                         # 中文翻译
-└── data/ecoflux/succession_paths/
-    ├── plains_to_forest.json              # 21 个演替路径 JSON
-    ├── plains_to_meadow.json
-    ├── forest_to_birch_forest.json
-    └── ... (共 21 个文件)
+└── data/ecoflux/
+    ├── succession_paths/                  # 21 个演替路径 JSON
+    │   ├── plains_to_forest.json
+    │   ├── plains_to_meadow.json
+    │   └── ...
+    ├── plant_definitions/
+    │   └── plants.json                    # 中心植物注册表
+    └── tags/blocks/
+        ├── simple_vegetation.json
+        ├── grass_cover.json
+        ├── uses_foliage_tint.json
+        └── uses_grass_tint.json
 ```

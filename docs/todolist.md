@@ -2,16 +2,14 @@
 
 以下待办基于当前代码实现状态整理。
 
-## 近期完成 (2026-06-11)
+## 近期完成 (2026-06-12)
 
 - [x] P0-1 TreeGrowthSession NBT 持久化
 - [x] P1-1 拆分 ModChunkEvents
-- [x] P1-2 提取 ForestPlanter
-- [x] P1-4 合并 Tree Profile 重复
-- [x] P2-2 删除死代码
-- [x] P3-2 MorphologyParams → MorphologyPresets
-- [x] P3-3 CanopyConfig.fromMorphology()
+- [x] P1-4 合并 Tree Profile 重复 (11 个独立类 → 2 个参数化 record)
+- [x] P2-2 删除死代码 (VegetationCategory、ForestPlanter、旧 profile 类)
 - [x] **植物衰老死亡系统** — 三个 adapter 死亡检测 + VegetationTracker 方块移除 + 客户端 DEAD 视觉阶段
+- [x] **中心植物注册表 (PlantRegistry)** — PlantDefinition 从演替路径分离到 plant_definitions/，路径只存 plant_id + weight 引用
 
 ## P0：工程基础 ✅
 
@@ -92,23 +90,30 @@
 
 见 `docs/succession-editor.md`。Phase 1 完成，Phase 2 条件分支节点 + 植物快速选择完成（2026-06-09）。
 
-### F. GameTest / 可重复验证步骤
+### G. Tree Profile 重构 ✅
+
+见 `docs/tree-profile-refactor.md`。2026-06-12 完成。
+
+- [x] 创建 `MorphologyTreeProfile`（统一 9 个 morphology 模板）
+- [x] 创建 `MushroomGrowthProfile`（统一 2 个蘑菇类）
+- [x] 删除 12 个旧 profile 文件
+- [x] 移动 `MorphologyPresets` 到 `morphology/` 包
+- [x] 更新 `TreeGrowthHandler` 注册逻辑
+- [x] 更新 CLAUDE.md 和 docs
+
+### H. GameTest / 可重复验证步骤
 
 - [ ] 编写 GameTest 验证完整演替闭环
 - [ ] 或编写命令脚本 + 文档化预期结果
 
 ---
 
-## JSON 配置覆盖分析（2026-06-07）
+## JSON 配置覆盖分析（2026-06-12）
 
 ### 主代码未接入的字段（2 个）
 
 - [ ] `evaluation_interval_days.max` — `ChunkRules.resolvedEvaluationIntervalTicks()` 只读 `min`，`max` 从未使用
-- [ ] `spawn_rules.placement` — 解析存储了但 `findSpawnPos()` 完全忽略
-
-### 半接入（1 个）
-
-- [ ] `plants[].category` — 存入 `ActiveVegetationRecord` + 日志输出，但不影响任何游戏逻辑
+- [ ] `spawn_rules.placement` — 解析存储了但 `findSpawnPos()` 未完全使用
 
 ### 编辑器不可编辑的字段（2 个）
 
@@ -119,3 +124,31 @@
 
 - [ ] `processing_interval_ticks`：Java 默认 20，编辑器默认 100
 - [ ] `positive_progress_step`：Java 默认 0.5，编辑器默认 0.25
+
+---
+
+## Tree 包深层优化（延后，当前不改）
+
+这些问题已在 `docs/tree-profile-refactor.md` 中记录，属于 profile 重构之后的更深层优化。
+
+### 硬编码魔法数字
+
+- [ ] **CanopyEnvelope.java** — `evaluate()` 中各 canopy 类型的密度衰减公式包含硬编码常数（如 `0.28`, `1.8`, `0.6`），应该参数化到 `MorphologyParams`
+- [ ] **LeafFiller.java** — `ChebyshevDistance` 硬编码权重，`maxLeavesPerStage = 50` 硬编码，`decayFactor` 硬编码
+- [ ] **SkeletonGenerator.java** — 分支角度、长度衰减率、噪声幅度等硬编码值未暴露为参数
+- [ ] **CanopyEnvelope.CanopyType** — 每种类型的密度函数在代码中内联，应允许自定义密度函数
+
+### 参数膨胀
+
+- [ ] **MorphologyParams** — 记录有 23 个构造参数，难以阅读和维护。考虑拆分为子记录（TrunkParams, BranchParams, CanopyParams）或 builder 模式
+- [ ] **TreeMorphology.growStage()** — 方法有 10 个参数（level, skel, morphologyParams, plan, stage, seed, random, logBlock, leavesBlock, placedLogs, placedLeaves）。考虑创建 GrowContext 记录封装
+- [ ] **TreeMorphology.fillLeaves()** — 6 个参数，其中多个来自 MorphologyParams 的单独字段。可以通过直接传递 MorphologyParams 简化
+
+### 蘑菇生长系统统一
+
+- [ ] 合并后的 `MushroomGrowthProfile` 仍使用手动 stem+cap 放置，长远可考虑让蘑菇也走 morphology 管道（用细 trunk + 大 canopy radius 模拟蘑菇形状）
+
+### TreeGrowthHandler 耦合
+
+- [ ] `TreeGrowthHandler.tickAll()` 中有 morphology / legacy 两套分支代码，mushroom profile 统一后只会减少不会消除。理想状态是 profile 接口自足，handler 不需要 if-else 分发
+- [ ] `TreeGrowthHandler` 的 chunksWithSessions 跟踪与 `SuccessionChunkData` 内部的 sessions map 存在重复状态，可简化

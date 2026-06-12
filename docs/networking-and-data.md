@@ -12,19 +12,19 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `currentBiome` | ResourceLocation | 当前群系 |
-| `targetBiome` | ResourceLocation | 目标群系（演替方向） |
-| `previousBiome` | ResourceLocation | 上一个群系（用于退化回退） |
+| `currentBiome` | ResourceKey\<Biome\> | 当前群系 |
+| `targetBiome` | ResourceKey\<Biome\> | 目标群系（演替方向） |
+| `previousBiome` | ResourceKey\<Biome\> | 上一个群系（用于退化回退） |
+| `activePathId` | ResourceLocation? | 当前活跃演替路径 ID（可空） |
 | `progress` | double | 演替进度 [-1.0, 1.0]，达到 ±1.0 触发转换 |
 | `consumingValue` | double | 维持当前群系所需植物点数 |
 | `maxPlantCount` | int | 最大植物容量 |
-| `currentPlantCount` | int | 当前植物数 (= `vegetationRecords.size()`) |
-| `plantQueue` | Queue\<PlantQueueEntry\> | 预生成植物队列 |
+| `plantQueue` | Deque\<PlantQueueEntry\> | 预生成植物队列 |
 | `vegetationRecords` | Map\<BlockPos, ActiveVegetationRecord\> | 活跃植被追踪记录 |
+| `treeGrowthSessions` | Map\<BlockPos, TreeGrowthSession\> | 活跃树木生长会话 |
 | `lastEvaluationGameTime` | long | 上次评估的游戏时间 |
-| `queueVersion` | int | 队列版本号（配置变更时递增） |
 
-**NBT 序列化**: 所有字段均写入 NBT，chunk 卸载/重载后自动恢复。`vegetationRecords` 中每个 `ActiveVegetationRecord` 独立序列化。
+**NBT 序列化**: 所有字段均写入 NBT，chunk 卸载/重载后自动恢复。`vegetationRecords` 中每个 `ActiveVegetationRecord` 独立序列化。`treeGrowthSessions` 也完整序列化。
 
 **访问方式:**
 ```java
@@ -33,54 +33,57 @@ SuccessionChunkData data = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
 
 ### ActiveVegetationRecord
 
-单个植被的追踪记录。
+单个植被的追踪记录 (record)。
 
 **字段:**
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `adapterType` | String | 适配器类型 ID（如 `"simple_plant"`, `"sapling"`, `"tree_structure"`） |
-| `category` | VegetationCategory | 植被分类（FLOWER, GRASS, SAPLING, TREE, MUSHROOM） |
-| `stage` | VegetationLifecycleStage | 当前生命周期阶段 |
-| `pointValue` | double | 植物提供的演替点数 |
+| `vegetationId` | ResourceLocation | 植物方块 ID |
+| `adapterType` | ResourceLocation | 适配器类型 ID（如 `"simple_plant"`, `"sapling"`, `"tree_structure"`） |
+| `position` | BlockPos | 方块位置 |
+| `lifeStage` | VegetationLifecycleStage | 当前生命周期阶段 |
 | `birthGameTime` | long | 出生游戏时间 |
-| `ageGameTime` | long | 进入老化阶段的时间 |
+| `lastObservedGameTime` | long | 上次观察游戏时间 |
 | `expireGameTime` | long | 过期时间（死亡） |
-| `birthState` | CompoundTag | 出生时的附加状态（adapter 特定） |
-| `visualState` | VegetationVisualState | 当前视觉状态快照 |
+| `basePointValue` | int | 基准演替点数（来自 PlantDefinition） |
+| `currentPointValue` | int | 当前演替点数（可能随阶段变化） |
+| `sourceBiomeId` | ResourceLocation? | 来源群系（可空） |
+| `sourcePathId` | ResourceLocation? | 来源演替路径（可空） |
+| `treeStructure` | TreeStructure? | 多块树结构数据（可空，仅树木有） |
 
 ### PlantQueueEntry
 
-预生成植物队列条目。
+预生成植物队列条目 (record)。
 
 **字段:**
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `plantId` | String | 方块 ID |
-| `pointValue` | double | 演替点数 |
+| `plantId` | ResourceLocation | 植物方块 ID |
+| `pointValue` | int | 演替点数 |
 | `weight` | int | 随机权重 |
-| `maxAge` | int | 最大寿命（游戏日） |
+| `maxAgeTicks` | long | 最大寿命（游戏 tick） |
 
 ### 生命周期阶段 (VegetationLifecycleStage)
 
 ```
-BORN → MATURING → MATURE → AGING → DEAD → DECAYING → GONE
+BORN → JUVENILE → GROWING → MATURE → AGING → DEAD
+                                       ↓
+                                  TRANSFORMED
 ```
 
 | 阶段 | 说明 |
 |------|------|
-| `BORN` | 刚生成，小缩放 |
-| `MATURING` | 生长中，缩放渐增 |
-| `MATURE` | 成熟，标准大小，提供点数 |
-| `AGING` | 老化，着色变化，触发评估 gate |
-| `DEAD` | 死亡，视觉凋零 |
-| `DECAYING` | 腐烂中，渐隐 |
-| `GONE` | 已消失，等待清理 |
+| `BORN` | 刚生成，最小缩放 |
+| `JUVENILE` | 早期幼年阶段 |
+| `GROWING` | 生长中，缩放渐增 |
+| `MATURE` | 成熟，标准大小，提供满额点数 |
+| `AGING` | 老化，着色变化，触发演替评估 gate |
+| `DEAD` | 死亡，方块即移除，记录清理 |
+| `TRANSFORMED` | 树苗到树的转换中 |
 
-### 植被分类 (VegetationCategory)
-
-`FLOWER`, `GRASS`, `FERN`, `SAPLING`, `TREE`, `MUSHROOM`, `CROP`, `VINE`, `CACTUS`, `SUGAR_CANE`, `BAMBOO`, `OTHER`
+> `VegetationCategory` 枚举已于 2026-06-12 移除。植物分类不再需要，点数通过 `PlantDefinition.pointValue()` 获取。
 
 ## 网络同步 (network/)
 

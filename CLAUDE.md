@@ -44,16 +44,21 @@ The codebase is in `src/main/java/com/s/ecoflux/`. Key architectural layers:
 ### Configuration layer (`config/`)
 - `SuccessionConfigLoader` — Gson-based JSON loader, extends `SimpleJsonResourceReloadListener` for hot-reload on `/reload`
 - `SuccessionConfigRegistry` — Thread-safe cached lookup. `findBestMatch(biome, temperature, downfall)` resolves the best succession path for a given chunk
-- `SuccessionPathDefinition` — Record: path_id, source/target/fallback biomes, climate conditions, plant list, `ChunkRules` (consuming, max_plants, intervals, progress steps)
+- `SuccessionPathDefinition` — Record: path_id, source/target/fallback biomes, climate conditions, `PathPlantEntry` list, `ChunkRules` (consuming, max_plants, intervals, progress steps)
+- `PathPlantEntry` — Record: `plant_id` + `weight`. Plants in succession paths reference the central registry by ID, with path-specific spawn weight
+- `PlantDefinition` — Record: plant intrinsic properties (`plant_id`, `point_value`, `max_age_ticks`, `spawn_rules`). No longer carries `weight` (path-specific) or `category` (removed)
+- `PlantRegistry` — Singleton central plant registry. `getDefinition(plantId)` returns the canonical `PlantDefinition`. Loaded from `data/ecoflux/plant_definitions/*.json`
+- `PlantRegistryLoader` — `SimpleJsonResourceReloadListener` watching `plant_definitions/` directory, populates `PlantRegistry` on startup and `/reload`
 - JSON path files live at `src/main/resources/data/ecoflux/succession_paths/*.json`
+- Plant registry JSON lives at `src/main/resources/data/ecoflux/plant_definitions/*.json`
 
 ### Data layer (`attachment/`)
 - `SuccessionChunkData` — Core per-chunk state attached via NeoForge `DataAttachment<SuccessionChunkData>`. Contains: current/target/previous biome, progress (double), consuming value, max/current plant count, plant queue, vegetationRecords map, evaluation timer. Fully NBT-serializable
-- `ActiveVegetationRecord` — Vegetation lifecycle record: adapter type, category, stage, point value, birth/age/expiry times
+- `ActiveVegetationRecord` — Vegetation lifecycle record: adapter type, stage, point value, birth/age/expiry times. No longer carries `category` (removed with `VegetationCategory`)
 - `PlantQueueEntry` — Pre-generated plant to spawn: plant_id, point_value, weight, max_age
 
 ### Succession service layer (`succession/`)
-Extracted from `PrototypeChunkController`. Follows the architecture.md design:
+Extracted from `PrototypeChunkController` (now in `test/prototype/`). Follows the architecture.md design:
 - `SuccessionService` — Main orchestration entry point. `initializeChunk()`, `step()`, `processChunkTick()`, `pruneChunk()`, `spawnInChunk()`, `evaluateChunk()`, `forceTransition()`, `hasActivePath()`, `describeChunk()`
 - `SuccessionTargetResolver` — Chunk initialization: samples biome/climate, matches config via `SuccessionConfigRegistry`, populates `SuccessionChunkData`
 - `SuccessionEvaluator` — Progress evaluation with aging gate (`hasAgingVegetation`). Compares vegetation points vs consuming, accumulates progress
@@ -64,41 +69,38 @@ Extracted from `PrototypeChunkController`. Follows the architecture.md design:
 
 ### Plant system (`plant/`)
 The most architecturally mature subsystem. Uses an **adapter pattern**:
-- `VegetationTypeAdapter` — Core interface: `matches(BlockState)`, `captureBirth(BlockState)`, `observe(record, gameTime)`, `visualState(record, gameTime)`
-- `VegetationTracker` — Singleton that tracks/observes/syncs all vegetation. Key methods: `trackAt()`, `observeTracked()`, `observeChunk()`
-- Adapters: `SimplePlantAdapter` (flowers, grass, ferns, mushrooms, dead bushes, double plants), `SaplingAdapter` (tree saplings/propagules → tree transformation), `TreeStructureAdapter` (mature trees)
+- `VegetationTypeAdapter` — Core interface: `matches(BlockState)`, `captureBirth(level, pos, state, gameTime, sourceBiomeId, sourcePathId, plantDefinition)`, `observe(record, gameTime)`, `visualState(record, gameTime)`. `captureBirth` now receives `PlantDefinition` for point values and lifetime from config. `category()` method removed
+- `VegetationTracker` — Singleton that tracks/observes/syncs all vegetation. Key methods: `trackAt()`, `observeTracked()`, `observeChunk()`. `trackAt()` now accepts `PlantDefinition` parameter
+- Adapters: `SimplePlantAdapter` (flowers, grass, ferns, mushrooms, dead bushes, double plants), `SaplingAdapter` (tree saplings/propagules → tree transformation), `TreeStructureAdapter` (mature trees). All no longer hardcode point values or lifetimes — these come from `PlantDefinition`
+- `VegetationCategory` enum — **Removed** (2026-06-12). Point values now come directly from `PlantDefinition.pointValue()`; no more hardcoded FLOWER=2/other=1
 - `VegetationTracker.trackAt()` automatically tracks upper halves of double-height plants (tall grass, sunflowers) with 0 points to keep both halves visually synced
-- `VegetationTransformation` — Descriptor for sapling→tree conversion
-- `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`
+- `VegetationTransformation` — Descriptor for sapling→tree conversion. No longer carries `targetCategory`
+- `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`. Uses `PlantRegistry` to resolve plant definitions, `PathPlantEntry` for weighted selection
 - `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted. Maps sapling IDs → `TreeGrowthProfile`, supports 1x1 and 2x2 trees. If profile has `morphologyParams()`, calls `TreeMorphology.growStage()`; otherwise falls back to legacy `profile.growStage()`
 - `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, resolved height, timing), NBT-serializable. Transient fields: skeleton, morphologyParams, stagePlan (rebuilt from seed on reload)
-- `tree/TreeGrowthProfile` — Interface: species-specific growth parameters (height range, block types, stage count, spacing) + optional `morphologyParams()`. 9 implementations in `tree/profiles/` (oak, birch, spruce, jungle 2x2, jungle 1x1, dark oak, acacia, cherry, mangrove + 2 mushroom)
+- `tree/TreeGrowthProfile` — Interface: species-specific growth parameters (height range, block types, stage count, spacing) + optional `morphologyParams()`. 2 parameterized implementations: `MorphologyTreeProfile` (9 tree species) + `MushroomGrowthProfile` (2 mushroom types)
 - `tree/TreeShapeUtils` — Shared utilities: position-deterministic noise, canopy radius functions, leaf disc placement, 2x2 detection, branch generation, log/leaf block placement helpers
-- `tree/morphology/` — **New morphology system** (2026-06-10):
+- `tree/morphology/` — **Morphology system**:
   - `NodeType` — Enum: TRUNK, PRIMARY_BRANCH, SECONDARY_BRANCH, TWIG
   - `SkeletonNode` — Record: pos, type, radius, parentIndex, depth
   - `TreeSkeleton` — Skeleton data structure: node list, trunk path, primary branch list, trunkLevels (for 2x2)
   - `SkeletonGenerator` — Parametric recursive branching: trunk with lean/noise, primary branches with radial+upward angle, secondary branches from branch midpoints
-  - `CanopyEnvelope` — 5 canopy shape density functions (ELLIPSOID/TALL_ELLIPSOID/CONE/CLUSTERED_ELLIPSOID/FLAT_CYLINDER/FLAT_DISC_CLUSTERED) with edge feathering
-  - `LeafFiller` — Skeleton-aware leaf placement: AABB traversal, canopy density check, skeleton distance, noise probability, sorted by proximity, max 50/stage, Chebyshev distance to nearest skeleton node
-  - `MorphologyParams` — Species morphology parameter record with factory methods (oak/birch/spruce/jungle/darkOak/acacia)
+  - `CanopyEnvelope` — 6 canopy shape density functions (ELLIPSOID/TALL_ELLIPSOID/CONE/CLUSTERED_ELLIPSOID/FLAT_CYLINDER/FLAT_DISC_CLUSTERED) with edge feathering
+  - `LeafFiller` — Skeleton-aware leaf placement: AABB traversal, canopy density check, skeleton distance, noise probability, sorted by proximity, max 50/stage
+  - `MorphologyParams` — Species morphology parameter record
+  - `MorphologyPresets` — 9 static factory methods (oak/birch/spruce/jungle/darkOak/jungle1x1/cherry/mangrove/acacia) returning pre-configured `MorphologyParams`
   - `TreeMorphology` — Integration entry: generateSkeleton → planStages → growStage (place logs + fill leaves)
-- `tree/profiles/OakGrowthProfile` — Oak: flat ellipsoid canopy, 8-13 trunk, 3600 ticks/stage (~27 min), slight lean, 5-9 branches, 3-block clear trunk
-- `tree/profiles/BirchGrowthProfile` — Birch: tall slender ellipsoid, 10-16 trunk, 2400 ticks/stage (~20 min), nearly vertical, 0-3 short branches at top, 4-block clear trunk
-- `tree/profiles/SpruceGrowthProfile` — Spruce: conical full-height foliage, 13-22 trunk, 4800 ticks/stage (~48 min), vertical, 12-20 horizontal branches, 3-block clear trunk
-- `tree/profiles/JungleGrowthProfile` — Jungle: 2x2 trunk, 15-22 trunk, 4800 ticks/stage (~64 min), large ellipsoid + 5 sub-clusters, 7-12 long branches + secondary, 4-block clear trunk
-- `tree/profiles/DarkOakGrowthProfile` — Dark oak: 2x2 trunk, flat cylinder dense canopy, 9-14 trunk, 3600 ticks/stage (~30 min), 6-10 branches, 3-block clear trunk
-- `tree/profiles/AcaciaGrowthProfile` — Acacia: flat disc + scattered sphere clusters, 8-14 trunk, 3600 ticks/stage (~27 min), 15-18° lean, 4-7 branches, 4-block clear trunk
-- `tree/profiles/Jungle1x1GrowthProfile` — Jungle 1×1: clustered ellipsoid, 12-18 trunk, 4200 ticks/stage, 5-9 branches, 4 sub-clusters, 3-block clear trunk
-- `tree/profiles/CherryGrowthProfile` — Cherry: wide ellipsoid canopy, 8-14 trunk, 3600 ticks/stage, 4-8 spreading branches, pink wood/leaves
-- `tree/profiles/MangroveGrowthProfile` — Mangrove: rounded ellipsoid, 6-10 trunk, 3200 ticks/stage, 3-6 branches + prop roots at base
+- `tree/profiles/MorphologyTreeProfile` — Parameterized record for 9 tree species. Configurable `CanGrowStageStrategy` (SINGLE_TRUNK/TRUNK_2X2/ACACIA_3X3) and optional `GrowStageHook` for species-specific post-morphology behavior (e.g., mangrove prop roots)
+- `tree/profiles/MushroomGrowthProfile` — Parameterized record for 2 mushroom types. `MushroomCapStyle` (FLAT/DOMED) controls cap shape
 
 ### Mixins (`mixin/`)
 - `client/BlockRenderDispatcherMixin` — Client-side: suppresses vanilla block render for visually-tracked blocks with non-1.0 scale
 - `SaplingBlockMixin` — Server-side: intercepts `SaplingBlock.advanceTree()`, cancels vanilla instant tree growth for Ecoflux-tracked saplings (delegates to `TreeGrowthHandler`)
+- `perf/*` — 13 profiling mixins that inject `PerformanceProfiler.push/pop` at HEAD/RETURN of key methods. Zero-cost when profiling is disabled. All in `mixin/perf/` for easy removal
 
-### Prototype controller (`prototype/`)
-- `PrototypeChunkController` (~175 lines) — Slimmed down to only the **accelerated 10-second demo mode**. All standard succession operations have been extracted to the `succession/`, `world/`, and `plant/` service classes. Calls into `SuccessionService`, `PlantSpawner`, `BiomeTransitionService` for shared operations
+### Test utilities (`test/`)
+- `test/prototype/PrototypeChunkController` — Accelerated 10-second demo mode. Calls into `SuccessionService`, `PlantSpawner`, `BiomeTransitionService` for shared operations
+- `test/performance/PerformanceProfiler` — Lightweight span-based performance profiler. Named spans with aggregated statistics (count, total, min, max, avg). `/ecoflux profile on/off/report` for control
 
 ### Client visual layer (`client/visual/`)
 - `VisualLifecycleClientRuntime` — Client singleton receiving visual state from server
@@ -113,7 +115,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `ModAttachments` — Registers the `DataAttachment<SuccessionChunkData>`
 - `ModChunkEvents` — Chunk load/unload/tick handlers, accelerated transition mode
 - `ModCommands` — Debug commands under `/ecoflux prototype`, `/ecoflux auto`, `/ecoflux lifecycle`, `/ecoflux visual`
-- `ModReloadListeners` — JSON config reload hook
+- `ModReloadListeners` — JSON config reload hooks for succession paths and plant registry
 
 ### Constants and entry point
 - `EcofluxConstants` — `MOD_ID = "ecoflux"`, logger, `ResourceLocation` factory method
@@ -133,7 +135,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Current Development State
 
-- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11
+- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring (central `plants.json`, `VegetationCategory` removal, adapter config-driven values) — 2026-06-12; Tree profile refactoring (11 boilerplate profiles → 2 parameterized classes) — 2026-06-12
 - **In progress**: Succession integration, Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 
@@ -151,6 +153,8 @@ All design docs are in `docs/`, written in Chinese:
 - `succession-editor.md` — Succession editor: React web tool for visual succession path design
 - `todolist.md` — Priority-ordered TODO list and JSON config coverage analysis
 - `plant-death-system.md` — Plant death/decay system design and implementation (completed 2026-06-11)
+- `plant-registry-refactor.md` — Central plant registry refactoring design doc (completed 2026-06-12)
+- `tree-profile-refactor.md` — Tree profile refactoring design: replacing 11 boilerplate profile classes with 2 parameterized classes
 
 ## Important Conventions
 

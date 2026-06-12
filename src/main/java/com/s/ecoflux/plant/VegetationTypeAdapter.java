@@ -1,24 +1,7 @@
 package com.s.ecoflux.plant;
 
-/**
- * Core interface for the adapter-based plant recognition system.
- *
- * <p>Structure: defines the contract all vegetation adapters must fulfill —
- * {@link #matches(BlockState)} identifies supported plants, {@link #captureBirth}
- * records initial state into an {@link ActiveVegetationRecord},
- * {@link #observe} advances the lifecycle each tick, and {@link #visualState}
- * computes render parameters for client sync. Default methods provide optional
- * {@link #detectTransformation} for sapling-to-tree conversion and a static
- * {@link #progress} helper for normalized stage interpolation.
- *
- * <p>Role in Ecoflux: every plant type (flowers, grass, saplings, trees,
- * mushrooms) is handled by a dedicated implementation of this interface.
- * {@link VegetationTracker} holds the registry of adapters and delegates all
- * per-plant logic through these methods, keeping the tracker agnostic of
- * specific block types.
- */
-
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
+import com.s.ecoflux.config.PlantDefinition;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -28,8 +11,6 @@ import net.minecraft.world.level.block.state.BlockState;
 public interface VegetationTypeAdapter {
     ResourceLocation typeId();
 
-    VegetationCategory category();
-
     boolean matches(BlockState state);
 
     ActiveVegetationRecord captureBirth(
@@ -38,7 +19,8 @@ public interface VegetationTypeAdapter {
             BlockState state,
             long gameTime,
             Optional<ResourceLocation> sourceBiomeId,
-            Optional<ResourceLocation> sourcePathId);
+            Optional<ResourceLocation> sourcePathId,
+            PlantDefinition plantDefinition);
 
     VegetationObservation observe(ServerLevel level, ActiveVegetationRecord record, BlockState state, long gameTime);
 

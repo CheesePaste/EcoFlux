@@ -45,7 +45,11 @@ public final class ModPlayerEvents {
             return;
         }
 
-        VegetationTracker.INSTANCE.trackAt(level, chunk, pos, Optional.empty(), Optional.empty());
+        net.minecraft.resources.ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
+        com.s.ecoflux.config.PlantDefinition plantDef = com.s.ecoflux.config.PlantRegistry.INSTANCE.getDefinition(blockId)
+                .orElse(null);
+        if (plantDef == null) return;
+        VegetationTracker.INSTANCE.trackAt(level, chunk, pos, Optional.empty(), Optional.empty(), plantDef);
     }
 
     private static void onBlockBroken(BlockEvent.BreakEvent event) {

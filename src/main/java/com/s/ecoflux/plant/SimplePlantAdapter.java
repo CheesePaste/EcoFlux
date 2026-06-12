@@ -1,36 +1,16 @@
 package com.s.ecoflux.plant;
 
-/**
- * {@link VegetationTypeAdapter} for simple (non-tree) plants: flowers, grass,
- * ferns, mushrooms, dead bushes, and double-height plants (tall grass, large
- * ferns, sunflowers).
- *
- * <p>Structure: singleton with {@link #matches} covering a broad set of block
- * tags and specific blocks. {@link #captureBirth} derives the
- * {@link VegetationCategory} (FLOWER, MUSHROOM, GROUND_COVER, or OTHER) and
- * assigns base point values (2 for flowers, 1 otherwise). {@link #observe}
- * drives the standard BORN/GROWING/MATURE/AGING lifecycle over scaled game
- * time, returning point values and maturity flags for succession scoring.
- * {@link #visualState} maps each stage to a normalized progress value for
- * client-side scale/tint interpolation.
- *
- * <p>Role in Ecoflux: handles the majority of ground-cover and decorative
- * plants. Its lifecycle progression and point values feed directly into
- * succession evaluation — mature flowers contribute more points, while aging
- * plants trigger the aging gate in
- * {@link com.s.ecoflux.succession.SuccessionEvaluator}.
- */
-
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
+import com.s.ecoflux.config.EcofluxBlockTags;
 import com.s.ecoflux.config.EcofluxServerConfig;
+import com.s.ecoflux.config.PlantDefinition;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class SimplePlantAdapter implements VegetationTypeAdapter {
@@ -38,8 +18,7 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
     private static final ResourceLocation TYPE_ID = EcofluxConstants.id("simple_plant");
     private static final long DECAY_TICKS = 6000L;
 
-    private SimplePlantAdapter() {
-    }
+    private SimplePlantAdapter() {}
 
     @Override
     public ResourceLocation typeId() {
@@ -47,22 +26,8 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
     }
 
     @Override
-    public VegetationCategory category() {
-        return VegetationCategory.OTHER;
-    }
-
-    @Override
     public boolean matches(BlockState state) {
-        return state.is(BlockTags.FLOWERS)
-                || state.is(Blocks.SHORT_GRASS)
-                || state.is(Blocks.FERN)
-                || state.is(Blocks.TALL_GRASS)
-                || state.is(Blocks.LARGE_FERN)
-                || state.is(BlockTags.SMALL_FLOWERS)
-                || state.is(BlockTags.TALL_FLOWERS)
-                || state.is(Blocks.BROWN_MUSHROOM)
-                || state.is(Blocks.RED_MUSHROOM)
-                || state.is(Blocks.DEAD_BUSH);
+        return state.is(EcofluxBlockTags.SIMPLE_VEGETATION);
     }
 
     @Override
@@ -72,20 +37,20 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
             BlockState state,
             long gameTime,
             Optional<ResourceLocation> sourceBiomeId,
-            Optional<ResourceLocation> sourcePathId) {
-        VegetationCategory derivedCategory = deriveCategory(state);
-        int basePointValue = derivedCategory == VegetationCategory.FLOWER ? 2 : 1;
+            Optional<ResourceLocation> sourcePathId,
+            PlantDefinition plantDefinition) {
+        int basePointValue = plantDefinition.pointValue();
+        long maxAgeTicks = plantDefinition.maxAgeTicks();
         if (!EcofluxServerConfig.gradualPlantGrowth()) {
             int maxPoints = basePointValue + 1;
             return new ActiveVegetationRecord(
-                    net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()),
+                    BuiltInRegistries.BLOCK.getKey(state.getBlock()),
                     typeId(),
-                    derivedCategory,
                     pos.immutable(),
                     VegetationLifecycleStage.MATURE,
                     gameTime,
                     gameTime,
-                    gameTime + 72000L,
+                    gameTime + maxAgeTicks,
                     maxPoints,
                     maxPoints,
                     sourceBiomeId.orElse(null),
@@ -93,14 +58,13 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
                     null);
         }
         return new ActiveVegetationRecord(
-                net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()),
+                BuiltInRegistries.BLOCK.getKey(state.getBlock()),
                 typeId(),
-                derivedCategory,
                 pos.immutable(),
                 VegetationLifecycleStage.BORN,
                 gameTime,
                 gameTime,
-                gameTime + 72000L,
+                gameTime + maxAgeTicks,
                 basePointValue,
                 Math.max(0, basePointValue / 2),
                 sourceBiomeId.orElse(null),
@@ -182,18 +146,5 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
             case DEAD -> new VegetationVisualState(VegetationLifecycleStage.DEAD, VegetationTypeAdapter.progress(age, totalLifetime, totalLifetime + DECAY_TICKS));
             default -> new VegetationVisualState(record.lifeStage(), 1.0F);
         };
-    }
-
-    private static VegetationCategory deriveCategory(BlockState state) {
-        if (state.is(BlockTags.SMALL_FLOWERS) || state.is(BlockTags.TALL_FLOWERS) || state.is(BlockTags.FLOWERS)) {
-            return VegetationCategory.FLOWER;
-        }
-        if (state.is(Blocks.BROWN_MUSHROOM) || state.is(Blocks.RED_MUSHROOM)) {
-            return VegetationCategory.MUSHROOM;
-        }
-        if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN) || state.is(Blocks.TALL_GRASS) || state.is(Blocks.LARGE_FERN) || state.is(Blocks.DEAD_BUSH)) {
-            return VegetationCategory.GROUND_COVER;
-        }
-        return VegetationCategory.OTHER;
     }
 }

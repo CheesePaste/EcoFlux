@@ -9,7 +9,7 @@
 | `SuccessionService` | 主编排入口，提供 `initializeChunk()`, `processChunkTick()`, `step()`, `evaluateChunk()` 等 |
 | `SuccessionTargetResolver` | 初始化时采样 biome/climate，匹配配置，填充 `SuccessionChunkData` |
 | `SuccessionEvaluator` | 进度评估：aging gate 检查 + 植被点数 vs consuming 比较 + 累积/减少 progress |
-| `BiomeTransitionService` | 群系替换执行：`fillBiomesFromNoise()` + 发包 + 植树（或退化重置） |
+| `BiomeTransitionService` | 群系替换执行：`fillBiomesFromNoise()` + 发包 + 软重置 |
 | `PrototypeChunkController` | 10 秒加速演替演示模式（调用上述服务类） |
 | `ChunkSamplingHelper` | 静态工具：`sampleChunkCenterBiome()`, `sampleChunkClimate()`, `sampleSurfaceY()`, `findSpawnPos()`, `canPlantAt()` 等 |
 
@@ -64,8 +64,7 @@
 ┌──────────────────┐  ┌──────────────────┐
 │ applyTransition  │  │ applyRegression  │
 │ → targetBiome    │  │ → fallbackBiome  │
-│   种树奖励        │  │   重置状态        │
-│   重置进度        │  │   不种树          │
+│   软重置          │  │   软重置          │
 └──────────────────┘  └──────────────────┘
 ```
 
@@ -101,7 +100,6 @@
 1. 使用 `ChunkAccess.fillBiomesFromNoise()` 将 chunk 内群系替换为目标群系
 2. 发送 `ClientboundChunksBiomesPacket` 通知客户端
 3. 软重置（保留现有植被记录和树木生长会话），重新解析新群系的演替目标
-4. 现有植物继续其生命周期，新植物随新群系路径逐渐生成
 
 ### 负向退化 (applyRegression)
 1. 群系切换到 `fallbackBiome`（或 `previousBiome` 作为兜底）

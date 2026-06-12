@@ -33,51 +33,50 @@
 
 ## 核心概念
 
-### VegetationCategory
-
-```java
-FLOWER, GRASS, FERN, SAPLING, TREE, MUSHROOM, CROP, VINE, CACTUS, SUGAR_CANE, BAMBOO, OTHER
-```
-
 ### VegetationLifecycleStage
 
 ```
-BORN → MATURING → MATURE → AGING → DEAD → DECAYING → GONE
+BORN → JUVENILE → GROWING → MATURE → AGING → DEAD
+                                       ↓
+                                  TRANSFORMED (树苗→树的转换中)
 ```
 
 | 阶段 | 说明 |
 |------|------|
-| `BORN` | 刚生成 |
-| `MATURING` | 生长中 |
-| `MATURE` | 成熟，标准大小，提供点数 |
-| `AGING` | 老化，着色变化，触发评估 gate |
-| `DEAD` | 死亡，视觉凋零，方块即将移除 |
-| `DECAYING` | 腐烂中（合并入 DEAD 阶段后期） |
-| `GONE` | 已消失，等待清理（由 VegetationTracker 自动处理） |
+| `BORN` | 刚生成，最小缩放 |
+| `JUVENILE` | 早期幼年阶段 |
+| `GROWING` | 生长中，缩放渐增 |
+| `MATURE` | 成熟，标准大小，提供满额点数 |
+| `AGING` | 老化，着色变化，触发演替评估 gate |
+| `DEAD` | 死亡，方块即将移除，记录清理 |
+| `TRANSFORMED` | 树苗到树的转换进行中 |
 
 ### 死亡系统（2026-06-11 实现）
 
 所有 adapter 的 `observe()` 方法在 `gameTime >= expireGameTime` 时返回 DEAD 阶段。
 `gameTime >= expireGameTime + DECAY_TICKS` 时返回 `present=false`，触发 VegetationTracker 破坏方块并清理记录。
 
-| 植物类型 | expireGameTime | DECAY_TICKS |
-|---------|---------------|-------------|
-| 花草/灌木 | 72000 ticks (1h) | 6000 ticks (5min) |
-| 树木 | 288000 ticks (4h) | 24000 ticks (20min) |
-| 树苗（未生长） | 144000 ticks (2h) | 6000 ticks (5min) |
+`expireGameTime` 由 `PlantDefinition.maxAgeTicks()` 决定，不再硬编码。各 adapter 的 `DECAY_TICKS` 常量如下：
+
+| 植物类型 | DECAY_TICKS |
+|---------|-------------|
+| 花草/灌木 (SimplePlantAdapter) | 6000 ticks (5min) |
+| 树木 (TreeStructureAdapter) | 24000 ticks (20min) |
+| 树苗未生长 (SaplingAdapter) | 6000 ticks (5min) |
 
 详见 [plant-death-system.md](plant-death-system.md)。
 
 ### ActiveVegetationRecord
 
-单个植被追踪记录，关键字段：
-- `adapterType` — 适配器类型 ID
-- `category` — 植被分类
-- `stage` — 当前生命周期阶段
-- `pointValue` — 演替点数
-- `birthGameTime` / `ageGameTime` / `expireGameTime`
-- `birthState` (CompoundTag) — 出生时附加状态
-- `visualState` — 当前视觉快照
+单个植被追踪记录 (record)，关键字段：
+- `vegetationId` — 植物方块 ID (`ResourceLocation`)
+- `adapterType` — 适配器类型 ID (`ResourceLocation`)
+- `position` — 方块位置 (`BlockPos`)
+- `lifeStage` — 当前生命周期阶段
+- `birthGameTime` / `lastObservedGameTime` / `expireGameTime`
+- `basePointValue` / `currentPointValue` — 基准/当前演替点数
+- `sourceBiomeId` / `sourcePathId` — 来源群系/路径（可空）
+- `treeStructure` — 多块树结构数据（可空，仅树木有）
 
 ## 核心组件
 
@@ -88,14 +87,19 @@ BORN → MATURING → MATURE → AGING → DEAD → DECAYING → GONE
 ```java
 public interface VegetationTypeAdapter {
     ResourceLocation typeId();
-    VegetationCategory category();
     boolean matches(BlockState state);
-    ActiveVegetationRecord captureBirth(LevelAccessor level, BlockPos pos, BlockState state, long gameTime);
-    VegetationObservation observe(ActiveVegetationRecord record, LevelAccessor level, long gameTime);
-    VegetationVisualState visualState(ActiveVegetationRecord record, long gameTime);
+    ActiveVegetationRecord captureBirth(
+        ServerLevel level, BlockPos pos, BlockState state, long gameTime,
+        Optional<ResourceLocation> sourceBiomeId,
+        Optional<ResourceLocation> sourcePathId,
+        PlantDefinition plantDefinition);
+    VegetationObservation observe(ServerLevel level, ActiveVegetationRecord record, BlockState state, long gameTime);
+    default VegetationVisualState visualState(ActiveVegetationRecord record, long gameTime) { ... }
     default Optional<VegetationTransformation> detectTransformation(...) { return Optional.empty(); }
 }
 ```
+
+注意：`category()` 方法已移除。点数、寿命等参数从 `PlantDefinition` 获取。
 
 ### VegetationTracker
 
@@ -141,6 +145,49 @@ public interface VegetationTypeAdapter {
 
 树苗被 `SaplingAdapter` 追踪后，原版瞬间生长被 `SaplingBlockMixin` 拦截，转由 `TreeGrowthHandler` 管理渐进生长过程。详见 [tree-growth-system.md](tree-growth-system.md)。
 
+### 树木和大型蘑菇的双阶段生命周期
+
+树木和大型蘑菇（棕色/红色蘑菇）与普通花草不同，它们有**两个独立的记录**跨越两个阶段：
+
+```
+阶段 1: 树苗 / 小蘑菇 (SaplingAdapter / SimplePlantAdapter)
+  │
+  │  PlantDefinition (树苗)                    PlantDefinition (小蘑菇)
+  │  ┌──────────────────────┐                  ┌──────────────────────┐
+  │  │ maxAgeTicks          │  控制: 树苗/蘑菇 │ maxAgeTicks          │
+  │  │ (如 oak_sapling →    │  在生长前能活多久  │ (如 red_mushroom →   │
+  │  │  168000 ticks)       │                  │  48000 ticks)        │
+  │  └──────────────────────┘                  └──────────────────────┘
+  │
+  │  Mixin 拦截瞬间生长
+  │  ┌──────────────────────────────────────────────┐
+  │  │ TreeGrowthSession                            │
+  │  │ ticksPerStage (MorphologyTreeProfile)        │
+  │  │ 控制: 生长动画速度 (每阶段放多少方块)           │
+  │  │ 如 oak: 3600 tick/stage × ~10 stages ≈ 27分   │
+  │  └──────────────────────────────────────────────┘
+  │
+  ▼
+阶段 2: 成熟原木 / 蘑菇方块 (TreeStructureAdapter)
+  │
+  │  PlantDefinition (原木)                     PlantDefinition (蘑菇方块)
+  │  ┌──────────────────────┐                  ┌──────────────────────────┐
+  │  │ maxAgeTicks          │  控制: 大树/蘑菇  │ maxAgeTicks              │
+  │  │ (如 oak_log →        │  成熟后能活多久    │ (如 red_mushroom_block → │
+  │  │  576000 ticks / 8h)  │                  │  288000 ticks / 4h)      │
+  │  └──────────────────────┘                  └──────────────────────────┘
+  │
+  ▼
+AGING → DEAD → 树叶先腐烂 → 原木后消失
+```
+
+**关键区别**：
+- `ticksPerStage`（在 `MorphologyTreeProfile` / `MushroomGrowthProfile` 中）只控制**生长动画**的节奏，是树木生长子系统特有的
+- `maxAgeTicks`（在 `PlantDefinition` 中）控制每个阶段的**寿命上限**，是所有植物共用的生命周期框架
+- 树苗/小蘑菇有一个 `maxAgeTicks`（到期未生长则死亡），成熟后换了一个新的 `maxAgeTicks`（原木/蘑菇方块条目）
+- 两个条目的 `plant_id` 不同：如 `oak_sapling` → `oak_log`，`red_mushroom` → `red_mushroom_block`
+- 生长完成时 `onGrowthComplete()` 从 `PlantRegistry` 查找原木/蘑菇方块的 `PlantDefinition` 获取新寿命
+
 ## 当前相关文件
 
 ```
@@ -151,8 +198,8 @@ plant/
 ├── VegetationObservation.java        # 观察结果 record
 ├── VegetationTransformation.java     # 转换描述 record
 ├── VegetationVisualState.java        # 视觉快照 record
-├── VegetationCategory.java           # 分类枚举
 ├── VegetationLifecycleStage.java     # 生命周期阶段枚举
+├── TreeStructure.java                # 树的多块结构数据 record
 ├── SimplePlantAdapter.java           # 小型植物适配器
 ├── SaplingAdapter.java               # 树苗适配器
 └── TreeStructureAdapter.java         # 成熟树适配器

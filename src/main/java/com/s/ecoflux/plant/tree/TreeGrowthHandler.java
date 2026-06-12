@@ -23,17 +23,9 @@ import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.init.ModChunkEvents;
 import com.s.ecoflux.plant.TreeStructure;
 import com.s.ecoflux.plant.TreeStructureAdapter;
-import com.s.ecoflux.plant.tree.profiles.AcaciaGrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.BirchGrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.BrownMushroomGrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.CherryGrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.DarkOakGrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.Jungle1x1GrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.JungleGrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.MangroveGrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.OakGrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.RedMushroomGrowthProfile;
-import com.s.ecoflux.plant.tree.profiles.SpruceGrowthProfile;
+import com.s.ecoflux.plant.tree.morphology.MorphologyPresets;
+import com.s.ecoflux.plant.tree.profiles.MorphologyTreeProfile;
+import com.s.ecoflux.plant.tree.profiles.MushroomGrowthProfile;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -57,25 +49,43 @@ public final class TreeGrowthHandler {
     private static final Map<ResourceLocation, TreeGrowthProfile> PROFILES = new HashMap<>();
 
     static {
-        PROFILES.put(id("oak"), OakGrowthProfile.INSTANCE);
-        PROFILES.put(id("oak_sapling"), OakGrowthProfile.INSTANCE);
-        PROFILES.put(id("birch"), BirchGrowthProfile.INSTANCE);
-        PROFILES.put(id("birch_sapling"), BirchGrowthProfile.INSTANCE);
-        PROFILES.put(id("spruce"), SpruceGrowthProfile.INSTANCE);
-        PROFILES.put(id("spruce_sapling"), SpruceGrowthProfile.INSTANCE);
-        PROFILES.put(id("jungle"), JungleGrowthProfile.INSTANCE);
-        PROFILES.put(id("jungle_sapling"), JungleGrowthProfile.INSTANCE);
-        PROFILES.put(id("dark_oak"), DarkOakGrowthProfile.INSTANCE);
-        PROFILES.put(id("dark_oak_sapling"), DarkOakGrowthProfile.INSTANCE);
-        PROFILES.put(id("acacia"), AcaciaGrowthProfile.INSTANCE);
-        PROFILES.put(id("acacia_sapling"), AcaciaGrowthProfile.INSTANCE);
-        PROFILES.put(id("jungle_1x1"), Jungle1x1GrowthProfile.INSTANCE);
-        PROFILES.put(id("cherry"), CherryGrowthProfile.INSTANCE);
-        PROFILES.put(id("cherry_sapling"), CherryGrowthProfile.INSTANCE);
-        PROFILES.put(id("mangrove"), MangroveGrowthProfile.INSTANCE);
-        PROFILES.put(id("mangrove_propagule"), MangroveGrowthProfile.INSTANCE);
-        PROFILES.put(id("brown_mushroom"), BrownMushroomGrowthProfile.INSTANCE);
-        PROFILES.put(id("red_mushroom"), RedMushroomGrowthProfile.INSTANCE);
+        reg(new MorphologyTreeProfile(id("oak"), 3600, Blocks.OAK_LOG, Blocks.OAK_LEAVES, false,
+                MorphologyPresets.oak(), MorphologyTreeProfile.SINGLE_TRUNK, null));
+        reg(new MorphologyTreeProfile(id("birch"), 2400, Blocks.BIRCH_LOG, Blocks.BIRCH_LEAVES, false,
+                MorphologyPresets.birch(), MorphologyTreeProfile.SINGLE_TRUNK, null));
+        reg(new MorphologyTreeProfile(id("spruce"), 4800, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, false,
+                MorphologyPresets.spruce(), MorphologyTreeProfile.SINGLE_TRUNK, null));
+        reg(new MorphologyTreeProfile(id("cherry"), 3600, Blocks.CHERRY_LOG, Blocks.CHERRY_LEAVES, false,
+                MorphologyPresets.cherry(), MorphologyTreeProfile.SINGLE_TRUNK, null));
+        reg(new MorphologyTreeProfile(id("jungle_1x1"), 4200, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, false,
+                MorphologyPresets.jungle1x1(), MorphologyTreeProfile.SINGLE_TRUNK, null));
+        reg(new MorphologyTreeProfile(id("acacia"), 3600, Blocks.ACACIA_LOG, Blocks.ACACIA_LEAVES, false,
+                MorphologyPresets.acacia(), MorphologyTreeProfile.ACACIA_3X3, null));
+        reg(new MorphologyTreeProfile(id("mangrove"), 3200, Blocks.MANGROVE_LOG, Blocks.MANGROVE_LEAVES, false,
+                MorphologyPresets.mangrove(), MorphologyTreeProfile.SINGLE_TRUNK,
+                MorphologyTreeProfile::placePropRoots));
+
+        reg(new MorphologyTreeProfile(id("jungle"), 4800, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, true,
+                MorphologyPresets.jungle(), MorphologyTreeProfile.TRUNK_2X2, null));
+        reg(new MorphologyTreeProfile(id("dark_oak"), 3600, Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_LEAVES, true,
+                MorphologyPresets.darkOak(), MorphologyTreeProfile.TRUNK_2X2, null));
+
+        reg(new MushroomGrowthProfile(id("brown_mushroom"), 4, 7, 2400,
+                Blocks.BROWN_MUSHROOM_BLOCK, MushroomGrowthProfile.MushroomCapStyle.FLAT));
+        reg(new MushroomGrowthProfile(id("red_mushroom"), 3, 7, 2400,
+                Blocks.RED_MUSHROOM_BLOCK, MushroomGrowthProfile.MushroomCapStyle.DOMED));
+
+        // Mangrove propagule is a distinct block from mangrove sapling
+        PROFILES.put(id("mangrove_propagule"), PROFILES.get(id("mangrove")));
+    }
+
+    private static void reg(TreeGrowthProfile profile) {
+        ResourceLocation type = profile.treeType();
+        PROFILES.put(type, profile);
+        String path = type.getPath();
+        if (!path.endsWith("_sapling")) {
+            PROFILES.put(id(path + "_sapling"), profile);
+        }
     }
 
     private static ResourceLocation id(String path) {
@@ -159,10 +169,6 @@ public final class TreeGrowthHandler {
                 sessionPos, mushroomId, height, stages);
     }
 
-    @Nullable
-    public TreeGrowthSession getSession(BlockPos pos) {
-        return null; // Session lookup must go through chunk data now
-    }
 
     @Nullable
     public TreeGrowthSession findSessionForSapling(ServerLevel level, BlockPos pos) {
@@ -375,13 +381,20 @@ public final class TreeGrowthHandler {
                 session.placedLogs().stream().mapToLong(BlockPos::asLong).toArray(),
                 session.placedLeaves().stream().mapToLong(BlockPos::asLong).toArray());
 
+        net.minecraft.resources.ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(basePos).getBlock());
+        com.s.ecoflux.config.PlantDefinition treeDef = com.s.ecoflux.config.PlantRegistry.INSTANCE.getDefinition(blockId)
+                .orElseGet(() -> {
+                    EcofluxConstants.LOGGER.warn("[Ecoflux] No PlantDefinition for mature tree block {}, using fallback", blockId);
+                    return new com.s.ecoflux.config.PlantDefinition(blockId, 4, 288000L, com.s.ecoflux.config.PlantSpawnRules.EMPTY);
+                });
         ActiveVegetationRecord treeRecord = TreeStructureAdapter.INSTANCE.captureBirth(
                 level,
                 basePos,
                 level.getBlockState(basePos),
                 level.getGameTime(),
                 chunkData.getCurrentBiome().map(key -> key.location()),
-                chunkData.getActivePathId());
+                chunkData.getActivePathId(),
+                treeDef);
         chunkData.trackVegetation(treeRecord.withTreeStructure(treeStructure));
 
         ModChunkEvents.markChunkHasTreeStructure(level, chunk.getPos().toLong());

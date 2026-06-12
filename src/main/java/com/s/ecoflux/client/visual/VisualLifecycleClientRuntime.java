@@ -30,7 +30,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.BlockTags;
+import com.s.ecoflux.config.EcofluxBlockTags;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -303,14 +303,10 @@ public final class VisualLifecycleClientRuntime {
     public static final int DEAD_BUSH_COLOR = 0xA78F63;
 
     public static int defaultColor(BlockAndTintGetter getter, BlockPos pos, BlockState state) {
-        if (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.FERN)
-                || state.is(Blocks.TALL_GRASS) || state.is(Blocks.LARGE_FERN)) {
+        if (state.is(EcofluxBlockTags.USES_GRASS_TINT)) {
             return BiomeColors.getAverageGrassColor(getter, pos);
         }
-        if (state.is(BlockTags.TALL_FLOWERS)) {
-            return BiomeColors.getAverageGrassColor(getter, pos);
-        }
-        if (state.is(BlockTags.SAPLINGS)) {
+        if (state.is(EcofluxBlockTags.USES_FOLIAGE_TINT)) {
             return BiomeColors.getAverageFoliageColor(getter, pos);
         }
         if (state.is(Blocks.DEAD_BUSH)) {

@@ -46,7 +46,9 @@
       "Bash(./gradlew createRunData)",
       "Bash(./gradlew prepareClientRun)",
       "Bash(./gradlew compileJava --no-daemon)",
-      "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.server.level.ServerChunkCache)"
+      "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.server.level.ServerChunkCache)",
+      "Bash(git *)",
+      "Bash(python3 *)"
     ]
   }
 }

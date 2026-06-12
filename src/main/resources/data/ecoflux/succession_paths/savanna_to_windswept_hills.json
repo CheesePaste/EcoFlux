@@ -30,52 +30,15 @@
   "plants": [
     {
       "plant_id": "minecraft:short_grass",
-      "category": "ground_cover",
-      "weight": 8,
-      "point_value": 1,
-      "max_age_ticks": 48000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 5,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt",
-          "minecraft:stone"
-        ]
-      }
+      "weight": 8
     },
     {
       "plant_id": "minecraft:poppy",
-      "category": "flower",
-      "weight": 3,
-      "point_value": 2,
-      "max_age_ticks": 60000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 2,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt"
-        ]
-      }
+      "weight": 3
     },
     {
       "plant_id": "minecraft:spruce_sapling",
-      "category": "tree",
-      "weight": 2,
-      "point_value": 4,
-      "max_age_ticks": 168000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 2,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt"
-        ]
-      }
+      "weight": 2
     }
   ]
 }

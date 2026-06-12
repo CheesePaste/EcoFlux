@@ -16,12 +16,14 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.PlantRegistry;
 import com.s.ecoflux.config.SuccessionConfigRegistry;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.plant.VegetationTracker;
-import com.s.ecoflux.prototype.PrototypeChunkController;
+import com.s.ecoflux.test.prototype.PrototypeChunkController;
+import com.s.ecoflux.test.performance.PerformanceProfiler;
 import com.s.ecoflux.succession.SuccessionService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -47,7 +49,8 @@ public final class ModCommands {
                 .then(registerAutoCommands())
                 .then(registerSpeedCommand())
                 .then(registerLifecycleCommands())
-                .then(registerPrototypeCommands()));
+                .then(registerPrototypeCommands())
+                .then(registerProfileCommands()));
     }
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerAutoCommands() {
@@ -136,7 +139,11 @@ public final class ModCommands {
                 yield pathOpt.map(path -> {
                     int totalWeight = path.plants().stream().mapToInt(p -> p.weight()).sum();
                     String list = path.plants().stream()
-                            .map(p -> p.plantId() + "(w=" + p.weight() + ",pts=" + p.pointValue() + ")")
+                            .map(p -> {
+                                int pts = PlantRegistry.INSTANCE.getDefinition(p.plantId())
+                                        .map(def -> def.pointValue()).orElse(0);
+                                return p.plantId() + "(w=" + p.weight() + ",pts=" + pts + ")";
+                            })
                             .reduce((a, b) -> a + " " + b)
                             .orElse("无");
                     return "路径=" + path.pathId() + " 植物总数=" + path.plants().size()
@@ -166,12 +173,18 @@ public final class ModCommands {
 
         String message = switch (action) {
             case INSPECT -> VegetationTracker.INSTANCE.inspect(level, pos);
-            case TRACK -> VegetationTracker.INSTANCE.trackAt(
-                    level,
-                    chunk,
-                    pos,
-                    chunkData.getCurrentBiome().map(key -> key.location()),
-                    chunkData.getActivePathId());
+            case TRACK -> {
+                net.minecraft.resources.ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
+                com.s.ecoflux.config.PlantDefinition plantDef = PlantRegistry.INSTANCE.getDefinition(blockId)
+                        .orElse(null);
+                yield VegetationTracker.INSTANCE.trackAt(
+                        level,
+                        chunk,
+                        pos,
+                        chunkData.getCurrentBiome().map(key -> key.location()),
+                        chunkData.getActivePathId(),
+                        plantDef);
+            }
             case OBSERVE -> VegetationTracker.INSTANCE.observeTracked(level, chunk, pos);
             case UNTRACK -> VegetationTracker.INSTANCE.untrack(chunk, pos);
             case KILL -> VegetationTracker.INSTANCE.forceKill(level, chunk, pos);
@@ -266,6 +279,53 @@ public final class ModCommands {
                 () -> Component.literal(
                         "Ecoflux 当前演替速度倍率为 " + String.format("%.1f", SuccessionSpeedConfig.getSpeedMultiplier()) + "x。"),
                 false);
+        return 1;
+    }
+
+    // ── Profile commands ─────────────────────────────────────────────────
+
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerProfileCommands() {
+        return Commands.literal("profile")
+                .then(Commands.literal("on").executes(context -> profileOn(context.getSource())))
+                .then(Commands.literal("off").executes(context -> profileOff(context.getSource())))
+                .then(Commands.literal("status").executes(context -> profileStatus(context.getSource())))
+                .then(Commands.literal("reset").executes(context -> profileReset(context.getSource())))
+                .then(Commands.literal("report")
+                        .executes(context -> profileReport(context.getSource(), 15))
+                        .then(Commands.argument("topN", IntegerArgumentType.integer(1, 50))
+                                .executes(context -> profileReport(
+                                        context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "topN")))));
+    }
+
+    private static int profileOn(CommandSourceStack source) {
+        PerformanceProfiler.INSTANCE.enable();
+        source.sendSuccess(() -> Component.literal("性能追踪已启用。使用 /ecoflux profile report 查看报告。"), true);
+        return 1;
+    }
+
+    private static int profileOff(CommandSourceStack source) {
+        PerformanceProfiler.INSTANCE.disable();
+        PerformanceProfiler.INSTANCE.reset();
+        source.sendSuccess(() -> Component.literal("性能追踪已禁用，数据已清空。"), true);
+        return 1;
+    }
+
+    private static int profileStatus(CommandSourceStack source) {
+        source.sendSuccess(() -> Component.literal(PerformanceProfiler.INSTANCE.status()), false);
+        return 1;
+    }
+
+    private static int profileReset(CommandSourceStack source) {
+        PerformanceProfiler.INSTANCE.reset();
+        source.sendSuccess(() -> Component.literal("性能追踪数据已清空。"), true);
+        return 1;
+    }
+
+    private static int profileReport(CommandSourceStack source, int topN) {
+        String report = PerformanceProfiler.INSTANCE.report(topN);
+        source.sendSuccess(() -> Component.literal(report), false);
+        com.s.ecoflux.EcofluxConstants.LOGGER.info(report);
         return 1;
     }
 

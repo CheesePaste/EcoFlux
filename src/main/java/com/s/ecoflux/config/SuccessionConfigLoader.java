@@ -109,26 +109,15 @@ public final class SuccessionConfigLoader extends SimpleJsonResourceReloadListen
                 GsonHelper.getAsDouble(chunkRulesObject, "negative_progress_step", 0.25D));
     }
 
-    private List<PlantDefinition> parsePlants(JsonArray plantArray) {
-        List<PlantDefinition> plants = new ArrayList<>();
+    private List<PathPlantEntry> parsePlants(JsonArray plantArray) {
+        List<PathPlantEntry> plants = new ArrayList<>();
         for (JsonElement element : plantArray) {
             JsonObject plantObject = GsonHelper.convertToJsonObject(element, "plant");
-            plants.add(new PlantDefinition(
+            plants.add(new PathPlantEntry(
                     parseId(plantObject, "plant_id"),
-                    GsonHelper.getAsString(plantObject, "category"),
-                    GsonHelper.getAsInt(plantObject, "weight"),
-                    GsonHelper.getAsInt(plantObject, "point_value"),
-                    GsonHelper.getAsLong(plantObject, "max_age_ticks"),
-                    parseSpawnRules(GsonHelper.getAsJsonObject(plantObject, "spawn_rules"))));
+                    GsonHelper.getAsInt(plantObject, "weight")));
         }
         return plants;
-    }
-
-    private PlantSpawnRules parseSpawnRules(JsonObject spawnRulesObject) {
-        return new PlantSpawnRules(
-                GsonHelper.getAsBoolean(spawnRulesObject, "require_sky", true),
-                GsonHelper.getAsInt(spawnRulesObject, "max_local_density"),
-                parseIdList(GsonHelper.getAsJsonArray(spawnRulesObject, "allowed_base_blocks"), "allowed_base_blocks"));
     }
 
     private FloatRange parseFloatRange(JsonObject rangeObject, String fieldName) {

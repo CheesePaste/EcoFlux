@@ -1,30 +1,10 @@
 package com.s.ecoflux.plant;
 
-/**
- * {@link VegetationTypeAdapter} for tree saplings and propagules (e.g.
- * mangrove).
- *
- * <p>Structure: singleton recognizing any block that is an {@code instanceof}
- * {@link net.minecraft.world.level.block.SaplingBlock} or in the
- * {@code SAPLINGS} block tag. Implements the BORN/JUVENILE/GROWING lifecycle
- * and overrides {@link #detectTransformation} to detect when the sapling has
- * been replaced by a log or leaf block — at which point it emits a
- * {@link VegetationTransformation} targeting
- * {@link TreeStructureAdapter#TYPE_ID}, effectively promoting the tracked
- * record from sapling to mature tree.
- *
- * <p>Role in Ecoflux: bridges the gap between block-level sapling growth
- * (intercepted by {@code SaplingBlockMixin} and routed through
- * {@link com.s.ecoflux.plant.tree.TreeGrowthHandler}) and the succession
- * tracker. When the morphology system finishes growing a tree, the sapling
- * block is replaced with wood/leaves; this adapter detects that change and
- * transitions the vegetation record to the tree category so it continues
- * contributing points as mature tree biomass.
- */
-
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.config.EcofluxServerConfig;
+import com.s.ecoflux.config.PlantDefinition;
+import com.s.ecoflux.config.PlantRegistry;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
@@ -40,17 +20,11 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
     public static final ResourceLocation TYPE_ID = EcofluxConstants.id("sapling");
     private static final long DECAY_TICKS = 6000L;
 
-    private SaplingAdapter() {
-    }
+    private SaplingAdapter() {}
 
     @Override
     public ResourceLocation typeId() {
         return TYPE_ID;
-    }
-
-    @Override
-    public VegetationCategory category() {
-        return VegetationCategory.SAPLING;
     }
 
     @Override
@@ -65,19 +39,21 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
             BlockState state,
             long gameTime,
             Optional<ResourceLocation> sourceBiomeId,
-            Optional<ResourceLocation> sourcePathId) {
+            Optional<ResourceLocation> sourcePathId,
+            PlantDefinition plantDefinition) {
+        int basePointValue = plantDefinition.pointValue();
+        long maxAgeTicks = plantDefinition.maxAgeTicks();
         if (!EcofluxServerConfig.gradualPlantGrowth()) {
             return new ActiveVegetationRecord(
                     BuiltInRegistries.BLOCK.getKey(state.getBlock()),
                     typeId(),
-                    VegetationCategory.SAPLING,
                     pos.immutable(),
                     VegetationLifecycleStage.GROWING,
                     gameTime,
                     gameTime,
-                    gameTime + 144000L,
-                    2,
-                    2,
+                    gameTime + maxAgeTicks,
+                    basePointValue,
+                    basePointValue,
                     sourceBiomeId.orElse(null),
                     sourcePathId.orElse(null),
                     null);
@@ -85,13 +61,12 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
         return new ActiveVegetationRecord(
                 BuiltInRegistries.BLOCK.getKey(state.getBlock()),
                 typeId(),
-                VegetationCategory.SAPLING,
                 pos.immutable(),
                 VegetationLifecycleStage.BORN,
                 gameTime,
                 gameTime,
-                gameTime + 144000L,
-                2,
+                gameTime + maxAgeTicks,
+                basePointValue,
                 1,
                 sourceBiomeId.orElse(null),
                 sourcePathId.orElse(null),
@@ -124,7 +99,7 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
             return new VegetationObservation(
                     true,
                     VegetationLifecycleStage.GROWING,
-                    2,
+                    record.basePointValue(),
                     false,
                     false,
                     Optional.empty(),
@@ -133,7 +108,7 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
 
         long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
         VegetationLifecycleStage stage = age < 1200L ? VegetationLifecycleStage.JUVENILE : VegetationLifecycleStage.GROWING;
-        int pointValue = age < 24000L ? 1 : 2;
+        int pointValue = age < 24000L ? 1 : record.basePointValue();
 
         long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
 
@@ -196,14 +171,18 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
 
         if (state.is(BlockTags.LOGS) || state.is(BlockTags.LEAVES)) {
             ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+            PlantDefinition treeDef = PlantRegistry.INSTANCE.getDefinition(blockId)
+                    .orElseGet(() -> {
+                        EcofluxConstants.LOGGER.warn("[Ecoflux] No PlantDefinition for mature tree block {}, using fallback", blockId);
+                        return new PlantDefinition(blockId, 4, 288000L, com.s.ecoflux.config.PlantSpawnRules.EMPTY);
+                    });
             return Optional.of(new VegetationTransformation(
                     blockId,
                     TreeStructureAdapter.TYPE_ID,
-                    VegetationCategory.TREE,
                     VegetationLifecycleStage.MATURE,
-                    4,
-                    5,
-                    gameTime + 288000L));
+                    treeDef.pointValue(),
+                    treeDef.pointValue() + 1,
+                    gameTime + treeDef.maxAgeTicks()));
         }
 
         return Optional.empty();

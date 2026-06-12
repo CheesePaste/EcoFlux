@@ -9,7 +9,7 @@
 | Phase 1 | ✅ 完成 | Mixin 拦截树苗生长 (`SaplingBlockMixin` + `MushroomBlockMixin`) |
 | Phase 2 | ✅ 完成 | 渐进生长会话 (`TreeGrowthSession` + `TreeGrowthHandler.tickAll()`) |
 | Phase 3 | ✅ 完成 | 多树种 profiles (9 树 + 2 蘑菇) |
-| Phase 4 | 🔄 进行中 | 树木死亡/腐烂 |
+| Phase 4 | ✅ 完成 | 树木死亡/腐烂 (2026-06-11) |
 | Phase 5 | 🔜 计划 | 演替系统整合 |
 | Phase 6 | 🔜 计划 | 客户端死亡视觉效果 |
 
@@ -20,8 +20,9 @@
 | `TreeGrowthHandler` | 全局单例，通过 `SuccessionChunkData` 管理生长会话 (NBT 持久化)，每 20 tick 驱动生长 |
 | `TreeGrowthSession` | 每棵树生长状态（位置、树种、阶段、高度），NBT 可序列化，含 transient skeleton |
 | `TreeGrowthProfile` | 接口：树种生长参数（高度范围、方块类型、阶段数、间距）+ `morphologyParams()` |
-| `AbstractTreeGrowthProfile` | 抽象基类：共享 `singleTrunkCanGrowStage()` 和 `placeMushroomStem()` |
-| `MorphologyPresets` | 6 种树的 `MorphologyParams` 工厂方法 |
+| `MorphologyTreeProfile` | 参数化 record 实现 `TreeGrowthProfile`，统一 9 种形态学树种。通过 `CanGrowStageStrategy`（SINGLE_TRUNK/TRUNK_2X2/ACACIA_3X3）和可选的 `GrowStageHook` 覆盖所有变体 |
+| `MushroomGrowthProfile` | 参数化 record 实现 `TreeGrowthProfile`，统一棕色/红色蘑菇。通过 `MushroomCapStyle`（FLAT/DOMED）区分冠形 |
+| `MorphologyPresets` | 9 种树的 `MorphologyParams` 工厂方法 |
 | `MorphologyParams` | 纯数据 record：高度、分枝、树冠参数 |
 | `CanopyEnvelope.CanopyConfig.fromMorphology()` | 静态工厂方法，简化 17 参数构造 |
 | `TreeShapeUtils` | 共享工具：位置确定性噪声、2x2 检测、枝干/原木放置 |
@@ -88,19 +89,21 @@ SaplingBlock.advanceTree() — 原版生长调用
 
 ## TreeGrowthProfile 实现
 
-| Profile | 树种 | 高度 | 阶段间隔 | 总耗时 | 形态特征 |
-|---------|------|------|---------|--------|---------|
-| `OakGrowthProfile` | 橡树 | 8-13 | 3600 tick | ~27 分 | 扁椭球冠，微倾斜，5-9 枝，底部 3 格清干 |
-| `BirchGrowthProfile` | 白桦 | 10-16 | 2400 tick | ~20 分 | 细高椭球冠，近乎垂直，0-3 短枝，底部 4 格清干 |
-| `SpruceGrowthProfile` | 云杉 | 13-22 | 4800 tick | ~48 分 | 锥形全高叶，垂直，12-20 水平枝，底部 3 格清干 |
-| `JungleGrowthProfile` | 丛林 | 15-22 | 4800 tick | ~64 分 | 2x2 干，大椭球+5 子冠，7-12 长枝，底部 4 格清干 |
-| `DarkOakGrowthProfile` | 深色橡树 | 9-14 | 3600 tick | ~30 分 | 2x2 干，扁圆柱密冠，6-10 枝，底部 3 格清干 |
-| `AcaciaGrowthProfile` | 金合欢 | 8-14 | 3600 tick | ~27 分 | 扁碟+散落簇，15-18° 倾斜，4-7 枝，底部 4 格清干 |
-| `Jungle1x1GrowthProfile` | 丛林 1×1 | 12-18 | 4200 tick | ~35 分 | 单干，聚簇椭球冠，5-9 枝 + 二级枝，4 子冠 |
-| `CherryGrowthProfile` | 樱花 | 8-14 | 3600 tick | ~27 分 | 宽椭球冠，4-8 枝辐散，粉色木/叶 |
-| `MangroveGrowthProfile` | 红树 | 6-10 | 3200 tick | ~20 分 | 圆椭球冠，3-6 枝 + 基座支柱根 |
-| `BrownMushroomGrowthProfile` | 棕色蘑菇 | - | - | - | 蘑菇形态 |
-| `RedMushroomGrowthProfile` | 红色蘑菇 | - | - | - | 蘑菇形态 |
+所有 profile 由 `MorphologyTreeProfile`（9 个树种）和 `MushroomGrowthProfile`（2 个蘑菇）两个参数化 record 统一构造，不再需要单独的 profile 类。
+
+| 树种 | 类型 | 高度 | 阶段间隔 | 总耗时 | 形态特征 |
+|------|------|------|---------|--------|---------|
+| 橡树 (oak) | MorphologyTreeProfile | 8-13 | 3600 tick | ~27 分 | 扁椭球冠，微倾斜，5-9 枝，底部 3 格清干 |
+| 白桦 (birch) | MorphologyTreeProfile | 10-16 | 2400 tick | ~20 分 | 细高椭球冠，近乎垂直，0-3 短枝，底部 4 格清干 |
+| 云杉 (spruce) | MorphologyTreeProfile | 13-22 | 4800 tick | ~48 分 | 锥形全高叶，垂直，12-20 水平枝，底部 3 格清干 |
+| 丛林 2×2 (jungle) | MorphologyTreeProfile | 15-22 | 4800 tick | ~64 分 | 2x2 干，大椭球+5 子冠，7-12 长枝，底部 4 格清干 |
+| 深色橡树 (dark_oak) | MorphologyTreeProfile | 9-14 | 3600 tick | ~30 分 | 2x2 干，扁圆柱密冠，6-10 枝，底部 3 格清干 |
+| 金合欢 (acacia) | MorphologyTreeProfile | 8-14 | 3600 tick | ~27 分 | 扁碟+散落簇，15-18° 倾斜，4-7 枝，底部 4 格清干 |
+| 丛林 1×1 (jungle_1x1) | MorphologyTreeProfile | 12-18 | 4200 tick | ~35 分 | 单干，聚簇椭球冠，5-9 枝 + 二级枝，4 子冠 |
+| 樱花 (cherry) | MorphologyTreeProfile | 8-14 | 3600 tick | ~27 分 | 宽椭球冠，4-8 枝辐散，粉色木/叶 |
+| 红树 (mangrove) | MorphologyTreeProfile | 6-10 | 3200 tick | ~20 分 | 圆椭球冠，3-6 枝 + 基座支柱根 (GrowStageHook) |
+| 棕色蘑菇 (brown_mushroom) | MushroomGrowthProfile | 4-7 | 2400 tick | - | 平顶蘑菇冠 (FLAT) |
+| 红色蘑菇 (red_mushroom) | MushroomGrowthProfile | 3-7 | 2400 tick | - | 穹顶蘑菇冠 (DOMED) |
 
 ## 形态学系统
 
@@ -166,15 +169,18 @@ TreeMorphology (集成入口)
 
 ### MorphologyParams
 
-每个树种的形态参数 record，工厂方法：
+每个树种的形态参数 record，工厂方法在 `morphology/MorphologyPresets` 中：
 
 ```java
-MorphologyParams.oak()     // 橡树
-MorphologyParams.birch()   // 白桦
-MorphologyParams.spruce()  // 云杉
-MorphologyParams.jungle()  // 丛林
-MorphologyParams.darkOak() // 深色橡树
-MorphologyParams.acacia()  // 金合欢
+MorphologyPresets.oak()      // 橡树
+MorphologyPresets.birch()    // 白桦
+MorphologyPresets.spruce()   // 云杉
+MorphologyPresets.jungle()   // 丛林 2×2
+MorphologyPresets.darkOak()  // 深色橡树
+MorphologyPresets.jungle1x1() // 丛林 1×1
+MorphologyPresets.cherry()   // 樱花
+MorphologyPresets.mangrove() // 红树
+MorphologyPresets.acacia()   // 金合欢
 ```
 
 ## Mixin 层
@@ -187,9 +193,10 @@ MorphologyParams.acacia()  // 金合欢
 
 ## 如何添加新树种
 
-1. 在 `plant/tree/profiles/` 创建 `XxxGrowthProfile.java` 继承 `AbstractTreeGrowthProfile`
-2. 实现必需方法：`treeType()`, `logBlock()`, `leavesBlock()`, `ticksPerStage()`, `is2x2()`, `morphologyParams()`, `canGrowStage()`
-3. 在 `MorphologyPresets` 中添加 `xxx()` 工厂方法，配置骨架参数和冠形
-4. 如需物种特有行为（如红树支柱根），可覆写 `growStage()` — 该方法在形态学阶段后调用
-5. 在 `TreeGrowthHandler` 的 `PROFILES` 中注册对应方块 ID
-6. 确保对应的 `SaplingAdapter` 或 `SimplePlantAdapter` 能匹配该树种的树苗/繁殖体方块
+1. 在 `MorphologyPresets` 中添加 `xxx()` 工厂方法，配置骨架参数和冠形
+2. 在 `TreeGrowthHandler` 的 `PROFILES` 中用 `reg()` 注册：
+   - 1×1 形态学树种：`reg(new MorphologyTreeProfile(id("xxx"), ticks, LOG, LEAVES, false, MorphologyPresets.xxx(), MorphologyTreeProfile.SINGLE_TRUNK, null))`
+   - 2×2 形态学树种：`reg(new MorphologyTreeProfile(id("xxx"), ticks, LOG, LEAVES, true, MorphologyPresets.xxx(), MorphologyTreeProfile.TRUNK_2X2, null))`
+   - 蘑菇：`reg(new MushroomGrowthProfile(id("xxx"), minH, maxH, ticks, CAP_BLOCK, MushroomCapStyle.FLAT))`
+   - 如需后处理钩子（如红树支柱根），传入 `GrowStageHook` 参数
+3. 确保对应的 `SaplingAdapter` 或 `SimplePlantAdapter` 能匹配该树种的树苗/繁殖体方块

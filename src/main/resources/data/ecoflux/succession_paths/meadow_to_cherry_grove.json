@@ -29,83 +29,23 @@
   "plants": [
     {
       "plant_id": "minecraft:cherry_sapling",
-      "category": "tree",
-      "weight": 5,
-      "point_value": 5,
-      "max_age_ticks": 180000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 5,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt"
-        ]
-      }
+      "weight": 5
     },
     {
       "plant_id": "minecraft:pink_tulip",
-      "category": "flower",
-      "weight": 5,
-      "point_value": 3,
-      "max_age_ticks": 72000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 5,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt"
-        ]
-      }
+      "weight": 5
     },
     {
       "plant_id": "minecraft:peony",
-      "category": "flower",
-      "weight": 4,
-      "point_value": 4,
-      "max_age_ticks": 120000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 3,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt"
-        ]
-      }
+      "weight": 4
     },
     {
       "plant_id": "minecraft:short_grass",
-      "category": "ground_cover",
-      "weight": 6,
-      "point_value": 1,
-      "max_age_ticks": 60000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 6,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt"
-        ]
-      }
+      "weight": 6
     },
     {
       "plant_id": "minecraft:birch_sapling",
-      "category": "tree",
-      "weight": 2,
-      "point_value": 4,
-      "max_age_ticks": 168000,
-      "spawn_rules": {
-        "placement": "surface",
-        "require_sky": true,
-        "max_local_density": 2,
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt"
-        ]
-      }
+      "weight": 2
     }
   ]
 }

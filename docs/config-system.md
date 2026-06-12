@@ -11,35 +11,28 @@
 | `SuccessionPathDefinition` | Record: 单条演替路径的完整定义 |
 | `ChunkRules` | Record: consuming、max_plants、queue_fill_factor、evaluation_interval_days |
 | `ClimateCondition` | Record: temperature/rainfall 范围匹配 |
-| `PlantDefinition` | Record: 植物配置条目 |
-| `PlantSpawnRules` | Record: 植物生成规则（权重、位置约束） |
+| `PlantDefinition` | Record: 中心植物注册表条目 (plant_id, pointValue, maxAgeTicks, spawnRules) |
+| `PlantRegistry` | 单例：中心植物注册表，`getDefinition(plantId)` 按 ID 查找 |
+| `PlantRegistryLoader` | `SimpleJsonResourceReloadListener`，加载 `plant_definitions/` 目录 |
+| `PathPlantEntry` | Record: 路径中的植物引用 (plant_id + weight)，不内联完整定义 |
+| `PlantSpawnRules` | Record: 生成规则 (requireSky, maxLocalDensity, allowedBaseBlocks) |
 | `FloatRange` / `IntRange` | Record: 范围工具类型（min/max） |
 
 ## JSON 文件位置
 
 ```
-src/main/resources/data/ecoflux/succession_paths/
-├── plains_to_forest.json
-├── plains_to_meadow.json
-├── plains_to_savanna.json
-├── meadow_to_forest.json
-├── meadow_to_cherry_grove.json
-├── forest_to_birch_forest.json
-├── forest_to_dark_forest.json
-├── forest_to_flower_forest.json
-├── forest_to_jungle.json
-├── forest_to_taiga.json
-├── birch_forest_to_old_growth_birch_forest.json
-├── taiga_to_old_growth_pine_taiga.json
-├── taiga_to_old_growth_spruce_taiga.json
-├── savanna_to_savanna_plateau.json
-├── savanna_to_windswept_hills.json
-├── jungle_to_bamboo_jungle.json
-├── swamp_to_mangrove_swamp.json
-├── river_to_swamp.json
-├── cherry_grove_to_forest.json
-├── windswept_hills_to_meadow.json
-└── (21 个文件)
+src/main/resources/data/ecoflux/
+├── succession_paths/              # 演替路径定义 (21 个文件)
+│   ├── plains_to_forest.json
+│   ├── plains_to_meadow.json
+│   └── ...
+├── plant_definitions/
+│   └── plants.json                # 中心植物注册表 (所有植物的完整定义)
+└── tags/blocks/
+    ├── simple_vegetation.json
+    ├── grass_cover.json
+    ├── uses_foliage_tint.json
+    └── uses_grass_tint.json
 ```
 
 ## SuccessionPathDefinition JSON Schema (v1)
@@ -47,43 +40,36 @@ src/main/resources/data/ecoflux/succession_paths/
 ```json
 {
   "schema_version": 1,
-  "path_id": "plains_to_forest",
-  "priority": 0,
-  "source_biomes": ["minecraft:plains"],
+  "path_id": "ecoflux:plains_to_forest",
+  "priority": 10,
+  "source_biomes": ["minecraft:plains", "minecraft:sunflower_plains"],
   "target_biome": "minecraft:forest",
   "fallback_biome": "minecraft:plains",
   "climate": {
-    "temperature": { "min": 0.3, "max": 1.0 },
-    "downfall": { "min": 0.1, "max": 0.8 }
+    "temperature": { "min": 0.6, "max": 0.95 },
+    "downfall": { "min": 0.4, "max": 0.9 }
   },
   "chunk_rules": {
-    "consuming": 15.0,
+    "consuming": 5,
     "max_plant_count": 8,
     "queue_fill_factor": 2.0,
+    "processing_interval_ticks": 100,
+    "evaluation_interval_ticks": 0,
+    "positive_progress_step": 0.25,
+    "negative_progress_step": 0.25,
     "evaluation_interval_days": {
-      "min": 3,
-      "max": 7
+      "min": 1,
+      "max": 1
     }
   },
   "plants": [
-    {
-      "plant_id": "minecraft:dandelion",
-      "point_value": 1.0,
-      "weight": 6,
-      "max_age_days": 5,
-      "category": "FLOWER",
-      "spawn_rules": {
-        "placement": "ON_GROUND",
-        "allowed_base_blocks": [
-          "minecraft:grass_block",
-          "minecraft:dirt"
-        ],
-        "max_nearby_same_type": 3
-      }
-    }
+    { "plant_id": "minecraft:short_grass", "weight": 8 },
+    { "plant_id": "minecraft:dandelion", "weight": 6 }
   ]
 }
 ```
+
+**重要变更 (2026-06-12):** 植物定义不再内联在路径 JSON 中。`plants[]` 只包含 `plant_id` + `weight` 引用，完整定义（`point_value`、`max_age_ticks`、`spawn_rules`）集中存放在 `plant_definitions/plants.json`，通过 `PlantRegistry` 按 ID 查找。
 
 ### 顶层字段
 
@@ -110,35 +96,75 @@ src/main/resources/data/ecoflux/succession_paths/
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `consuming` | double | 维持当前群系所需的植物点数 |
+| `consuming` | int | 维持当前群系所需的植物点数 |
 | `max_plant_count` | int | 区块内最大植物数 |
 | `queue_fill_factor` | double | 队列容量倍数。实际队列容量 = `max_plant_count × queue_fill_factor` |
-| `evaluation_interval_days.min` | int | 评估间隔最小值（游戏日） |
+| `processing_interval_ticks` | int | 处理间隔（tick），控制生成/修剪频率 |
+| `evaluation_interval_ticks` | int | 评估间隔（tick），为 0 时回退到 `evaluation_interval_days` |
+| `evaluation_interval_days.min` | int | 评估间隔最小值（游戏日），回退时使用 |
 | `evaluation_interval_days.max` | int | 评估间隔最大值（游戏日），**已解析但未使用** |
+| `positive_progress_step` | double | 正向演替每步进度增量 |
+| `negative_progress_step` | double | 负向退化每步进度减量 |
 
 ### plants[] 字段
 
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
-| `plant_id` | string | 是 | 方块 ID，如 `"minecraft:dandelion"` |
-| `point_value` | double | 是 | 植物提供的演替点数 |
+| `plant_id` | string | 是 | 植物 ID，对应 `PlantRegistry` 中的定义 |
 | `weight` | int | 是 | 队列随机权重 |
-| `max_age_days` | int | 是 | 植物最大寿命（游戏日） |
-| `category` | string | 否 | 植物分类，已存储但**不影响游戏逻辑** |
-| `spawn_rules` | object | 否 | 生成规则 |
+
+### PlantDefinition JSON 格式 (plant_definitions/plants.json)
+
+植物完整定义集中在中心注册表中：
+
+```json
+{
+  "schema_version": 1,
+  "plants": [
+    {
+      "plant_id": "minecraft:dandelion",
+      "point_value": 2,
+      "max_age_ticks": 72000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt"
+        ]
+      }
+    }
+  ]
+}
+```
+
+| 字段 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `plant_id` | string | 是 | 方块 ID |
+| `point_value` | int | 是 | 植物提供的演替点数 |
+| `max_age_ticks` | long | 是 | 植物最大寿命（游戏 tick） |
+| `spawn_rules` | object | 是 | 生成规则 |
 
 ### spawn_rules 字段
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `placement` | string | 放置方式，已解析但**未使用**（当前由 `findSpawnPos()` 硬编码） |
+| `placement` | string | 放置策略标识，已解析但 `findSpawnPos()` 未完全使用 |
+| `require_sky` | bool | 是否需要天空光照 |
+| `max_local_density` | int | 附近同类型植物密度上限 |
 | `allowed_base_blocks` | string[] | 允许种植的基底方块 |
-| `max_nearby_same_type` | int | 附近同类型植物上限 |
 
 ## 加载流程
 
 ```
 /reload 或首次加载
+  │
+  ├─→ PlantRegistryLoader (SimpleJsonResourceReloadListener)
+  │     ├─ 扫描 data/ecoflux/plant_definitions/*.json
+  │     ├─ Gson 反序列化 → List<PlantDefinition>
+  │     └─→ PlantRegistry.reload(definitions)
+  │           └─ 构建 ConcurrentHashMap 缓存
   │
   └─→ SuccessionConfigLoader (SimpleJsonResourceReloadListener)
         ├─ 扫描 data/ecoflux/succession_paths/*.json
@@ -170,14 +196,21 @@ src/main/resources/data/ecoflux/succession_paths/
 ## 已知限制
 
 - `evaluation_interval_days.max` 已解析但评估器未使用（仅用 `min`）
-- `spawn_rules.placement` 已解析但 `findSpawnPos()` 忽略
-- `plants[].category` 已存储但不影响游戏逻辑
+- `spawn_rules.placement` 已解析但 `findSpawnPos()` 未完全使用
 - 配置文件依赖 `/reload` 或重启才能更新（运行时无法动态添加）
 
 ## 如何添加新的演替路径
 
 1. 在 `src/main/resources/data/ecoflux/succession_paths/` 创建新 JSON 文件
-2. 填写必需字段：`schema_version: 1`、`path_id`（唯一）、`source_biomes`、`target_biome`、`chunk_rules`、`plants`
-3. 可选：添加 `climate` 限制、`fallback_biome` 退化目标、`priority` 优先级
+2. 填写必需字段：`schema_version: 1`、`path_id`（唯一）、`source_biomes`、`target_biome`、`chunk_rules`、`plants`（仅需 `plant_id` + `weight` 引用）
+3. 确保 `plants[]` 中引用的 `plant_id` 在 `plant_definitions/plants.json` 中有对应定义
+4. 可选：添加 `climate` 限制、`fallback_biome` 退化目标、`priority` 优先级
+5. 运行 `/reload` 或重启游戏
+6. 用 `/ecoflux prototype describe` 验证路径被正确加载
+
+## 如何添加新植物
+
+1. 在 `plant_definitions/plants.json` 的 `plants` 数组中添加条目，填写 `plant_id`、`point_value`、`max_age_ticks`、`spawn_rules`
+2. 在需要该植物的演替路径 JSON 的 `plants[]` 中添加 `{"plant_id": "minecraft:xxx", "weight": N}` 引用
+3. 确保有对应的 `VegetationTypeAdapter` 能匹配该植物方块
 4. 运行 `/reload` 或重启游戏
-5. 用 `/ecoflux prototype describe` 验证路径被正确加载

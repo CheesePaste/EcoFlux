@@ -5,7 +5,20 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MushroomBlockMixin",
-    "SaplingBlockMixin"
+    "SaplingBlockMixin",
+    "perf.SuccessionServiceMixin",
+    "perf.PlantSpawnerMixin",
+    "perf.ChunkSamplingHelperMixin",
+    "perf.VegetationTrackerMixin",
+    "perf.SuccessionEvaluatorMixin",
+    "perf.BiomeTransitionServiceMixin",
+    "perf.ModChunkEventsMixin",
+    "perf.TreeGrowthHandlerMixin",
+    "perf.TreeMorphologyMixin",
+    "perf.LeafFillerMixin",
+    "perf.SkeletonGeneratorMixin",
+    "perf.ModNetworkingMixin",
+    "perf.SuccessionChunkDataMixin"
   ],
   "client": [
     "client.BlockRenderDispatcherMixin"
