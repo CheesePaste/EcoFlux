@@ -100,7 +100,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ### Test utilities (`test/`)
 - `test/prototype/PrototypeChunkController` — Accelerated 10-second demo mode. Calls into `SuccessionService`, `PlantSpawner`, `BiomeTransitionService` for shared operations
-- `test/performance/PerformanceProfiler` — Lightweight span-based performance profiler. Named spans with aggregated statistics (count, total, min, max, avg). `/ecoflux profile on/off/report` for control
+- `test/performance/PerformanceProfiler` — Lightweight span-based performance profiler. Named spans with aggregated statistics (count, total, min, max, avg). `/ecoflux profile on/off/report` for control. Report also saved to `logs/ecoflux-profile.txt`
 
 ### Client visual layer (`client/visual/`)
 - `VisualLifecycleClientRuntime` — Client singleton receiving visual state from server

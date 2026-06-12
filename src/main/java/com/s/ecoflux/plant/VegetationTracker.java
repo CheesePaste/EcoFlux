@@ -2,6 +2,7 @@ package com.s.ecoflux.plant;
 
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.PlantDefinition;
 import com.s.ecoflux.config.PlantRegistry;
 import com.s.ecoflux.config.PlantSpawnRules;
@@ -129,11 +130,25 @@ public final class VegetationTracker {
             return "区块 " + chunk.getPos() + " 跳过观察：没有已追踪植被记录。";
         }
 
+        long gameTime = level.getGameTime();
+        int observeInterval = EcofluxServerConfig.observeIntervalTicks();
         List<BlockPos> snapshot = new ArrayList<>(chunkData.getVegetationRecords().keySet());
         int removed = 0;
         int transformed = 0;
         int updated = 0;
+        int skipped = 0;
         for (BlockPos pos : snapshot) {
+            ActiveVegetationRecord record = chunkData.getVegetationRecords().get(pos);
+            if (record != null) {
+                boolean needsImmediateObserve = record.lifeStage() == VegetationLifecycleStage.DEAD
+                        || record.lifeStage() == VegetationLifecycleStage.TRANSFORMED;
+                if (!needsImmediateObserve
+                        && gameTime - record.lastObservedGameTime() < observeInterval) {
+                    skipped++;
+                    continue;
+                }
+            }
+
             ObserveResult result = observeTrackedInternal(level, chunk, pos);
             if (result.removed()) {
                 removed++;
@@ -149,6 +164,7 @@ public final class VegetationTracker {
                 + "：更新=" + updated
                 + "，转化=" + transformed
                 + "，移除=" + removed
+                + "，跳过=" + skipped
                 + "，剩余追踪=" + chunkData.getVegetationRecords().size() + "。";
     }
 

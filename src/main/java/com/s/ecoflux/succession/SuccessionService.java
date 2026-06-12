@@ -17,6 +17,7 @@ package com.s.ecoflux.succession;
  */
 
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.SuccessionConfigRegistry;
 import com.s.ecoflux.config.SuccessionPathDefinition;
 import com.s.ecoflux.init.ModAttachments;
@@ -32,8 +33,6 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class SuccessionService {
-    private static final int PRUNE_INTERVAL_TICKS = 10;
-
     private SuccessionService() {
     }
 
@@ -126,9 +125,12 @@ public final class SuccessionService {
         long gameTime = level.getGameTime();
         float speed = SuccessionSpeedConfig.getSpeedMultiplier();
 
-        long effectivePruneInterval = (long) Math.max(1, PRUNE_INTERVAL_TICKS / speed);
-        if (gameTime % effectivePruneInterval != 0L
-                && gameTime % ((long) Math.max(1, path.chunkRules().processingIntervalTicks() / speed)) != 0L) {
+        long chunkHash = Math.abs(chunk.getPos().x * 31L + chunk.getPos().z);
+        long effectivePruneInterval = Math.max(5L, (long) (EcofluxServerConfig.pruneIntervalTicks() / speed));
+        long effectiveProcessingInterval = Math.max(5L, (long) (path.chunkRules().processingIntervalTicks() / speed));
+        boolean pruneElapsed = (gameTime + chunkHash) % effectivePruneInterval == 0L;
+        boolean processElapsed = (gameTime + chunkHash) % effectiveProcessingInterval == 0L;
+        if (!pruneElapsed && !processElapsed) {
             return "自动演替跳过区块 " + chunk.getPos() + "：等待处理间隔。";
         }
 

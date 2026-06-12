@@ -27,6 +27,10 @@ import com.s.ecoflux.test.performance.PerformanceProfiler;
 import com.s.ecoflux.succession.SuccessionService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -326,7 +330,20 @@ public final class ModCommands {
         String report = PerformanceProfiler.INSTANCE.report(topN);
         source.sendSuccess(() -> Component.literal(report), false);
         com.s.ecoflux.EcofluxConstants.LOGGER.info(report);
+        saveReportToFile(report, source);
         return 1;
+    }
+
+    private static void saveReportToFile(String report, CommandSourceStack source) {
+        try {
+            Path logsDir = source.getServer().getServerDirectory().resolve("logs");
+            Files.createDirectories(logsDir);
+            Path file = logsDir.resolve("ecoflux-profile.txt");
+            Files.writeString(file, report, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            com.s.ecoflux.EcofluxConstants.LOGGER.info("[Ecoflux] 性能报告已保存至: {}", file.toAbsolutePath());
+        } catch (IOException e) {
+            com.s.ecoflux.EcofluxConstants.LOGGER.warn("[Ecoflux] 无法保存性能报告到文件", e);
+        }
     }
 
     private enum PrototypeAction {

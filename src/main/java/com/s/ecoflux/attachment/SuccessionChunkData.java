@@ -66,6 +66,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private final Deque<PlantQueueEntry> plantQueue = new ArrayDeque<>();
     private final Map<BlockPos, ActiveVegetationRecord> vegetationRecords = new LinkedHashMap<>();
     private final Map<BlockPos, TreeGrowthSession> treeGrowthSessions = new LinkedHashMap<>();
+    private boolean needsVisualSync;
 
     public SuccessionChunkData(ChunkAccess owner) {
         this.owner = owner;
@@ -198,12 +199,14 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
 
     public void trackVegetation(ActiveVegetationRecord record) {
         vegetationRecords.put(record.position(), record);
+        needsVisualSync = true;
         markDirty();
     }
 
     public @Nullable ActiveVegetationRecord removeVegetation(BlockPos pos) {
         ActiveVegetationRecord removed = vegetationRecords.remove(pos);
         if (removed != null) {
+            needsVisualSync = true;
             markDirty();
         }
         return removed;
@@ -230,6 +233,18 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
 
     public boolean hasTreeGrowthSessions() {
         return !treeGrowthSessions.isEmpty();
+    }
+
+    public boolean isNeedsVisualSync() {
+        return needsVisualSync;
+    }
+
+    public void markNeedsVisualSync() {
+        this.needsVisualSync = true;
+    }
+
+    public void clearNeedsVisualSync() {
+        this.needsVisualSync = false;
     }
 
     public void clearRuntimeState() {
