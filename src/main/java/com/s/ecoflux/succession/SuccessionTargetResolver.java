@@ -57,20 +57,9 @@ public final class SuccessionTargetResolver {
             chunkData.setMaxPlantCount(path.chunkRules().maxPlantCount());
             chunkData.replacePlantQueue(PlantSpawner.buildWeightedQueue(
                     path, path.chunkRules().queueCapacity(), new java.util.Random(chunk.getPos().toLong())));
-            EcofluxConstants.LOGGER.debug(
-                    "已初始化 Ecoflux 区块 {}：路径={}，植物队列={} 个",
-                    chunk.getPos(),
-                    path.pathId(),
-                    chunkData.getPlantQueue().size());
             return;
         }
 
         chunkData.setPreviousBiome(null);
-        EcofluxConstants.LOGGER.debug(
-                "已初始化 Ecoflux 区块 {}：群系 {} 没有匹配的演替路径（温度={}，降水={}）",
-                chunk.getPos(),
-                climateSample.biomeKey().location(),
-                String.format("%.3f", climateSample.temperature()),
-                String.format("%.3f", climateSample.downfall()));
     }
 }

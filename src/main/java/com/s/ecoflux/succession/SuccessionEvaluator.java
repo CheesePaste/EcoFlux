@@ -44,7 +44,7 @@ public final class SuccessionEvaluator {
 
         if (!chunkData.hasContributingVegetation()) {
             chunkData.setLastEvaluationGameTime(gameTime);
-            EcofluxConstants.LOGGER.info(
+            EcofluxConstants.LOGGER.debug(
                     "演替评估：植被积分={}，消耗阈值={}，进度={}，状态=等待植被成长",
                     contributingPoints,
                     consumingValue,
@@ -62,7 +62,7 @@ public final class SuccessionEvaluator {
         chunkData.setLastEvaluationGameTime(gameTime);
         chunkData.setProgress(nextProgress);
 
-        EcofluxConstants.LOGGER.info(
+        EcofluxConstants.LOGGER.debug(
                 "演替评估：贡献积分={}，消耗阈值={}，贡献植被数={}，方向={}，进度={}",
                 contributingPoints,
                 consumingValue,

@@ -1,24 +1,11 @@
 package com.s.ecoflux.init;
 
-/**
- * Chunk load, unload, and tick event handlers for the succession lifecycle.
- *
- * <p>Structure: registers NeoForge event listeners. On chunk load it initializes
- * succession state and restores tree growth sessions. On level tick it drives
- * automatic succession stepping, accelerated prototype transitions, and tree
- * growth ticking.
- * <p>Role in Ecoflux: the main server-side tick driver; connects chunk events
- * to {@code SuccessionService}, {@code PrototypeChunkController}, and
- * {@code TreeGrowthHandler}.
- */
-
+import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
-import com.s.ecoflux.prototype.PrototypeChunkController;
 import com.s.ecoflux.succession.SuccessionService;
-import com.s.ecoflux.world.ChunkTrackingState;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -34,10 +21,14 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 public final class ModChunkEvents {
-    private static final Map<ResourceKey<Level>, Map<Long, Long>> ACCELERATED_CHUNKS = new HashMap<>();
-    private static final int ACCELERATED_TRANSITION_TICKS = 200;
     private static final int TREE_GROWTH_TICK_INTERVAL = 20;
-    private static volatile boolean automaticProcessingEnabled;
+    private static volatile boolean globalAutoEnabled;
+    /** All loaded chunks (for global-auto iteration). */
+    private static final Map<ResourceKey<Level>, LinkedHashSet<Long>> ALL_LOADED_CHUNKS = new HashMap<>();
+    /** Per-chunk auto set (prototype accelerate). */
+    private static final Map<ResourceKey<Level>, LinkedHashSet<Long>> AUTO_CHUNKS = new HashMap<>();
+    /** Chunks with tree-structure records that need lifecycle observation. */
+    private static final Map<ResourceKey<Level>, LinkedHashSet<Long>> TREE_OBSERVE_CHUNKS = new HashMap<>();
 
     private ModChunkEvents() {
     }
@@ -48,30 +39,30 @@ public final class ModChunkEvents {
         NeoForge.EVENT_BUS.addListener(ModChunkEvents::onLevelTick);
     }
 
-    public static boolean isAutomaticProcessingEnabled() {
-        return automaticProcessingEnabled;
+    // ── Global auto ──────────────────────────────────────────────────────
+
+    public static boolean isGlobalAutoEnabled() {
+        return globalAutoEnabled;
     }
 
-    public static void setAutomaticProcessingEnabled(boolean enabled) {
-        automaticProcessingEnabled = enabled;
+    public static void setGlobalAutoEnabled(boolean enabled) {
+        globalAutoEnabled = enabled;
     }
 
-    public static void syncChunkTracking(ServerLevel level, ChunkAccess chunk) {
-        SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-        long chunkPosLong = chunk.getPos().toLong();
-        if (SuccessionService.hasActivePath(chunkData)) {
-            ChunkTrackingState.addTrackedChunk(level.dimension(), chunkPosLong);
-        } else {
-            ChunkTrackingState.removeTrackedChunk(level.dimension(), chunkPosLong);
-        }
+    // ── Per-chunk auto ───────────────────────────────────────────────────
+
+    public static void enableAutoForChunk(ServerLevel level, LevelChunk chunk) {
+        AUTO_CHUNKS
+                .computeIfAbsent(level.dimension(), k -> new LinkedHashSet<>())
+                .add(chunk.getPos().toLong());
     }
 
-    public static void startAcceleratedTransition(ServerLevel level, LevelChunk chunk) {
-        ACCELERATED_CHUNKS
-                .computeIfAbsent(level.dimension(), ignored -> new HashMap<>())
-                .put(chunk.getPos().toLong(), level.getGameTime());
-        ChunkTrackingState.addTrackedChunk(level.dimension(), chunk.getPos().toLong());
+    public static boolean isAutoEnabledForChunk(ServerLevel level, LevelChunk chunk) {
+        LinkedHashSet<Long> chunks = AUTO_CHUNKS.get(level.dimension());
+        return chunks != null && chunks.contains(chunk.getPos().toLong());
     }
+
+    // ── Events ───────────────────────────────────────────────────────────
 
     private static void onChunkLoad(ChunkEvent.Load event) {
         if (!(event.getLevel() instanceof ServerLevel serverLevel)) {
@@ -84,11 +75,20 @@ public final class ModChunkEvents {
             SuccessionService.initializeChunk(chunk);
         }
 
+        ALL_LOADED_CHUNKS
+                .computeIfAbsent(serverLevel.dimension(), k -> new LinkedHashSet<>())
+                .add(chunk.getPos().toLong());
+
         if (chunk instanceof LevelChunk levelChunk) {
             TreeGrowthHandler.INSTANCE.onChunkLoad(serverLevel, levelChunk);
         }
+    }
 
-        syncChunkTracking(serverLevel, chunk);
+    /** Called by TreeGrowthHandler when a tree finishes growing. */
+    public static void markChunkHasTreeStructure(ServerLevel level, long chunkPos) {
+        TREE_OBSERVE_CHUNKS
+                .computeIfAbsent(level.dimension(), k -> new LinkedHashSet<>())
+                .add(chunkPos);
     }
 
     private static void onChunkUnload(ChunkEvent.Unload event) {
@@ -96,14 +96,10 @@ public final class ModChunkEvents {
             return;
         }
 
-        ChunkTrackingState.removeTrackedChunk(serverLevel.dimension(), event.getChunk().getPos().toLong());
-        Map<Long, Long> acceleratedChunks = ACCELERATED_CHUNKS.get(serverLevel.dimension());
-        if (acceleratedChunks != null) {
-            acceleratedChunks.remove(event.getChunk().getPos().toLong());
-            if (acceleratedChunks.isEmpty()) {
-                ACCELERATED_CHUNKS.remove(serverLevel.dimension());
-            }
-        }
+        long pos = event.getChunk().getPos().toLong();
+        removeFrom(ALL_LOADED_CHUNKS, serverLevel.dimension(), pos);
+        removeFrom(AUTO_CHUNKS, serverLevel.dimension(), pos);
+        removeFrom(TREE_OBSERVE_CHUNKS, serverLevel.dimension(), pos);
     }
 
     private static void onLevelTick(LevelTickEvent.Post event) {
@@ -111,77 +107,54 @@ public final class ModChunkEvents {
             return;
         }
 
-        processAcceleratedChunks(serverLevel);
         processTreeGrowth(serverLevel);
-        if (!automaticProcessingEnabled) {
-            return;
-        }
 
-        LinkedHashSet<Long> trackedChunks = ChunkTrackingState.getTrackedChunks(serverLevel.dimension());
-        if (trackedChunks == null || trackedChunks.isEmpty()) {
-            return;
-        }
-
-        Map<Long, Long> acceleratedChunks = ACCELERATED_CHUNKS.get(serverLevel.dimension());
-        List<Long> snapshot = new ArrayList<>(trackedChunks);
-        for (long chunkPosLong : snapshot) {
-            if (acceleratedChunks != null && acceleratedChunks.containsKey(chunkPosLong)) {
-                continue;
+        // Per-chunk auto
+        LinkedHashSet<Long> autoChunks = AUTO_CHUNKS.get(serverLevel.dimension());
+        if (autoChunks != null && !autoChunks.isEmpty()) {
+            processChunkSet(serverLevel, autoChunks);
+            if (autoChunks.isEmpty()) {
+                AUTO_CHUNKS.remove(serverLevel.dimension());
             }
+        }
 
-            LevelChunk chunk = serverLevel.getChunkSource().getChunkNow(
+        // Global auto — iterate all loaded chunks
+        if (globalAutoEnabled) {
+            LinkedHashSet<Long> allChunks = ALL_LOADED_CHUNKS.get(serverLevel.dimension());
+            if (allChunks != null && !allChunks.isEmpty()) {
+                processChunkSet(serverLevel, allChunks);
+                if (allChunks.isEmpty()) {
+                    ALL_LOADED_CHUNKS.remove(serverLevel.dimension());
+                }
+            }
+        }
+    }
+
+    private static void processChunkSet(ServerLevel level, LinkedHashSet<Long> liveSet) {
+        List<Long> snapshot = new ArrayList<>(liveSet);
+        for (long chunkPosLong : snapshot) {
+            LevelChunk chunk = level.getChunkSource().getChunkNow(
                     net.minecraft.world.level.ChunkPos.getX(chunkPosLong),
                     net.minecraft.world.level.ChunkPos.getZ(chunkPosLong));
             if (chunk == null) {
-                ChunkTrackingState.removeTrackedChunk(serverLevel.dimension(), chunkPosLong);
+                liveSet.remove(chunkPosLong);
                 continue;
             }
 
             SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
             if (!SuccessionService.hasActivePath(chunkData)) {
-                ChunkTrackingState.removeTrackedChunk(serverLevel.dimension(), chunkPosLong);
+                liveSet.remove(chunkPosLong);
                 continue;
             }
 
-            SuccessionService.processChunkTick(serverLevel, chunk);
+            SuccessionService.processChunkTick(level, chunk);
             if (!SuccessionService.hasActivePath(chunkData)) {
-                ChunkTrackingState.removeTrackedChunk(serverLevel.dimension(), chunkPosLong);
+                liveSet.remove(chunkPosLong);
             }
         }
     }
 
-    private static void processAcceleratedChunks(ServerLevel level) {
-        Map<Long, Long> acceleratedChunks = ACCELERATED_CHUNKS.get(level.dimension());
-        if (acceleratedChunks == null || acceleratedChunks.isEmpty()) {
-            return;
-        }
-
-        List<Map.Entry<Long, Long>> snapshot = new ArrayList<>(acceleratedChunks.entrySet());
-        for (Map.Entry<Long, Long> entry : snapshot) {
-            long chunkPosLong = entry.getKey();
-            LevelChunk chunk = level.getChunkSource().getChunkNow(
-                    net.minecraft.world.level.ChunkPos.getX(chunkPosLong),
-                    net.minecraft.world.level.ChunkPos.getZ(chunkPosLong));
-            if (chunk == null) {
-                acceleratedChunks.remove(chunkPosLong);
-                continue;
-            }
-
-            boolean done = PrototypeChunkController.processAcceleratedTick(
-                    level,
-                    chunk,
-                    entry.getValue(),
-                    ACCELERATED_TRANSITION_TICKS);
-            if (done) {
-                acceleratedChunks.remove(chunkPosLong);
-                syncChunkTracking(level, chunk);
-            }
-        }
-
-        if (acceleratedChunks.isEmpty()) {
-            ACCELERATED_CHUNKS.remove(level.dimension());
-        }
-    }
+    // ── Tree growth ──────────────────────────────────────────────────────
 
     private static void processTreeGrowth(ServerLevel level) {
         if (!EcofluxServerConfig.gradualTreeGrowth()) {
@@ -192,5 +165,47 @@ public final class ModChunkEvents {
             return;
         }
         TreeGrowthHandler.INSTANCE.tickAll(level);
+
+        // Observe tree-structure records for aging/death, independent of auto mode
+        LinkedHashSet<Long> treeChunks = TREE_OBSERVE_CHUNKS.get(level.dimension());
+        if (treeChunks != null && !treeChunks.isEmpty()) {
+            List<Long> treeSnapshot = new ArrayList<>(treeChunks);
+            for (long chunkPosLong : treeSnapshot) {
+                LevelChunk chunk = level.getChunkSource().getChunkNow(
+                        net.minecraft.world.level.ChunkPos.getX(chunkPosLong),
+                        net.minecraft.world.level.ChunkPos.getZ(chunkPosLong));
+                if (chunk == null) {
+                    treeChunks.remove(chunkPosLong);
+                    continue;
+                }
+                SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
+                boolean hasTreeRecords = false;
+                for (ActiveVegetationRecord record : new ArrayList<>(chunkData.getVegetationRecords().values())) {
+                    if (com.s.ecoflux.plant.TreeStructureAdapter.TYPE_ID.equals(record.adapterType())) {
+                        hasTreeRecords = true;
+                        com.s.ecoflux.plant.VegetationTracker.INSTANCE.observeTracked(level, chunk, record.position());
+                    }
+                }
+                if (!hasTreeRecords) {
+                    treeChunks.remove(chunkPosLong);
+                }
+            }
+            if (treeChunks.isEmpty()) {
+                TREE_OBSERVE_CHUNKS.remove(level.dimension());
+            }
+        }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    private static void removeFrom(Map<ResourceKey<Level>, LinkedHashSet<Long>> map,
+                                   ResourceKey<Level> dim, long chunkPos) {
+        LinkedHashSet<Long> chunks = map.get(dim);
+        if (chunks != null) {
+            chunks.remove(chunkPos);
+            if (chunks.isEmpty()) {
+                map.remove(dim);
+            }
+        }
     }
 }

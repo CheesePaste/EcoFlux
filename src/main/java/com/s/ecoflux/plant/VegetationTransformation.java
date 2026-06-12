@@ -29,5 +29,6 @@ public record VegetationTransformation(
         VegetationCategory targetCategory,
         VegetationLifecycleStage targetStage,
         int targetBasePointValue,
-        int targetCurrentPointValue) {
+        int targetCurrentPointValue,
+        long targetExpireGameTime) {
 }

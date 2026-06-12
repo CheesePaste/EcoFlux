@@ -242,7 +242,8 @@ public final class VegetationTracker {
                     transformation.targetStage(),
                     transformation.targetBasePointValue(),
                     transformation.targetCurrentPointValue(),
-                    level.getGameTime());
+                    level.getGameTime(),
+                    transformation.targetExpireGameTime());
             chunkData.trackVegetation(transformedRecord);
             return new ObserveResult(
                     "已观察 " + pos + "：已转化为 " + transformation.targetVegetationId() + "。",

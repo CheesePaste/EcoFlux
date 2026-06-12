@@ -5,14 +5,13 @@ package com.s.ecoflux.init;
  *
  * <p>Structure: registers a {@code /ecoflux} command tree with subcommands for
  * prototype stepping ({@code init, status, spawn, evaluate, step, accelerate,
- * transition}), automatic processing ({@code auto on/off}), lifecycle inspection
- * ({@code lifecycle inspect/track/observe/untrack}), and speed control
+ * transition}), per-chunk auto processing ({@code auto on/off/status}), lifecycle
+ * inspection ({@code lifecycle inspect/track/observe/untrack}), and speed control
  * ({@code speed}).
  * <p>Role in Ecoflux: interactive debugging and manual control of the succession
  * pipeline for development and testing.
  */
 
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
@@ -45,17 +44,16 @@ public final class ModCommands {
     private static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("ecoflux")
                 .requires(source -> source.hasPermission(2))
-                .then(registerGlobalAutoCommands())
+                .then(registerAutoCommands())
                 .then(registerSpeedCommand())
-                .then(Commands.literal("accelerate").executes(context -> runAccelerate(context.getSource())))
                 .then(registerLifecycleCommands())
                 .then(registerPrototypeCommands()));
     }
 
-    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerGlobalAutoCommands() {
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerAutoCommands() {
         return Commands.literal("auto")
-                .then(Commands.literal("on").executes(context -> enableFullAuto(context.getSource())))
-                .then(Commands.literal("off").executes(context -> setAuto(context.getSource(), false)))
+                .then(Commands.literal("on").executes(context -> enableAuto(context.getSource())))
+                .then(Commands.literal("off").executes(context -> disableAuto(context.getSource())))
                 .then(Commands.literal("status").executes(context -> autoStatus(context.getSource())));
     }
 
@@ -83,8 +81,8 @@ public final class ModCommands {
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerPrototypeCommands() {
         return Commands.literal("prototype")
                 .then(Commands.literal("auto")
-                        .then(Commands.literal("on").executes(context -> setAuto(context.getSource(), true)))
-                        .then(Commands.literal("off").executes(context -> setAuto(context.getSource(), false)))
+                        .then(Commands.literal("on").executes(context -> enableAuto(context.getSource())))
+                        .then(Commands.literal("off").executes(context -> disableAuto(context.getSource())))
                         .then(Commands.literal("status").executes(context -> autoStatus(context.getSource()))))
                 .then(Commands.literal("init").executes(context -> runPrototype(context.getSource(), PrototypeAction.INIT)))
                 .then(Commands.literal("status").executes(context -> runPrototype(context.getSource(), PrototypeAction.STATUS)))
@@ -92,7 +90,7 @@ public final class ModCommands {
                 .then(Commands.literal("spawn").executes(context -> runPrototype(context.getSource(), PrototypeAction.SPAWN)))
                 .then(Commands.literal("evaluate").executes(context -> runPrototype(context.getSource(), PrototypeAction.EVALUATE)))
                 .then(Commands.literal("step").executes(context -> runPrototype(context.getSource(), PrototypeAction.STEP)))
-                .then(Commands.literal("accelerate").executes(context -> runPrototype(context.getSource(), PrototypeAction.ACCELERATE)))
+                .then(Commands.literal("accelerate").executes(context -> prototypeAccelerate(context.getSource())))
                 .then(Commands.literal("transition").executes(context -> runPrototype(context.getSource(), PrototypeAction.TRANSITION)))
                 .then(Commands.literal("queue").executes(context -> runPrototype(context.getSource(), PrototypeAction.QUEUE)))
                 .then(Commands.literal("plants").executes(context -> runPrototype(context.getSource(), PrototypeAction.PLANTS)))
@@ -120,7 +118,6 @@ public final class ModCommands {
         String message = switch (action) {
             case INIT -> {
                 SuccessionService.initializeChunk(chunk);
-                ModChunkEvents.syncChunkTracking(level, chunk);
                 yield "已重新初始化当前区块。 " + SuccessionService.describeChunk(chunk);
             }
             case STATUS -> SuccessionService.describeChunk(chunk);
@@ -128,14 +125,8 @@ public final class ModCommands {
             case SPAWN -> SuccessionService.spawnInChunk(level, chunk) + " " + SuccessionService.describeChunk(chunk);
             case EVALUATE -> SuccessionService.evaluateChunk(level, chunk) + " " + SuccessionService.describeChunk(chunk);
             case STEP -> SuccessionService.step(level, chunk) + " " + SuccessionService.describeChunk(chunk);
-            case ACCELERATE -> {
-                String result = PrototypeChunkController.accelerate(level, chunk);
-                ModChunkEvents.syncChunkTracking(level, chunk);
-                yield result + " " + SuccessionService.describeChunk(chunk);
-            }
             case TRANSITION -> {
                 String result = SuccessionService.forceTransition(level, chunk);
-                ModChunkEvents.syncChunkTracking(level, chunk);
                 yield result + " " + SuccessionService.describeChunk(chunk);
             }
             case QUEUE -> PlantSpawner.getQueueSummary(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA));
@@ -164,11 +155,6 @@ public final class ModCommands {
 
         source.sendSuccess(() -> Component.literal(message), false);
         return 1;
-    }
-
-    private static int runAccelerate(CommandSourceStack source)
-            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
-        return runPrototype(source, PrototypeAction.ACCELERATE);
     }
 
     private static int runLifecycle(CommandSourceStack source, LifecycleAction action, BlockPos pos)
@@ -219,20 +205,51 @@ public final class ModCommands {
         return 1;
     }
 
-    private static int setAuto(CommandSourceStack source, boolean enabled) {
-        ModChunkEvents.setAutomaticProcessingEnabled(enabled);
+    private static int enableAuto(CommandSourceStack source)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+        LevelChunk chunk = level.getChunkAt(player.blockPosition());
+
+        SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
+        if (chunkData.getCurrentBiome().isEmpty()) {
+            SuccessionService.initializeChunk(chunk);
+        }
+
+        ModChunkEvents.setGlobalAutoEnabled(true);
+        String bootstrap = String.join(" ",
+                SuccessionService.pruneChunk(level, chunk),
+                SuccessionService.spawnInChunk(level, chunk),
+                VegetationTracker.INSTANCE.observeChunk(level, chunk));
         source.sendSuccess(
-                () -> Component.literal("Ecoflux 原型自动演替已" + (enabled ? "开启" : "关闭") + "。"),
+                () -> Component.literal("Ecoflux 全局自动演替已开启。 " + bootstrap + " " + SuccessionService.describeChunk(chunk)),
+                true);
+        return 1;
+    }
+
+    private static int disableAuto(CommandSourceStack source) {
+        ModChunkEvents.setGlobalAutoEnabled(false);
+        source.sendSuccess(
+                () -> Component.literal("Ecoflux 全局自动演替已关闭。"),
                 true);
         return 1;
     }
 
     private static int autoStatus(CommandSourceStack source) {
+        boolean enabled = ModChunkEvents.isGlobalAutoEnabled();
         source.sendSuccess(
-                () -> Component.literal(
-                        "Ecoflux 原型自动演替当前"
-                                + (ModChunkEvents.isAutomaticProcessingEnabled() ? "已开启" : "已关闭") + "。"),
+                () -> Component.literal("Ecoflux 全局自动演替当前" + (enabled ? "已开启" : "已关闭") + "。"),
                 false);
+        return 1;
+    }
+
+    private static int prototypeAccelerate(CommandSourceStack source)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+        LevelChunk chunk = level.getChunkAt(player.blockPosition());
+        String result = PrototypeChunkController.accelerate(level, chunk);
+        source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
 
@@ -252,31 +269,6 @@ public final class ModCommands {
         return 1;
     }
 
-    private static int enableFullAuto(CommandSourceStack source)
-            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        ServerLevel level = player.serverLevel();
-        LevelChunk chunk = level.getChunkAt(player.blockPosition());
-        SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-
-        if (chunkData.getCurrentBiome().isEmpty()) {
-            SuccessionService.initializeChunk(chunk);
-        }
-
-        ModChunkEvents.syncChunkTracking(level, chunk);
-        ModChunkEvents.setAutomaticProcessingEnabled(true);
-        String bootstrap = String.join(
-                " ",
-                SuccessionService.pruneChunk(level, chunk),
-                SuccessionService.spawnInChunk(level, chunk),
-                VegetationTracker.INSTANCE.observeChunk(level, chunk),
-                "已跳过首次评估，以保留可见生长过程。");
-        source.sendSuccess(
-                () -> Component.literal("Ecoflux 完整自动演替已开启。 " + bootstrap + " " + SuccessionService.describeChunk(chunk)),
-                true);
-        return 1;
-    }
-
     private enum PrototypeAction {
         INIT,
         STATUS,
@@ -284,7 +276,6 @@ public final class ModCommands {
         SPAWN,
         EVALUATE,
         STEP,
-        ACCELERATE,
         TRANSITION,
         QUEUE,
         PLANTS,

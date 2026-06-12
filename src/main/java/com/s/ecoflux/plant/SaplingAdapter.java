@@ -135,20 +135,19 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
         VegetationLifecycleStage stage = age < 1200L ? VegetationLifecycleStage.JUVENILE : VegetationLifecycleStage.GROWING;
         int pointValue = age < 24000L ? 1 : 2;
 
-        if (gameTime >= record.expireGameTime() + DECAY_TICKS) {
+        long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
+
+        if (age >= totalLifetime + DECAY_TICKS && record.lifeStage() == VegetationLifecycleStage.DEAD) {
             return VegetationObservation.absent("树苗已死亡并腐烂。");
         }
-        if (gameTime >= record.expireGameTime()) {
+        if (age >= totalLifetime) {
+            logStageTransition(record, VegetationLifecycleStage.DEAD, age, totalLifetime);
             return new VegetationObservation(
-                    true,
-                    VegetationLifecycleStage.DEAD,
-                    0,
-                    false,
-                    false,
-                    Optional.empty(),
-                    "树苗已死亡。");
+                    true, VegetationLifecycleStage.DEAD, 0, false, false,
+                    Optional.empty(), "树苗已死亡。");
         }
 
+        logStageTransition(record, stage, age, totalLifetime);
         return new VegetationObservation(
                 true,
                 stage,
@@ -171,9 +170,18 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
             case GROWING -> new VegetationVisualState(VegetationLifecycleStage.GROWING, VegetationTypeAdapter.progress(age, 1200L, totalLifetime));
             case MATURE -> new VegetationVisualState(VegetationLifecycleStage.MATURE, 1.0F);
             case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, VegetationTypeAdapter.progress(age, 24000L, totalLifetime));
-            case DEAD -> new VegetationVisualState(VegetationLifecycleStage.DEAD, VegetationTypeAdapter.progress(gameTime, record.expireGameTime(), record.expireGameTime() + DECAY_TICKS));
+            case DEAD -> new VegetationVisualState(VegetationLifecycleStage.DEAD, VegetationTypeAdapter.progress(age, totalLifetime, totalLifetime + DECAY_TICKS));
             default -> new VegetationVisualState(record.lifeStage(), 1.0F);
         };
+    }
+
+    private static void logStageTransition(ActiveVegetationRecord record, VegetationLifecycleStage newStage,
+                                            long age, long totalLifetime) {
+        if (record.lifeStage() == newStage) return;
+        EcofluxConstants.LOGGER.error(
+                "树苗阶段变迁：{} → {}，位置={}, 缩放年龄={}/{}tick, 速度倍率={}x",
+                record.lifeStage(), newStage, record.position(), age, totalLifetime,
+                String.format("%.1f", SuccessionSpeedConfig.getSpeedMultiplier()));
     }
 
     @Override
@@ -194,7 +202,8 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
                     VegetationCategory.TREE,
                     VegetationLifecycleStage.MATURE,
                     4,
-                    5));
+                    5,
+                    gameTime + 288000L));
         }
 
         return Optional.empty();

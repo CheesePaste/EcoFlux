@@ -20,6 +20,7 @@ import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.init.ModAttachments;
+import com.s.ecoflux.init.ModChunkEvents;
 import com.s.ecoflux.plant.TreeStructure;
 import com.s.ecoflux.plant.TreeStructureAdapter;
 import com.s.ecoflux.plant.tree.profiles.AcaciaGrowthProfile;
@@ -263,10 +264,6 @@ public final class TreeGrowthHandler {
                 }
                 session.advanceStage(gameTime);
 
-                EcofluxConstants.LOGGER.info(
-                        "[Ecoflux] Tree growth stage {}/{} at {} (type={})",
-                        session.currentStage(), session.totalStages(), pos, session.treeType());
-
                 if (session.isComplete()) {
                     completed.add(pos);
                     onGrowthComplete(level, chunk, pos, session, profile);
@@ -386,6 +383,8 @@ public final class TreeGrowthHandler {
                 chunkData.getCurrentBiome().map(key -> key.location()),
                 chunkData.getActivePathId());
         chunkData.trackVegetation(treeRecord.withTreeStructure(treeStructure));
+
+        ModChunkEvents.markChunkHasTreeStructure(level, chunk.getPos().toLong());
 
         EcofluxConstants.LOGGER.info("[Ecoflux] Tree growth complete at {}, {} logs + {} leaves stored",
                 basePos, treeStructure.logPositions().length, treeStructure.leafPositions().length);

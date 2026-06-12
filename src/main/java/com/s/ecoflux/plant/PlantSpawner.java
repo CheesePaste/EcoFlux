@@ -27,6 +27,7 @@ import com.s.ecoflux.attachment.PlantQueueEntry;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.PlantDefinition;
 import com.s.ecoflux.config.SuccessionPathDefinition;
+import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.world.ChunkSamplingHelper;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,10 +70,6 @@ public final class PlantSpawner {
         Optional<BlockPos> spawnPos = ChunkSamplingHelper.findSpawnPos(
                 level, chunk, chunkData, plantDefinition.get(), gameTime);
         if (spawnPos.isEmpty()) {
-            EcofluxConstants.LOGGER.debug(
-                    "区块 {} 跳过植物生成：找不到 {} 的合法位置",
-                    chunk.getPos(),
-                    nextEntry.get().plantId());
             chunkData.enqueuePlant(nextEntry.get());
             return "区块 " + chunk.getPos() + " 跳过生成：找不到 " + nextEntry.get().plantId() + " 的合法位置。";
         }
@@ -97,11 +94,6 @@ public final class PlantSpawner {
                 chunkData.getCurrentBiome().map(ResourceKey::location),
                 chunkData.getActivePathId());
 
-        EcofluxConstants.LOGGER.debug(
-                "已在区块 {} 的 {} 种下植物 {}",
-                chunk.getPos(),
-                pos,
-                nextEntry.get().plantId());
         return "已在区块 " + chunk.getPos() + " 的 " + pos + " 种下 " + nextEntry.get().plantId() + "。";
     }
 
@@ -110,7 +102,9 @@ public final class PlantSpawner {
         int removed = 0;
         for (var record : snapshot) {
             BlockState state = level.getBlockState(record.position());
-            boolean expired = gameTime >= record.expireGameTime();
+            long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
+            long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
+            boolean expired = age >= totalLifetime;
             boolean missing = state.isAir()
                     || VegetationTracker.INSTANCE.findAdapter(state).isEmpty();
             if (!expired && !missing) {

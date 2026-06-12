@@ -75,10 +75,11 @@ public record ActiveVegetationRecord(
             VegetationLifecycleStage nextStage,
             int nextBasePointValue,
             int nextCurrentPointValue,
-            long observedGameTime) {
+            long observedGameTime,
+            long expireGameTime) {
         return new ActiveVegetationRecord(
                 nextVegetationId, nextAdapterType, nextCategory, position,
-                nextStage, birthGameTime, observedGameTime, expireGameTime,
+                nextStage, observedGameTime, observedGameTime, expireGameTime,
                 nextBasePointValue, nextCurrentPointValue, sourceBiomeId, sourcePathId,
                 treeStructure);
     }

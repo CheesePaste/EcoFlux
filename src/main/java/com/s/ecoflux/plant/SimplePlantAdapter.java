@@ -126,6 +126,8 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
         }
 
         long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
+        long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
+
         VegetationLifecycleStage stage;
         int pointValue;
         boolean mature = false;
@@ -146,18 +148,13 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
             aging = true;
         }
 
-        if (gameTime >= record.expireGameTime() + DECAY_TICKS) {
+        if (age >= totalLifetime + DECAY_TICKS && record.lifeStage() == VegetationLifecycleStage.DEAD) {
             return VegetationObservation.absent("简单植物已死亡并腐烂。");
         }
-        if (gameTime >= record.expireGameTime()) {
+        if (age >= totalLifetime) {
             return new VegetationObservation(
-                    true,
-                    VegetationLifecycleStage.DEAD,
-                    0,
-                    false,
-                    false,
-                    Optional.empty(),
-                    "简单植物已死亡。");
+                    true, VegetationLifecycleStage.DEAD, 0, false, false,
+                    Optional.empty(), "简单植物已死亡。");
         }
 
         return new VegetationObservation(
@@ -176,12 +173,13 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
             return new VegetationVisualState(VegetationLifecycleStage.MATURE, 1.0F);
         }
         long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
+        long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
         return switch (record.lifeStage()) {
             case BORN -> new VegetationVisualState(VegetationLifecycleStage.BORN, VegetationTypeAdapter.progress(age, 0L, 200L));
             case GROWING -> new VegetationVisualState(VegetationLifecycleStage.GROWING, VegetationTypeAdapter.progress(age, 200L, 1200L));
             case MATURE -> new VegetationVisualState(VegetationLifecycleStage.MATURE, VegetationTypeAdapter.progress(age, 1200L, 48000L));
-            case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, VegetationTypeAdapter.progress(age, 48000L, record.expireGameTime() - record.birthGameTime()));
-            case DEAD -> new VegetationVisualState(VegetationLifecycleStage.DEAD, VegetationTypeAdapter.progress(gameTime, record.expireGameTime(), record.expireGameTime() + DECAY_TICKS));
+            case AGING -> new VegetationVisualState(VegetationLifecycleStage.AGING, VegetationTypeAdapter.progress(age, 48000L, totalLifetime));
+            case DEAD -> new VegetationVisualState(VegetationLifecycleStage.DEAD, VegetationTypeAdapter.progress(age, totalLifetime, totalLifetime + DECAY_TICKS));
             default -> new VegetationVisualState(record.lifeStage(), 1.0F);
         };
     }
