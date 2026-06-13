@@ -42,7 +42,7 @@ public final class PlantRegistryLoader extends SimpleJsonResourceReloadListener 
                         JsonArray plantsArray = GsonHelper.getAsJsonArray(root, "plants");
                         for (JsonElement element : plantsArray) {
                             JsonObject plantObject = GsonHelper.convertToJsonObject(element, "plant");
-                            allPlants.add(parsePlantDefinition(plantObject));
+                        allPlants.add(parsePlantDefinition(plantObject));
                         }
                     } catch (RuntimeException exception) {
                         EcofluxConstants.LOGGER.error("解析植物定义文件 {} 失败", entry.getKey(), exception);
@@ -68,9 +68,6 @@ public final class PlantRegistryLoader extends SimpleJsonResourceReloadListener 
         List<ResourceLocation> values = new ArrayList<>();
         for (JsonElement element : jsonArray) {
             values.add(ResourceLocation.parse(GsonHelper.convertToString(element, fieldName)));
-        }
-        if (values.isEmpty()) {
-            throw new JsonParseException(fieldName + " 不能为空");
         }
         return values;
     }

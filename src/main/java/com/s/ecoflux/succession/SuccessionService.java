@@ -11,6 +11,7 @@ import com.s.ecoflux.plant.VegetationTracker;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -112,9 +113,16 @@ public final class SuccessionService {
         long effectiveInterval = Math.max(5L, (long) (path.chunkRules().processingIntervalTicks() / speed));
         boolean processElapsed = (gameTime + chunkHash) % effectiveInterval == 0L;
 
-        // Spawn interval — fixed, NOT divided by speed
-        long spawnInterval = Math.max(50L, path.chunkRules().processingIntervalTicks());
-        boolean spawnElapsed = (gameTime + chunkHash + 7) % spawnInterval == 0L;
+        // Spawn interval — random between configured min/max, global across all paths
+        boolean spawnElapsed;
+        if (chunkData.getNextSpawnGameTime() <= 0L) {
+            chunkData.setNextSpawnGameTime(gameTime + randomSpawnIntervalTicks(chunk.getPos().toLong() ^ gameTime));
+            spawnElapsed = false;
+        } else if (gameTime >= chunkData.getNextSpawnGameTime()) {
+            spawnElapsed = true;
+        } else {
+            spawnElapsed = false;
+        }
 
         if (!processElapsed && !spawnElapsed) {
             return "自动演替跳过区块 " + chunk.getPos() + "：等待处理间隔。";
@@ -137,9 +145,12 @@ public final class SuccessionService {
         messages.add("已清理 " + pruned + " 个植物。");
 
         // Spawn — only when spawnElapsed and not at capacity
-        if (shouldSpawn && chunkData.getCurrentPlantCount() < chunkData.getMaxPlantCount()) {
-            PlantSpawner.ensureQueue(chunkData, path);
-            messages.add(PlantSpawner.trySpawnPlant(level, chunk, chunkData, path, gameTime));
+        if (shouldSpawn) {
+            chunkData.setNextSpawnGameTime(gameTime + randomSpawnIntervalTicks(chunk.getPos().toLong() ^ gameTime));
+            if (chunkData.getCurrentPlantCount() < chunkData.getMaxPlantCount()) {
+                PlantSpawner.ensureQueue(chunkData, path);
+                messages.add(PlantSpawner.trySpawnPlant(level, chunk, chunkData, path, gameTime));
+            }
         }
 
         // Observe + evaluate — only when processElapsed
@@ -157,5 +168,12 @@ public final class SuccessionService {
         }
 
         return String.join(" ", messages);
+    }
+
+    private static long randomSpawnIntervalTicks(long seed) {
+        int min = EcofluxServerConfig.spawnIntervalMinTicks();
+        int max = Math.max(min, EcofluxServerConfig.spawnIntervalMaxTicks());
+        if (min == max) return min;
+        return min + new Random(seed).nextLong(max - min + 1L);
     }
 }

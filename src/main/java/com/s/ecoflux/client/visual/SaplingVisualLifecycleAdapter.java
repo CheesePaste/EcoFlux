@@ -42,10 +42,10 @@ public final class SaplingVisualLifecycleAdapter implements VisualLifecycleAdapt
     @Override
     public VisualLifecycleProfile createProfile(BlockState state) {
         return new VisualLifecycleProfile(
-                200,
-                1000,
-                46800,
-                24000,
+                1200,
+                200000,
+                0,
+                6000,
                 0.45F,
                 1.08F,
                 0.94F,

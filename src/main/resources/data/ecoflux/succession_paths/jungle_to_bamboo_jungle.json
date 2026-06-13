@@ -20,7 +20,7 @@
   },
   "chunk_rules": {
     "consuming": 24,
-    "max_plant_count": 34,
+    "max_plant_count": 8,
     "queue_fill_factor": 2.3,
     "evaluation_interval_days": {
       "min": 5,

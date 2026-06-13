@@ -45,6 +45,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private static final String CONSUMING_VALUE = "consuming_value";
     private static final String MAX_PLANT_COUNT = "max_plant_count";
     private static final String LAST_EVALUATION_GAME_TIME = "last_evaluation_game_time";
+    private static final String NEXT_SPAWN_GAME_TIME = "next_spawn_game_time";
     private static final String PLANT_QUEUE = "plant_queue";
     private static final String VEGETATION_RECORDS = "vegetation_records";
     private static final String TREE_GROWTH_SESSIONS = "tree_growth_sessions";
@@ -63,6 +64,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private int consumingValue;
     private int maxPlantCount;
     private long lastEvaluationGameTime;
+    private long nextSpawnGameTime;
     private final Deque<PlantQueueEntry> plantQueue = new ArrayDeque<>();
     private final Map<BlockPos, ActiveVegetationRecord> vegetationRecords = new LinkedHashMap<>();
     private final Map<BlockPos, TreeGrowthSession> treeGrowthSessions = new LinkedHashMap<>();
@@ -145,6 +147,15 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
 
     public void setLastEvaluationGameTime(long lastEvaluationGameTime) {
         this.lastEvaluationGameTime = lastEvaluationGameTime;
+        markDirty();
+    }
+
+    public long getNextSpawnGameTime() {
+        return nextSpawnGameTime;
+    }
+
+    public void setNextSpawnGameTime(long nextSpawnGameTime) {
+        this.nextSpawnGameTime = nextSpawnGameTime;
         markDirty();
     }
 
@@ -254,6 +265,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         maxPlantCount = 0;
         progress = 0.0D;
         lastEvaluationGameTime = 0L;
+        nextSpawnGameTime = 0L;
         plantQueue.clear();
         vegetationRecords.clear();
         treeGrowthSessions.clear();
@@ -267,6 +279,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         maxPlantCount = 0;
         progress = 0.0D;
         lastEvaluationGameTime = 0L;
+        nextSpawnGameTime = 0L;
         plantQueue.clear();
         markDirty();
     }
@@ -284,6 +297,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         tag.putInt(CONSUMING_VALUE, consumingValue);
         tag.putInt(MAX_PLANT_COUNT, maxPlantCount);
         tag.putLong(LAST_EVALUATION_GAME_TIME, lastEvaluationGameTime);
+        tag.putLong(NEXT_SPAWN_GAME_TIME, nextSpawnGameTime);
 
         ListTag queueTag = new ListTag();
         for (PlantQueueEntry entry : plantQueue) {
@@ -316,6 +330,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         consumingValue = tag.getInt(CONSUMING_VALUE);
         maxPlantCount = tag.getInt(MAX_PLANT_COUNT);
         lastEvaluationGameTime = tag.getLong(LAST_EVALUATION_GAME_TIME);
+        nextSpawnGameTime = tag.getLong(NEXT_SPAWN_GAME_TIME);
 
         plantQueue.clear();
         ListTag queueTag = tag.getList(PLANT_QUEUE, Tag.TAG_COMPOUND);
