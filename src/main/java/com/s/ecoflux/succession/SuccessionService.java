@@ -1,21 +1,5 @@
 package com.s.ecoflux.succession;
 
-/**
- * Main orchestration entry point for the succession system.
- *
- * <p>Structure: static utility class providing {@code initializeChunk()},
- * {@code step()}, {@code processChunkTick()}, {@code pruneChunk()},
- * {@code spawnInChunk()}, {@code evaluateChunk()}, {@code forceTransition()},
- * {@code hasActivePath()}, and {@code describeChunk()}. The private
- * {@code doPipeline()} method chains pruning, spawning, observation, evaluation,
- * and transition into a single pass.
- *
- * <p>Role in Ecoflux: coordinates all succession operations by delegating to
- * {@code PlantSpawner}, {@code VegetationTracker}, {@code SuccessionEvaluator},
- * and {@code BiomeTransitionService}. Called by chunk tick handlers, debug
- * commands, and the prototype controller.
- */
-
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.SuccessionConfigRegistry;
@@ -68,7 +52,7 @@ public final class SuccessionService {
         if (pathOptional.isEmpty()) {
             return "区块 " + chunk.getPos() + " 没有激活的演替路径。";
         }
-        return doPipeline(level, chunk, chunkData, pathOptional.get(), true);
+        return doPipeline(level, chunk, chunkData, pathOptional.get(), true, true, true);
     }
 
     public static String pruneChunk(ServerLevel level, LevelChunk chunk) {
@@ -84,7 +68,6 @@ public final class SuccessionService {
         if (pathOptional.isEmpty()) {
             return "区块 " + chunk.getPos() + " 没有激活的演替路径。";
         }
-
         PlantSpawner.pruneInvalidPlants(level, chunkData, level.getGameTime());
         PlantSpawner.ensureQueue(chunkData, pathOptional.get());
         return PlantSpawner.trySpawnPlant(level, chunk, chunkData, pathOptional.get(), level.getGameTime());
@@ -97,7 +80,6 @@ public final class SuccessionService {
         if (pathOptional.isEmpty()) {
             return "区块 " + chunk.getPos() + " 没有激活的演替路径。";
         }
-
         SuccessionPathDefinition path = pathOptional.get();
         String result = SuccessionEvaluator.evaluate(chunkData, path, level.getGameTime(), true);
         if (chunkData.getProgress() >= 1.0D) {
@@ -124,41 +106,54 @@ public final class SuccessionService {
         SuccessionPathDefinition path = pathOptional.get();
         long gameTime = level.getGameTime();
         float speed = SuccessionSpeedConfig.getSpeedMultiplier();
-
         long chunkHash = Math.abs(chunk.getPos().x * 31L + chunk.getPos().z);
-        long effectivePruneInterval = Math.max(5L, (long) (EcofluxServerConfig.pruneIntervalTicks() / speed));
-        long effectiveProcessingInterval = Math.max(5L, (long) (path.chunkRules().processingIntervalTicks() / speed));
-        boolean pruneElapsed = (gameTime + chunkHash) % effectivePruneInterval == 0L;
-        boolean processElapsed = (gameTime + chunkHash) % effectiveProcessingInterval == 0L;
-        if (!pruneElapsed && !processElapsed) {
+
+        // Observe/evaluate interval — affected by speed
+        long effectiveInterval = Math.max(5L, (long) (path.chunkRules().processingIntervalTicks() / speed));
+        boolean processElapsed = (gameTime + chunkHash) % effectiveInterval == 0L;
+
+        // Spawn interval — fixed, NOT divided by speed
+        long spawnInterval = Math.max(50L, path.chunkRules().processingIntervalTicks());
+        boolean spawnElapsed = (gameTime + chunkHash + 7) % spawnInterval == 0L;
+
+        if (!processElapsed && !spawnElapsed) {
             return "自动演替跳过区块 " + chunk.getPos() + "：等待处理间隔。";
         }
 
-        return doPipeline(level, chunk, chunkData, path, false);
+        return doPipeline(level, chunk, chunkData, path, processElapsed, spawnElapsed, false);
     }
 
     private static String doPipeline(ServerLevel level, LevelChunk chunk,
                                       SuccessionChunkData chunkData,
                                       SuccessionPathDefinition path,
+                                      boolean shouldObserve,
+                                      boolean shouldSpawn,
                                       boolean ignoreInterval) {
         long gameTime = level.getGameTime();
         List<String> messages = new ArrayList<>();
 
+        // Prune always runs (cheap if no dead/missing plants)
         int pruned = PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
         messages.add("已清理 " + pruned + " 个植物。");
 
-        PlantSpawner.ensureQueue(chunkData, path);
-        messages.add(PlantSpawner.trySpawnPlant(level, chunk, chunkData, path, gameTime));
+        // Spawn — only when spawnElapsed and not at capacity
+        if (shouldSpawn && chunkData.getCurrentPlantCount() < chunkData.getMaxPlantCount()) {
+            PlantSpawner.ensureQueue(chunkData, path);
+            messages.add(PlantSpawner.trySpawnPlant(level, chunk, chunkData, path, gameTime));
+        }
 
-        messages.add(VegetationTracker.INSTANCE.observeChunk(level, chunk));
+        // Observe + evaluate — only when processElapsed
+        if (shouldObserve) {
+            messages.add(VegetationTracker.INSTANCE.observeChunk(level, chunk));
 
-        String evalResult = SuccessionEvaluator.evaluate(chunkData, path, gameTime, ignoreInterval);
-        messages.add(evalResult);
+            String evalResult = SuccessionEvaluator.evaluate(chunkData, path, gameTime, ignoreInterval);
+            messages.add(evalResult);
 
-        if (chunkData.getProgress() >= 1.0D) {
-            messages.add(BiomeTransitionService.applyTransition(level, chunk, chunkData));
-        } else if (SuccessionEvaluator.shouldRegress(chunkData)) {
-            messages.add(BiomeTransitionService.applyRegression(level, chunk, chunkData, path));
+            if (chunkData.getProgress() >= 1.0D) {
+                messages.add(BiomeTransitionService.applyTransition(level, chunk, chunkData));
+            } else if (SuccessionEvaluator.shouldRegress(chunkData)) {
+                messages.add(BiomeTransitionService.applyRegression(level, chunk, chunkData, path));
+            }
         }
 
         return String.join(" ", messages);

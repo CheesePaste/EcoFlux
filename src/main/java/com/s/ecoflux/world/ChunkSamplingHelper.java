@@ -85,7 +85,7 @@ public final class ChunkSamplingHelper {
                 ^ ((long) plant.plantId().hashCode() << 32)
                 ^ ((long) chunkData.getCurrentPlantCount() * 0xBF58476D1CE4E5B9L);
         Random random = new Random(seed);
-        for (int attempt = 0; attempt < 64; attempt++) {
+        for (int attempt = 0; attempt < 32; attempt++) {
             int localX = random.nextInt(16);
             int localZ = random.nextInt(16);
             int worldX = chunk.getPos().getBlockX(localX);
@@ -148,6 +148,10 @@ public final class ChunkSamplingHelper {
             PlantSpawnRules spawnRules,
             int worldX,
             int worldZ) {
+        // Avoid triggering synchronous chunk loads
+        if (!level.getChunkSource().hasChunk(worldX >> 4, worldZ >> 4)) {
+            return Optional.empty();
+        }
         int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, worldX, worldZ);
         for (int y = surfaceY - 1; y <= surfaceY + 2; y++) {
             BlockPos placePos = new BlockPos(worldX, y, worldZ);

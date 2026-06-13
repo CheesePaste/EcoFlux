@@ -24,6 +24,7 @@ import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.plant.VegetationTracker;
 import com.s.ecoflux.test.prototype.PrototypeChunkController;
 import com.s.ecoflux.test.performance.PerformanceProfiler;
+import com.s.ecoflux.util.TickProfiler;
 import com.s.ecoflux.succession.SuccessionService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -304,13 +305,15 @@ public final class ModCommands {
 
     private static int profileOn(CommandSourceStack source) {
         PerformanceProfiler.INSTANCE.enable();
-        source.sendSuccess(() -> Component.literal("性能追踪已启用。使用 /ecoflux profile report 查看报告。"), true);
+        TickProfiler.INSTANCE.enable();
+        source.sendSuccess(() -> Component.literal("性能追踪已启用。CSV写入 logs/ecoflux-ticks.csv。"), true);
         return 1;
     }
 
     private static int profileOff(CommandSourceStack source) {
         PerformanceProfiler.INSTANCE.disable();
         PerformanceProfiler.INSTANCE.reset();
+        TickProfiler.INSTANCE.disable();
         source.sendSuccess(() -> Component.literal("性能追踪已禁用，数据已清空。"), true);
         return 1;
     }

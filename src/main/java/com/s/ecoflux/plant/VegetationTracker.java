@@ -9,6 +9,7 @@ import com.s.ecoflux.config.PlantSpawnRules;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.network.VegetationVisualSyncEntry;
+import com.s.ecoflux.util.TickProfiler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -130,6 +131,7 @@ public final class VegetationTracker {
             return "区块 " + chunk.getPos() + " 跳过观察：没有已追踪植被记录。";
         }
 
+        TickProfiler.Span span = TickProfiler.INSTANCE.start("observeChunk");
         long gameTime = level.getGameTime();
         int observeInterval = EcofluxServerConfig.observeIntervalTicks();
         List<BlockPos> snapshot = new ArrayList<>(chunkData.getVegetationRecords().keySet());
@@ -159,13 +161,15 @@ public final class VegetationTracker {
             }
         }
 
-        ModNetworking.syncChunkToTracking(level, chunk);
-        return "已观察区块 " + chunk.getPos()
-                + "：更新=" + updated
-                + "，转化=" + transformed
-                + "，移除=" + removed
-                + "，跳过=" + skipped
-                + "，剩余追踪=" + chunkData.getVegetationRecords().size() + "。";
+        boolean changed = updated > 0 || removed > 0 || transformed > 0;
+        if (changed) {
+            ModNetworking.syncChunkToTracking(level, chunk);
+        }
+        TickProfiler.INSTANCE.end(span);
+        return "区块 " + chunk.getPos()
+                + "：更新=" + updated + "，转化=" + transformed
+                + "，移除=" + removed + "，跳过=" + skipped
+                + "，剩余=" + chunkData.getVegetationRecords().size() + "。";
     }
 
     public List<VegetationVisualSyncEntry> buildVisualSyncEntries(LevelChunk chunk, long gameTime) {

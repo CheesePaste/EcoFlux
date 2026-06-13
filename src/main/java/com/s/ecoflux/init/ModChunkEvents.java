@@ -6,6 +6,7 @@ import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import com.s.ecoflux.succession.SuccessionService;
+import com.s.ecoflux.util.TickProfiler;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -107,6 +108,8 @@ public final class ModChunkEvents {
             return;
         }
 
+        TickProfiler.Span spanTick = TickProfiler.INSTANCE.start("tick.total");
+
         processTreeGrowth(serverLevel);
 
         // Per-chunk auto
@@ -128,10 +131,16 @@ public final class ModChunkEvents {
                 }
             }
         }
+
+        TickProfiler.INSTANCE.end(spanTick);
+        TickProfiler.INSTANCE.flushTick(serverLevel.getGameTime());
     }
 
     private static void processChunkSet(ServerLevel level, LinkedHashSet<Long> liveSet) {
+        TickProfiler.Span spanOuter = TickProfiler.INSTANCE.start("tick.processChunkSet");
         List<Long> snapshot = new ArrayList<>(liveSet);
+        int chunkCount = snapshot.size();
+        int ranPipelines = 0;
         for (long chunkPosLong : snapshot) {
             LevelChunk chunk = level.getChunkSource().getChunkNow(
                     net.minecraft.world.level.ChunkPos.getX(chunkPosLong),
@@ -148,10 +157,13 @@ public final class ModChunkEvents {
             }
 
             SuccessionService.processChunkTick(level, chunk);
+            ranPipelines++;
             if (!SuccessionService.hasActivePath(chunkData)) {
                 liveSet.remove(chunkPosLong);
             }
         }
+        TickProfiler.INSTANCE.record("tick.processChunkSet", 0, "chunks=" + chunkCount + ",ran=" + ranPipelines);
+        TickProfiler.INSTANCE.end(spanOuter);
     }
 
     // ── Tree growth ──────────────────────────────────────────────────────
