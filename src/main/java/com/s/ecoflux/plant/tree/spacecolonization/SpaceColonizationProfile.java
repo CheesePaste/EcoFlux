@@ -50,7 +50,7 @@ public record SpaceColonizationProfile(
     @Override
     public boolean canGrowStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                                 int totalStages, int resolvedHeight) {
-        int checkY = saplingPos.getY() + Math.min(currentStage + 2, resolvedHeight + 1);
+        int checkY = saplingPos.getY() + Math.min(currentStage + 2, resolvedHeight + 2);
         if (checkY >= level.getMaxBuildHeight()) return false;
 
         if (is2x2) {
@@ -78,12 +78,24 @@ public record SpaceColonizationProfile(
             TreeShapeUtils.tryPlaceLog(level, logPos, logBlock, Direction.Axis.Y);
         }
 
+        BlockState leafState = leavesBlock.defaultBlockState()
+                .setValue(LeavesBlock.DISTANCE, 1)
+                .setValue(LeavesBlock.PERSISTENT, true);
+
         for (BlockPos leafPos : leafPositions) {
             BlockState existing = level.getBlockState(leafPos);
             if (existing.isAir() || existing.is(BlockTags.LEAVES) || existing.is(BlockTags.REPLACEABLE)) {
-                level.setBlock(leafPos, leavesBlock.defaultBlockState()
-                        .setValue(LeavesBlock.DISTANCE, 1)
-                        .setValue(LeavesBlock.PERSISTENT, true), 3);
+                level.setBlock(leafPos, leafState, 3);
+            }
+        }
+
+        // Preview: next stage's logs appear as leaves now, replaced by real logs next stage
+        if (currentStage + 1 < totalStages) {
+            for (BlockPos previewPos : session.stageLogPositions(currentStage + 1)) {
+                BlockState existing = level.getBlockState(previewPos);
+                if (existing.isAir() || existing.is(BlockTags.LEAVES) || existing.is(BlockTags.REPLACEABLE)) {
+                    level.setBlock(previewPos, leafState, 3);
+                }
             }
         }
 

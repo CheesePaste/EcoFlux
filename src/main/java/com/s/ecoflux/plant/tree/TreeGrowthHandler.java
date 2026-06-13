@@ -192,8 +192,11 @@ public final class TreeGrowthHandler {
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
         TreeGrowthSession session = chunkData.getTreeGrowthSessions().get(pos);
         if (session != null) return session;
+
+        // Search 2x2 area for 2x2 trees (session stored at NW corner)
         for (int dx = 0; dx >= -1; dx--) {
             for (int dz = 0; dz >= -1; dz--) {
+                if (dx == 0 && dz == 0) continue;
                 session = chunkData.getTreeGrowthSessions().get(
                         new BlockPos(pos.getX() + dx, pos.getY(), pos.getZ() + dz));
                 if (session != null) return session;

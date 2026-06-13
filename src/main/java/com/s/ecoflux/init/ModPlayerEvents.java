@@ -15,6 +15,7 @@ import com.s.ecoflux.plant.VegetationTracker;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.BoneMealItem;
 import net.minecraft.world.item.Items;
@@ -111,7 +112,9 @@ public final class ModPlayerEvents {
         }
 
         if (TreeGrowthHandler.INSTANCE.forceAdvanceStage(level, pos)) {
-            level.levelEvent(1505, pos, 0);
+            Direction face = event.getFace();
+            BlockPos particlePos = face != null ? pos.relative(face) : pos.above();
+            level.levelEvent(1505, particlePos, 0);
             if (!event.getEntity().isCreative()) {
                 event.getItemStack().shrink(1);
             }
