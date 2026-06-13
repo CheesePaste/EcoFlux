@@ -255,10 +255,17 @@ public final class VegetationTracker {
                     true);
         }
 
-        chunkData.trackVegetation(record.withObservation(
-                observation.stage(),
-                observation.currentPointValue(),
-                level.getGameTime()));
+        boolean stageChanged = record.lifeStage() != observation.stage();
+        boolean pointsChanged = record.currentPointValue() != observation.currentPointValue();
+        if (stageChanged || pointsChanged) {
+            chunkData.trackVegetation(record.withObservation(
+                    observation.stage(),
+                    observation.currentPointValue(),
+                    level.getGameTime()));
+        } else {
+            // Only update lastObservedGameTime without triggering visual sync
+            chunkData.touchVegetation(record, level.getGameTime());
+        }
         return new ObserveResult(
                 "已观察 " + pos + "：阶段=" + observation.stage()
                         + "，积分=" + observation.currentPointValue()

@@ -203,6 +203,14 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         markDirty();
     }
 
+    /** Updates lastObservedGameTime without triggering visual sync. */
+    public void touchVegetation(ActiveVegetationRecord oldRecord, long gameTime) {
+        vegetationRecords.put(oldRecord.position(),
+                oldRecord.withObservation(oldRecord.lifeStage(), oldRecord.currentPointValue(), gameTime));
+        // does NOT set needsVisualSync
+        markDirty();
+    }
+
     public @Nullable ActiveVegetationRecord removeVegetation(BlockPos pos) {
         ActiveVegetationRecord removed = vegetationRecords.remove(pos);
         if (removed != null) {

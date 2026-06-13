@@ -16,6 +16,7 @@ package com.s.ecoflux.client.visual;
  * handler, scale via {@link VisualLifecycleWorldRenderer}).
  */
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -41,6 +42,8 @@ public final class VisualLifecycleClientRuntime {
 
     private final Map<String, VisualLifecycleInstance> trackedInstances = new ConcurrentHashMap<>();
     private final Map<Long, VisualLifecycleInstance> trackedInstancesByPos = new ConcurrentHashMap<>();
+    /** Per-chunk index: chunkPosLong → Set<posLong> for VEGETATION_SYSTEM entries only. */
+    private final Map<Long, Set<Long>> vegSystemByChunk = new ConcurrentHashMap<>();
     private final Map<Long, Integer> baseColorCache = new ConcurrentHashMap<>();
     private final ThreadLocal<Boolean> manualWorldRenderPass = ThreadLocal.withInitial(() -> false);
     private volatile List<VisualLifecycleInstance> cachedTrackedList = List.of();
@@ -171,6 +174,7 @@ public final class VisualLifecycleClientRuntime {
     public String clear() {
         trackedInstances.clear();
         trackedInstancesByPos.clear();
+        vegSystemByChunk.clear();
         baseColorCache.clear();
         invalidateTrackedList();
         refreshAll();
@@ -233,8 +237,17 @@ public final class VisualLifecycleClientRuntime {
             Optional<VisualLifecycleAdapter> adapter = VisualLifecycleRegistry.INSTANCE.find(state);
             boolean remove = adapter.isEmpty() || !adapter.get().typeId().equals(instance.adapterId());
             if (remove) {
-                trackedInstancesByPos.remove(instance.pos().asLong());
-                baseColorCache.remove(instance.pos().asLong());
+                long posKey = instance.pos().asLong();
+                trackedInstancesByPos.remove(posKey);
+                baseColorCache.remove(posKey);
+                if (instance.source() == VisualLifecycleTrackingSource.VEGETATION_SYSTEM) {
+                    long ck = new ChunkPos(instance.pos()).toLong();
+                    Set<Long> chunkPlants = vegSystemByChunk.get(ck);
+                    if (chunkPlants != null) {
+                        chunkPlants.remove(posKey);
+                        if (chunkPlants.isEmpty()) vegSystemByChunk.remove(ck);
+                    }
+                }
                 markDirty(instance.pos());
                 removed[0] = true;
             }
@@ -331,30 +344,36 @@ public final class VisualLifecycleClientRuntime {
             return;
         }
 
+        long chunkKey = chunkPos.toLong();
         Set<Long> incomingPositions = new HashSet<>(entries.size());
         for (com.s.ecoflux.network.VegetationVisualSyncEntry entry : entries) {
             incomingPositions.add(entry.pos().asLong());
         }
 
-        boolean[] changed = {false};
-        trackedInstances.entrySet().removeIf(entry -> {
-            VisualLifecycleInstance instance = entry.getValue();
-            if (instance.source() != VisualLifecycleTrackingSource.VEGETATION_SYSTEM) {
-                return false;
-            }
-            if (!entry.getKey().startsWith(dimensionId + "|")) {
-                return false;
-            }
-            if (!sameChunk(instance.pos(), chunkPos) || incomingPositions.contains(instance.pos().asLong())) {
-                return false;
-            }
+        boolean changed = false;
 
-            trackedInstancesByPos.remove(instance.pos().asLong());
-            baseColorCache.remove(instance.pos().asLong());
-            markDirty(instance.pos());
-            changed[0] = true;
-            return true;
-        });
+        // Per-chunk removal — O(chunk_plants) instead of O(total_plants)
+        Set<Long> chunkPlants = vegSystemByChunk.get(chunkKey);
+        if (chunkPlants != null) {
+            List<Long> toRemove = new ArrayList<>();
+            for (long posKey : chunkPlants) {
+                if (!incomingPositions.contains(posKey)) {
+                    toRemove.add(posKey);
+                }
+            }
+            for (long posKey : toRemove) {
+                String key = key(level, posKey);
+                trackedInstances.remove(key);
+                trackedInstancesByPos.remove(posKey);
+                baseColorCache.remove(posKey);
+                markDirty(BlockPos.of(posKey));
+                chunkPlants.remove(posKey);
+                changed = true;
+            }
+            if (chunkPlants.isEmpty()) {
+                vegSystemByChunk.remove(chunkKey);
+            }
+        }
 
         for (com.s.ecoflux.network.VegetationVisualSyncEntry entry : entries) {
             BlockState state = level.getBlockState(entry.pos());
@@ -387,17 +406,15 @@ public final class VisualLifecycleClientRuntime {
                     VisualLifecycleTrackingSource.VEGETATION_SYSTEM);
             trackedInstances.put(key(level, entry.pos()), instance);
             trackedInstancesByPos.put(entry.pos().asLong(), instance);
+            vegSystemByChunk.computeIfAbsent(chunkKey, k -> new HashSet<>()).add(entry.pos().asLong());
 
             // Only markDirty for new or stage-changed entries.
-            // Calling markDirty every tick prevents chunk mesh rebuilds from
-            // completing, causing persistent double-render (vanilla full-size
-            // block + our scaled render).
             if (isNew || stageChanged) {
                 markDirty(entry.pos());
-                changed[0] = true;
+                changed = true;
             }
         }
-        if (changed[0]) {
+        if (changed) {
             invalidateTrackedList();
         }
     }
@@ -424,5 +441,10 @@ public final class VisualLifecycleClientRuntime {
     private static String key(ClientLevel level, BlockPos pos) {
         ResourceLocation dimensionId = level.dimension().location();
         return dimensionId + "|" + pos.asLong();
+    }
+
+    private static String key(ClientLevel level, long posKey) {
+        ResourceLocation dimensionId = level.dimension().location();
+        return dimensionId + "|" + posKey;
     }
 }
