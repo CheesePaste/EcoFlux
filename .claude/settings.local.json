@@ -48,7 +48,12 @@
       "Bash(./gradlew compileJava --no-daemon)",
       "Bash(bash .claude/skills/minecraft-source/scripts/decompile.sh net.minecraft.server.level.ServerChunkCache)",
       "Bash(git *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(sed -i 's/\"max_plant_count\": 38/\"max_plant_count\": 8/' forest_to_jungle.json)",
+      "Bash(sed -i 's/\"max_plant_count\": 34/\"max_plant_count\": 8/' jungle_to_bamboo_jungle.json)",
+      "Bash(sed -i 's/\"max_plant_count\": 32/\"max_plant_count\": 8/' forest_to_dark_forest.json)",
+      "Bash(sed -i 's/\"max_plant_count\": 32/\"max_plant_count\": 8/' taiga_to_old_growth_spruce_taiga.json)",
+      "Bash(sed -i 's/\"max_plant_count\": 30/\"max_plant_count\": 7/' birch_forest_to_old_growth_birch_forest.json)"
     ]
   }
 }

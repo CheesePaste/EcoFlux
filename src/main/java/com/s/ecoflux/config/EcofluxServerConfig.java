@@ -20,6 +20,8 @@ public final class EcofluxServerConfig {
     private static final ModConfigSpec.BooleanValue GRADUAL_PLANT_GROWTH;
     private static final ModConfigSpec.IntValue PRUNE_INTERVAL_TICKS;
     private static final ModConfigSpec.IntValue OBSERVE_INTERVAL_TICKS;
+    private static final ModConfigSpec.IntValue SPAWN_INTERVAL_MIN_TICKS;
+    private static final ModConfigSpec.IntValue SPAWN_INTERVAL_MAX_TICKS;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -32,6 +34,14 @@ public final class EcofluxServerConfig {
         GRADUAL_PLANT_GROWTH = builder
                 .comment("为 true 时植物经历完整的生命周期阶段（出生→生长→成熟→衰老），点值和视觉缩放逐渐变化；为 false 时植物立即成熟，跳过逐渐生长阶段，性能更友好，但死亡仍由 Ecoflux 控制。")
                 .define("gradual_plant_growth", true);
+        builder.pop();
+        builder.push("spawn");
+        SPAWN_INTERVAL_MIN_TICKS = builder
+                .comment("植物生成间隔的最小 tick 数。每次生成后，下次生成的间隔在 min 到 max 之间随机选取。应用于所有群系的所有演替路径。")
+                .defineInRange("spawn_interval_min_ticks", 600, 20, 72000);
+        SPAWN_INTERVAL_MAX_TICKS = builder
+                .comment("植物生成间隔的最大 tick 数。实际间隔在 min 和 max 之间随机均匀分布。")
+                .defineInRange("spawn_interval_max_ticks", 1800, 40, 72000);
         builder.pop();
         builder.push("performance");
         PRUNE_INTERVAL_TICKS = builder
@@ -61,5 +71,13 @@ public final class EcofluxServerConfig {
 
     public static int observeIntervalTicks() {
         return OBSERVE_INTERVAL_TICKS.get();
+    }
+
+    public static int spawnIntervalMinTicks() {
+        return SPAWN_INTERVAL_MIN_TICKS.get();
+    }
+
+    public static int spawnIntervalMaxTicks() {
+        return SPAWN_INTERVAL_MAX_TICKS.get();
     }
 }
