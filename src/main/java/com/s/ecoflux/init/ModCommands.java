@@ -14,6 +14,7 @@ package com.s.ecoflux.init;
 
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.PlantRegistry;
@@ -22,6 +23,9 @@ import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.plant.VegetationTracker;
+import com.s.ecoflux.plant.tree.TreeShapeUtils;
+import com.s.ecoflux.plant.tree.spacecolonization.SpaceColonizationGenerator;
+import com.s.ecoflux.plant.tree.spacecolonization.SpaceColonizationParams;
 import com.s.ecoflux.test.prototype.PrototypeChunkController;
 import com.s.ecoflux.test.performance.PerformanceProfiler;
 import com.s.ecoflux.util.TickProfiler;
@@ -33,12 +37,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import org.jetbrains.annotations.Nullable;
 
 public final class ModCommands {
     private ModCommands() {
@@ -55,6 +67,7 @@ public final class ModCommands {
                 .then(registerSpeedCommand())
                 .then(registerLifecycleCommands())
                 .then(registerPrototypeCommands())
+                .then(registerTreeCommands())
                 .then(registerProfileCommands()));
     }
 
@@ -285,6 +298,309 @@ public final class ModCommands {
                         "Ecoflux 当前演替速度倍率为 " + String.format("%.1f", SuccessionSpeedConfig.getSpeedMultiplier()) + "x。"),
                 false);
         return 1;
+    }
+
+    // ── Tree commands ─────────────────────────────────────────────────
+
+    @SuppressWarnings("unchecked")
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerTreeCommands() {
+        var presetArg = Commands.argument("preset", StringArgumentType.word())
+                .suggests((ctx, builder) -> {
+                    builder.suggest("birch");
+                    builder.suggest("oak");
+                    builder.suggest("cherry");
+                    builder.suggest("spruce");
+                    return builder.buildFuture();
+                });
+
+        return Commands.literal("tree")
+                .then(Commands.literal("instant")
+                        .then(presetArg
+                                .then(Commands.argument("seed", IntegerArgumentType.integer())
+                                        .executes(ctx -> treeInstant(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "preset"),
+                                                IntegerArgumentType.getInteger(ctx, "seed"))))
+                                .executes(ctx -> treeInstant(
+                                        ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "preset"),
+                                        0))))
+                .then(Commands.literal("grid")
+                        .then(presetArg
+                                .then(Commands.argument("param", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> {
+                                            builder.suggest("branchAngle");
+                                            builder.suggest("branchLengthRatio");
+                                            builder.suggest("leafDensity");
+                                            builder.suggest("leafRadius");
+                                            builder.suggest("topWeight");
+                                            builder.suggest("trunkLean");
+                                            builder.suggest("secondaryChance");
+                                            return builder.buildFuture();
+                                        })
+                                        .then(Commands.argument("min", FloatArgumentType.floatArg())
+                                                .then(Commands.argument("max", FloatArgumentType.floatArg())
+                                                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 20))
+                                                                .executes(ctx -> treeGrid(
+                                                                        ctx.getSource(),
+                                                                        StringArgumentType.getString(ctx, "preset"),
+                                                                        StringArgumentType.getString(ctx, "param"),
+                                                                        FloatArgumentType.getFloat(ctx, "min"),
+                                                                        FloatArgumentType.getFloat(ctx, "max"),
+                                                                        IntegerArgumentType.getInteger(ctx, "count")))))))))
+                .then(Commands.literal("stats")
+                        .then(presetArg
+                                .then(Commands.argument("seed", IntegerArgumentType.integer())
+                                        .executes(ctx -> treeStats(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "preset"),
+                                                IntegerArgumentType.getInteger(ctx, "seed"))))
+                                .executes(ctx -> treeStats(
+                                        ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "preset"),
+                                        0))));
+    }
+
+    private static int treeInstant(CommandSourceStack source, String presetName, int seed)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+        BlockPos basePos = player.blockPosition();
+
+        boolean is2x2 = presetName.endsWith("_2x2");
+        String lookupName = is2x2 ? presetName.substring(0, presetName.length() - 4) : presetName;
+        SpaceColonizationParams params = resolveTreePreset(lookupName);
+        if (params == null) {
+            source.sendFailure(Component.literal("Unknown preset: " + presetName + ". Available: birch, oak, cherry, spruce, jungle, dark_oak, acacia, mangrove (add _2x2 suffix for 2x2)"));
+            return 0;
+        }
+
+        RandomSource random = seed != 0
+                ? RandomSource.create(seed)
+                : TreeShapeUtils.positionRandom(basePos, level.getSeed());
+
+        int height = params.resolveTrunkHeight(random);
+        SpaceColonizationGenerator.FullTreePlan plan = SpaceColonizationGenerator.generateFull(basePos, params, height, is2x2, random);
+
+        Block logBlock = resolveLogBlock(lookupName);
+        Block leavesBlock = resolveLeavesBlock(lookupName);
+
+        for (BlockPos logPos : plan.logPositions()) {
+            TreeShapeUtils.tryPlaceLog(level, logPos, logBlock, Direction.Axis.Y);
+        }
+        for (BlockPos leafPos : plan.leafPositions()) {
+            BlockState existing = level.getBlockState(leafPos);
+            if (existing.isAir() || existing.is(BlockTags.LEAVES) || existing.is(BlockTags.REPLACEABLE)) {
+                level.setBlock(leafPos, leavesBlock.defaultBlockState()
+                        .setValue(LeavesBlock.DISTANCE, 1)
+                        .setValue(LeavesBlock.PERSISTENT, true), 3);
+            }
+        }
+
+        int floating = SpaceColonizationGenerator.countFloatingLeaves(plan);
+        boolean connected = SpaceColonizationGenerator.verifyConnectivity(plan);
+
+        source.sendSuccess(() -> Component.literal(
+                String.format("Tree [%s] seed=%d height=%d logs=%d leaves=%d floating=%d connected=%s",
+                        presetName, seed != 0 ? seed : TreeShapeUtils.positionRandom(basePos, level.getSeed()).nextInt(),
+                        height, plan.logPositions().size(), plan.leafPositions().size(),
+                        floating, connected)),
+                true);
+        return 1;
+    }
+
+    private static int treeGrid(CommandSourceStack source, String presetName,
+                                 String paramName, float minVal, float maxVal, int count)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+        BlockPos origin = player.blockPosition();
+
+        boolean is2x2 = presetName.endsWith("_2x2");
+        String lookupName = is2x2 ? presetName.substring(0, presetName.length() - 4) : presetName;
+        SpaceColonizationParams baseParams = resolveTreePreset(lookupName);
+        if (baseParams == null) {
+            source.sendFailure(Component.literal("Unknown preset: " + presetName));
+            return 0;
+        }
+
+        int spacing = 12;
+        Block logBlock = resolveLogBlock(lookupName);
+        Block leavesBlock = resolveLeavesBlock(lookupName);
+        StringBuilder report = new StringBuilder();
+
+        for (int i = 0; i < count; i++) {
+            float t = count > 1 ? (float) i / (count - 1) : 0.5f;
+            float value = minVal + t * (maxVal - minVal);
+            SpaceColonizationParams modified = applyParam(baseParams, paramName, value);
+
+            BlockPos treePos = origin.east(i * spacing);
+            RandomSource random = TreeShapeUtils.positionRandom(treePos, level.getSeed());
+            int height = modified.resolveTrunkHeight(random);
+            SpaceColonizationGenerator.FullTreePlan plan = SpaceColonizationGenerator.generateFull(treePos, modified, height, is2x2, random);
+
+            for (BlockPos logPos : plan.logPositions()) {
+                TreeShapeUtils.tryPlaceLog(level, logPos, logBlock, Direction.Axis.Y);
+            }
+            for (BlockPos leafPos : plan.leafPositions()) {
+                BlockState existing = level.getBlockState(leafPos);
+                if (existing.isAir() || existing.is(BlockTags.LEAVES) || existing.is(BlockTags.REPLACEABLE)) {
+                    level.setBlock(leafPos, leavesBlock.defaultBlockState()
+                            .setValue(LeavesBlock.DISTANCE, 1)
+                            .setValue(LeavesBlock.PERSISTENT, true), 3);
+                }
+            }
+
+            report.append(String.format("  #%d %s=%.2f h=%d logs=%d leaves=%d\n",
+                    i, paramName, value, height,
+                    plan.logPositions().size(), plan.leafPositions().size()));
+        }
+
+        String header = String.format("Tree grid [%s] param=%s range=[%.2f, %.2f] count=%d\n",
+                presetName, paramName, minVal, maxVal, count);
+        source.sendSuccess(() -> Component.literal(header + report.toString()), true);
+        return 1;
+    }
+
+    private static int treeStats(CommandSourceStack source, String presetName, int seed)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+
+        boolean is2x2 = presetName.endsWith("_2x2");
+        String lookupName = is2x2 ? presetName.substring(0, presetName.length() - 4) : presetName;
+        SpaceColonizationParams params = resolveTreePreset(lookupName);
+        if (params == null) {
+            source.sendFailure(Component.literal("Unknown preset: " + presetName));
+            return 0;
+        }
+
+        RandomSource random = seed != 0
+                ? RandomSource.create(seed)
+                : TreeShapeUtils.positionRandom(player.blockPosition(), level.getSeed());
+
+        BlockPos basePos = player.blockPosition();
+        int height = params.resolveTrunkHeight(random);
+        SpaceColonizationGenerator.FullTreePlan plan = SpaceColonizationGenerator.generateFull(basePos, params, height, is2x2, random);
+
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        for (BlockPos p : plan.logPositions()) {
+            minX = Math.min(minX, p.getX()); maxX = Math.max(maxX, p.getX());
+            minY = Math.min(minY, p.getY()); maxY = Math.max(maxY, p.getY());
+            minZ = Math.min(minZ, p.getZ()); maxZ = Math.max(maxZ, p.getZ());
+        }
+
+        int floating = SpaceColonizationGenerator.countFloatingLeaves(plan);
+        boolean connected = SpaceColonizationGenerator.verifyConnectivity(plan);
+
+        String stats = String.format(
+                "Stats [%s] seed=%d\n  Height: %d\n  Log count: %d\n  Leaf count: %d\n" +
+                "  X spread: %d\n  Y spread: %d\n  Z spread: %d\n  Total blocks: %d\n" +
+                "  Floating leaves: %d\n  Logs connected: %s",
+                presetName, seed, height,
+                plan.logPositions().size(), plan.leafPositions().size(),
+                maxX - minX + 1, maxY - minY + 1, maxZ - minZ + 1,
+                plan.logPositions().size() + plan.leafPositions().size(),
+                floating, connected);
+
+        source.sendSuccess(() -> Component.literal(stats), false);
+        return 1;
+    }
+
+    @Nullable
+    private static SpaceColonizationParams resolveTreePreset(String name) {
+        return switch (name.toLowerCase()) {
+            case "birch" -> SpaceColonizationParams.birch();
+            case "oak" -> SpaceColonizationParams.oak();
+            case "cherry" -> SpaceColonizationParams.cherry();
+            case "spruce" -> SpaceColonizationParams.spruce();
+            case "jungle" -> SpaceColonizationParams.jungle();
+            case "dark_oak" -> SpaceColonizationParams.darkOak();
+            case "acacia" -> SpaceColonizationParams.acacia();
+            case "mangrove" -> SpaceColonizationParams.mangrove();
+            default -> null;
+        };
+    }
+
+    private static Block resolveLogBlock(String presetName) {
+        return switch (presetName.toLowerCase()) {
+            case "birch" -> Blocks.BIRCH_LOG;
+            case "oak" -> Blocks.OAK_LOG;
+            case "cherry" -> Blocks.CHERRY_LOG;
+            case "spruce" -> Blocks.SPRUCE_LOG;
+            case "jungle" -> Blocks.JUNGLE_LOG;
+            case "dark_oak" -> Blocks.DARK_OAK_LOG;
+            case "acacia" -> Blocks.ACACIA_LOG;
+            case "mangrove" -> Blocks.MANGROVE_LOG;
+            default -> Blocks.OAK_LOG;
+        };
+    }
+
+    private static Block resolveLeavesBlock(String presetName) {
+        return switch (presetName.toLowerCase()) {
+            case "birch" -> Blocks.BIRCH_LEAVES;
+            case "oak" -> Blocks.OAK_LEAVES;
+            case "cherry" -> Blocks.CHERRY_LEAVES;
+            case "spruce" -> Blocks.SPRUCE_LEAVES;
+            case "jungle" -> Blocks.JUNGLE_LEAVES;
+            case "dark_oak" -> Blocks.DARK_OAK_LEAVES;
+            case "acacia" -> Blocks.ACACIA_LEAVES;
+            case "mangrove" -> Blocks.MANGROVE_LEAVES;
+            default -> Blocks.OAK_LEAVES;
+        };
+    }
+
+    private static SpaceColonizationParams applyParam(SpaceColonizationParams base, String paramName, float value) {
+        return switch (paramName.toLowerCase()) {
+            case "upprobability" -> new SpaceColonizationParams(
+                    base.envelopeType(), base.envelopeRadiusXZ(), base.envelopeHeight(),
+                    base.envelopeCenterYOffset(), (int) value, base.splitChance(),
+                    base.branchLengthRatio(), base.secondaryChance(),
+                    base.lowestBranchHeight(), base.leafRadius(), base.leafDensity(), base.canopyStages());
+            case "splitchance" -> new SpaceColonizationParams(
+                    base.envelopeType(), base.envelopeRadiusXZ(), base.envelopeHeight(),
+                    base.envelopeCenterYOffset(), base.upProbability(), value,
+                    base.branchLengthRatio(), base.secondaryChance(),
+                    base.lowestBranchHeight(), base.leafRadius(), base.leafDensity(), base.canopyStages());
+            case "branchlengthratio" -> new SpaceColonizationParams(
+                    base.envelopeType(), base.envelopeRadiusXZ(), base.envelopeHeight(),
+                    base.envelopeCenterYOffset(), base.upProbability(), base.splitChance(),
+                    value, base.secondaryChance(),
+                    base.lowestBranchHeight(), base.leafRadius(), base.leafDensity(), base.canopyStages());
+            case "secondarychance" -> new SpaceColonizationParams(
+                    base.envelopeType(), base.envelopeRadiusXZ(), base.envelopeHeight(),
+                    base.envelopeCenterYOffset(), base.upProbability(), base.splitChance(),
+                    base.branchLengthRatio(), value,
+                    base.lowestBranchHeight(), base.leafRadius(), base.leafDensity(), base.canopyStages());
+            case "lowestbranchheight" -> new SpaceColonizationParams(
+                    base.envelopeType(), base.envelopeRadiusXZ(), base.envelopeHeight(),
+                    base.envelopeCenterYOffset(), base.upProbability(), base.splitChance(),
+                    base.branchLengthRatio(), base.secondaryChance(),
+                    (int) value, base.leafRadius(), base.leafDensity(), base.canopyStages());
+            case "leafradius" -> new SpaceColonizationParams(
+                    base.envelopeType(), base.envelopeRadiusXZ(), base.envelopeHeight(),
+                    base.envelopeCenterYOffset(), base.upProbability(), base.splitChance(),
+                    base.branchLengthRatio(), base.secondaryChance(),
+                    base.lowestBranchHeight(), (int) value, base.leafDensity(), base.canopyStages());
+            case "leafdensity" -> new SpaceColonizationParams(
+                    base.envelopeType(), base.envelopeRadiusXZ(), base.envelopeHeight(),
+                    base.envelopeCenterYOffset(), base.upProbability(), base.splitChance(),
+                    base.branchLengthRatio(), base.secondaryChance(),
+                    base.lowestBranchHeight(), base.leafRadius(), value, base.canopyStages());
+            case "enveloperadius" -> new SpaceColonizationParams(
+                    base.envelopeType(), value, base.envelopeHeight(),
+                    base.envelopeCenterYOffset(), base.upProbability(), base.splitChance(),
+                    base.branchLengthRatio(), base.secondaryChance(),
+                    base.lowestBranchHeight(), base.leafRadius(), base.leafDensity(), base.canopyStages());
+            case "envelopeheight" -> new SpaceColonizationParams(
+                    base.envelopeType(), base.envelopeRadiusXZ(), value,
+                    base.envelopeCenterYOffset(), base.upProbability(), base.splitChance(),
+                    base.branchLengthRatio(), base.secondaryChance(),
+                    base.lowestBranchHeight(), base.leafRadius(), base.leafDensity(), base.canopyStages());
+            default -> base;
+        };
     }
 
     // ── Profile commands ─────────────────────────────────────────────────

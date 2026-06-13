@@ -1,4 +1,5 @@
 {
   "mod.ecoflux.name": "Ecoflux",
-  "debug.ecoflux.chunk_attachment": "Ecoflux 区块附件：%s"
+  "debug.ecoflux.chunk_attachment": "Ecoflux Chunk Attachment: %s",
+  "info.ecoflux.tree_already_complete": "Tree already fully grown"
 }

@@ -14,9 +14,6 @@
     "perf.BiomeTransitionServiceMixin",
     "perf.ModChunkEventsMixin",
     "perf.TreeGrowthHandlerMixin",
-    "perf.TreeMorphologyMixin",
-    "perf.LeafFillerMixin",
-    "perf.SkeletonGeneratorMixin",
     "perf.ModNetworkingMixin",
     "perf.SuccessionChunkDataMixin"
   ],

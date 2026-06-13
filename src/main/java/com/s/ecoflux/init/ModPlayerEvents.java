@@ -12,9 +12,11 @@ package com.s.ecoflux.init;
  */
 
 import com.s.ecoflux.plant.VegetationTracker;
+import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.BoneMealItem;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -31,6 +33,7 @@ public final class ModPlayerEvents {
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onBlockPlaced);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onBlockBroken);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onClockRightClick);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onBoneMealLog);
     }
 
     private static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
@@ -87,6 +90,32 @@ public final class ModPlayerEvents {
         event.getEntity().displayClientMessage(
                 net.minecraft.network.chat.Component.literal(result), false);
         event.setCanceled(true);
+    }
+
+    private static void onBoneMealLog(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getLevel().isClientSide()) return;
+        if (!(event.getItemStack().getItem() instanceof BoneMealItem)) return;
+
+        ServerLevel level = (ServerLevel) event.getLevel();
+        BlockPos pos = event.getPos();
+        LevelChunk chunk = getChunk(level, pos);
+        if (chunk == null) return;
+
+        var session = TreeGrowthHandler.INSTANCE.findSessionForSapling(level, pos);
+        if (session == null) return;
+
+        event.setCanceled(true);
+
+        if (session.isComplete()) {
+            return;
+        }
+
+        if (TreeGrowthHandler.INSTANCE.forceAdvanceStage(level, pos)) {
+            level.levelEvent(1505, pos, 0);
+            if (!event.getEntity().isCreative()) {
+                event.getItemStack().shrink(1);
+            }
+        }
     }
 
     private static LevelChunk getChunk(ServerLevel level, BlockPos pos) {
