@@ -10,12 +10,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ModNetworkingMixin {
 
     @Inject(method = "syncChunkToTracking", at = @At("HEAD"))
-    private static void onEnter(CallbackInfo ci) {
+    private static void onFlushEnter(CallbackInfo ci) {
         PerformanceProfiler.INSTANCE.push("network.sync");
     }
 
     @Inject(method = "syncChunkToTracking", at = @At("RETURN"))
-    private static void onExit(CallbackInfo ci) {
+    private static void onFlushExit(CallbackInfo ci) {
         PerformanceProfiler.INSTANCE.pop();
     }
 }

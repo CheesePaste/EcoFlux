@@ -1,7 +1,7 @@
-package com.s.ecoflux.worldgen.biomemodifier;
+package com.s.ecoflux.worldGen.biomemodifier;
 
 import com.mojang.serialization.MapCodec;
-import com.s.ecoflux.worldgen.EcofluxFeatures;
+import com.s.ecoflux.worldGen.EcofluxFeatures;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.biome.Biome;
