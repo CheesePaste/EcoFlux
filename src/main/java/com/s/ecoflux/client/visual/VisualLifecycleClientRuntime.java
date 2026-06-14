@@ -216,6 +216,101 @@ public final class VisualLifecycleClientRuntime {
         }
     }
 
+    /** Update the GPU scale texture with current scale values for all tracked plants. */
+    public void updateScaleTexture() {
+        EcofluxScaleTexture.INSTANCE.ensureReady();
+        EcofluxScaleTexture.INSTANCE.clearAll();
+
+        ClientLevel level = currentLevel();
+        if (level == null) return;
+
+        long gameTime = level.getGameTime();
+
+        for (VisualLifecycleInstance instance : trackedInstancesByPos.values()) {
+            float scale = 1.0f;
+            if (instance.source() == VisualLifecycleTrackingSource.VEGETATION_SYSTEM) {
+                VisualLifecycleRenderState state = computeRenderState(instance, level, gameTime);
+                if (state == null) continue;
+                scale = state.scale();
+            } else if (instance.source() == VisualLifecycleTrackingSource.DEMO) {
+                // Cyclic oscillation for shader testing: full cycle every 2 seconds
+                VisualLifecycleProfile profile = instance.profile();
+                float born = profile.bornScale();
+                float mature = profile.matureScale();
+                float t = (float) Math.sin((gameTime % 40L) / 40.0f * Math.PI * 2.0f);
+                scale = born + (mature - born) * (t * 0.5f + 0.5f);
+            } else {
+                continue;
+            }
+
+            BlockPos pos = instance.pos();
+            EcofluxScaleTexture.INSTANCE.writeScale(
+                    pos.getX(), pos.getY(), pos.getZ(), scale);
+        }
+
+        EcofluxScaleTexture.INSTANCE.upload();
+        EcofluxShaders.updateSampler();
+    }
+
+    /** Start or stop shader demo cycling for the looked-at block. */
+    public String toggleDemoCycle() {
+        ClientLevel level = currentLevel();
+        if (level == null) return "DEMO cycle: no client level.";
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.hitResult == null || mc.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            return "DEMO cycle: look at a block first.";
+        }
+        BlockPos pos = ((net.minecraft.world.phys.BlockHitResult) mc.hitResult).getBlockPos();
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return "DEMO cycle: target block is air.";
+
+        Long posKey = pos.asLong();
+        VisualLifecycleInstance existing = trackedInstancesByPos.get(posKey);
+        if (existing != null && existing.source() == VisualLifecycleTrackingSource.DEMO) {
+            // Stop demo
+            trackedInstances.remove(key(level, pos));
+            trackedInstancesByPos.remove(posKey);
+            baseColorCache.remove(posKey);
+            invalidateTrackedList();
+            markDirty(pos);
+            return "DEMO cycle stopped for " + pos;
+        }
+
+        // Start demo
+        Optional<VisualLifecycleAdapter> adapter = VisualLifecycleRegistry.INSTANCE.find(state);
+        if (adapter.isEmpty()) return "DEMO cycle: no visual adapter for this block type.";
+
+        VisualLifecycleInstance instance = new VisualLifecycleInstance(
+                adapter.get().typeId(),
+                net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()),
+                pos.immutable(),
+                level.getGameTime(),
+                adapter.get().createProfile(state),
+                null,
+                null,
+                VisualLifecycleTrackingSource.DEMO);
+        trackedInstances.put(key(level, pos), instance);
+        trackedInstancesByPos.put(posKey, instance);
+        invalidateTrackedList();
+        markDirty(pos);
+        return "DEMO cycle started for " + pos + " (" + instance.blockId() + ")";
+    }
+
+    /** Compute render state without adapter lookup. */
+    private VisualLifecycleRenderState computeRenderState(
+            VisualLifecycleInstance instance, ClientLevel level, long gameTime) {
+        BlockPos pos = instance.pos();
+        BlockState state = level.getBlockState(pos);
+        Optional<VisualLifecycleAdapter> adapter = VisualLifecycleRegistry.INSTANCE.find(state);
+        if (adapter.isEmpty() || !adapter.get().typeId().equals(instance.adapterId())) {
+            return null;
+        }
+        int baseColor = baseColorCache.computeIfAbsent(pos.asLong(),
+                k -> defaultColor(level, pos, state));
+        return adapter.get().resolveState(instance, gameTime, baseColor);
+    }
+
     public void tick() {
         ClientLevel level = currentLevel();
         if (level == null) {

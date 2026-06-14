@@ -21,7 +21,8 @@
     "perf.SuccessionChunkDataMixin"
   ],
   "client": [
-    "client.BlockRenderDispatcherMixin"
+    "client.BlockRenderDispatcherMixin",
+    "client.GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

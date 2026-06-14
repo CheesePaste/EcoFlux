@@ -14,5 +14,7 @@ package com.s.ecoflux.client.visual;
 
 public enum VisualLifecycleTrackingSource {
     MANUAL,
-    VEGETATION_SYSTEM
+    VEGETATION_SYSTEM,
+    /** Shader test mode — cyclic scale animation driven by client tick, no server sync needed. */
+    DEMO
 }

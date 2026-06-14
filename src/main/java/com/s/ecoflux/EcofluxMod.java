@@ -9,6 +9,7 @@ package com.s.ecoflux;
  * <p>Role in Ecoflux: bootstrap; everything starts here.
  */
 
+import com.s.ecoflux.client.visual.EcofluxShaders;
 import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.VisualLifecycleClientConfig;
 import com.s.ecoflux.init.ModAttachments;
@@ -17,10 +18,12 @@ import com.s.ecoflux.init.ModCommands;
 import com.s.ecoflux.init.ModPlayerEvents;
 import com.s.ecoflux.init.ModReloadListeners;
 import com.s.ecoflux.network.ModNetworking;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.loading.FMLEnvironment;
 
 @Mod(EcofluxConstants.MOD_ID)
 public final class EcofluxMod {
@@ -33,6 +36,9 @@ public final class EcofluxMod {
         ModReloadListeners.register();
         modContainer.registerConfig(ModConfig.Type.SERVER, EcofluxServerConfig.SPEC, "ecoflux-server.toml");
         modContainer.registerConfig(ModConfig.Type.CLIENT, VisualLifecycleClientConfig.SPEC, "ecoflux-client.toml");
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            EcofluxShaders.register(modEventBus);
+        }
         EcofluxConstants.LOGGER.info("{} 正在初始化", modContainer.getModInfo().getDisplayName());
     }
 }

@@ -35,6 +35,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 @EventBusSubscriber(modid = EcofluxConstants.MOD_ID, value = Dist.CLIENT)
 public final class ModClientVisualLifecycle {
@@ -58,6 +59,7 @@ public final class ModClientVisualLifecycle {
                                 })))
                         .then(Commands.literal("list").executes(context -> send(context.getSource(), VisualLifecycleClientRuntime.INSTANCE.list())))
                         .then(Commands.literal("clear").executes(context -> send(context.getSource(), VisualLifecycleClientRuntime.INSTANCE.clear())))
+                        .then(Commands.literal("cycle").executes(context -> send(context.getSource(), VisualLifecycleClientRuntime.INSTANCE.toggleDemoCycle())))
                         .then(Commands.literal("help").executes(context -> send(
                                 context.getSource(),
                                 "视觉生命周期可追踪任意非空气方块。已调校预设："
@@ -84,6 +86,13 @@ public final class ModClientVisualLifecycle {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         VisualLifecycleClientRuntime.INSTANCE.tick();
+    }
+
+    @SubscribeEvent
+    public static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_SKY) {
+            VisualLifecycleClientRuntime.INSTANCE.updateScaleTexture();
+        }
     }
 
     private static RequiredArgumentBuilder<CommandSourceStack, Integer> positionArguments(VisualCommand visualCommand) {
