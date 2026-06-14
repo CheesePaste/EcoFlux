@@ -1,10 +1,30 @@
 {
   "schema_version": 1,
   "biome_id": "minecraft:windswept_savanna",
-  "min_plant_count": 0,
-  "max_plant_count": 0,
-  "consuming": 0,
-  "queue_fill_factor": 0.0,
+  "min_plant_count": 20,
+  "max_plant_count": 40,
+  "consuming": 14,
+  "queue_fill_factor": 1.8,
   "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 280
+    },
+    {
+      "plant_id": "minecraft:tall_grass",
+      "weight": 40
+    },
+    {
+      "plant_id": "minecraft:dead_bush",
+      "weight": 6
+    },
+    {
+      "plant_id": "minecraft:acacia_sapling",
+      "weight": 2
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 1
+    }
   ]
 }

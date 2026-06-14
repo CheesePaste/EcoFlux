@@ -12,11 +12,11 @@
     },
     {
       "plant_id": "minecraft:spruce_sapling",
-      "weight": 19
+      "weight": 3
     },
     {
       "plant_id": "minecraft:oak_sapling",
-      "weight": 7
+      "weight": 1
     },
     {
       "plant_id": "minecraft:brown_mushroom",

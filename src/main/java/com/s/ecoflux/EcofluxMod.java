@@ -18,6 +18,8 @@ import com.s.ecoflux.init.ModPlayerEvents;
 import com.s.ecoflux.init.ModReloadListeners;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.test.sample.SamplingBiomeSources;
+import com.s.ecoflux.worldgen.EcofluxFeatures;
+import com.s.ecoflux.worldgen.biomemodifier.EcofluxBiomeModifiers;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.ModContainer;
@@ -33,6 +35,8 @@ public final class EcofluxMod {
         ModCommands.register();
         ModReloadListeners.register();
         SamplingBiomeSources.register(modEventBus);
+        EcofluxBiomeModifiers.register(modEventBus);
+        EcofluxFeatures.register(modEventBus);
         modContainer.registerConfig(ModConfig.Type.SERVER, EcofluxServerConfig.SPEC, "ecoflux-server.toml");
         modContainer.registerConfig(ModConfig.Type.CLIENT, VisualLifecycleClientConfig.SPEC, "ecoflux-client.toml");
         EcofluxConstants.LOGGER.info("{} 正在初始化", modContainer.getModInfo().getDisplayName());

@@ -21,8 +21,8 @@ public record BiomeRules(
         if (minPlantCount < 0) {
             throw new IllegalArgumentException("minPlantCount must be non-negative");
         }
-        if (maxPlantCount <= 0) {
-            throw new IllegalArgumentException("maxPlantCount must be positive");
+        if (maxPlantCount < 0) {
+            throw new IllegalArgumentException("maxPlantCount must be non-negative");
         }
         if (minPlantCount > maxPlantCount) {
             throw new IllegalArgumentException("minPlantCount must be <= maxPlantCount");
@@ -30,11 +30,15 @@ public record BiomeRules(
         if (consuming < 0) {
             throw new IllegalArgumentException("consuming must be non-negative");
         }
-        if (queueFillFactor < 1.0D) {
-            throw new IllegalArgumentException("queueFillFactor must be at least 1.0");
-        }
-        if (plants == null || plants.isEmpty()) {
-            throw new IllegalArgumentException("plants cannot be empty");
+        // Empty biome (maxPlantCount == 0): biome does not participate in succession.
+        // Skip plants/queue validation — these fields are irrelevant for empty paths.
+        if (maxPlantCount > 0) {
+            if (queueFillFactor < 1.0D) {
+                throw new IllegalArgumentException("queueFillFactor must be at least 1.0");
+            }
+            if (plants == null || plants.isEmpty()) {
+                throw new IllegalArgumentException("plants cannot be empty when maxPlantCount > 0");
+            }
         }
         plants = List.copyOf(plants);
     }

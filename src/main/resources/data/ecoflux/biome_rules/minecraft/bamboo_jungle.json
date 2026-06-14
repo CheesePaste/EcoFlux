@@ -16,11 +16,11 @@
     },
     {
       "plant_id": "minecraft:jungle_sapling",
-      "weight": 30
+      "weight": 15
     },
     {
       "plant_id": "minecraft:oak_sapling",
-      "weight": 8
+      "weight": 4
     },
     {
       "plant_id": "minecraft:poppy",

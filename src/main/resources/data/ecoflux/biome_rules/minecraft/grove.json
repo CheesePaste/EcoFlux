@@ -7,6 +7,10 @@
   "queue_fill_factor": 2.0,
   "plants": [
     {
+      "plant_id": "minecraft:short_grass",
+      "weight": 5
+    },
+    {
       "plant_id": "minecraft:spruce_sapling",
       "weight": 1
     }

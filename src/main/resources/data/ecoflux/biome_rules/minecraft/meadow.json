@@ -1,9 +1,54 @@
 {
   "schema_version": 1,
   "biome_id": "minecraft:meadow",
-  "min_plant_count": 0,
-  "max_plant_count": 0,
-  "consuming": 0,
-  "queue_fill_factor": 0.0,
-  "plants": []
+  "min_plant_count": 25,
+  "max_plant_count": 45,
+  "consuming": 14,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 150
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 42
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "weight": 32
+    },
+    {
+      "plant_id": "minecraft:oxeye_daisy",
+      "weight": 25
+    },
+    {
+      "plant_id": "minecraft:cornflower",
+      "weight": 20
+    },
+    {
+      "plant_id": "minecraft:azure_bluet",
+      "weight": 18
+    },
+    {
+      "plant_id": "minecraft:blue_orchid",
+      "weight": 15
+    },
+    {
+      "plant_id": "minecraft:pink_tulip",
+      "weight": 12
+    },
+    {
+      "plant_id": "minecraft:lilac",
+      "weight": 8
+    },
+    {
+      "plant_id": "minecraft:peony",
+      "weight": 6
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 1
+    }
+  ]
 }

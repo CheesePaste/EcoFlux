@@ -8,22 +8,26 @@
   "plants": [
     {
       "plant_id": "minecraft:short_grass",
-      "weight": 69
+      "weight": 690
     },
     {
       "plant_id": "minecraft:sunflower",
-      "weight": 14
+      "weight": 140
     },
     {
       "plant_id": "minecraft:tall_grass",
-      "weight": 4
+      "weight": 40
     },
     {
       "plant_id": "minecraft:dandelion",
-      "weight": 3
+      "weight": 30
     },
     {
       "plant_id": "minecraft:azure_bluet",
+      "weight": 10
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
       "weight": 1
     }
   ]

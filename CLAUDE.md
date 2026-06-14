@@ -78,13 +78,13 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `VegetationTypeAdapter` — Core interface: `matches(BlockState)`, `captureBirth(level, pos, state, gameTime, sourceBiomeId, sourcePathId, plantDefinition)`, `observe(record, gameTime)`, `visualState(record, gameTime)`. `captureBirth` now receives `PlantDefinition` for point values and lifetime from config. `category()` method removed
 - `VegetationTracker` — Singleton that tracks/observes/syncs all vegetation. Key methods: `trackAt()`, `observeTracked()`, `observeChunk()`. `trackAt()` now accepts `PlantDefinition` parameter
 - Adapters: `SimplePlantAdapter` (flowers, grass, ferns, mushrooms, dead bushes, double plants), `SaplingAdapter` (tree saplings/propagules → tree transformation), `TreeStructureAdapter` (mature trees). All no longer hardcode point values or lifetimes — these come from `PlantDefinition`
-- `WorldGenVegetationScanner` — Scans newly-loaded chunks for world-generation vegetation (plants, saplings, trees) and registers them with `VegetationTracker`. Uses BFS-based tree component detection (connected logs + leaves) for mature trees. Caps to biome's `maxPlantCount` using deviation-based removal (over-represented types removed first). Called once per chunk from `ModChunkEvents.onChunkLoad`
+- `WorldGenVegetationScanner` — Scans newly-loaded chunks for world-generation vegetation (plants, mushrooms) and registers them with `VegetationTracker`. Phase 1 consumes SC tree placements from `EcofluxTreeFeature.PENDING_TREES` (decoration→chunk-load bridge), no BFS tree detection needed. Phase 1b detects huge mushrooms via BFS. Phase 2 detects simple plants via adapters. Phase 3 caps density by removing over-represented plant types. Randomizes vegetation birth times with ±20% per-plant lifespan variation to scatter death events. Called once per chunk from `ModChunkEvents.onChunkLoad`
 - `VegetationCategory` enum — **Removed** (2026-06-12). Point values now come directly from `PlantDefinition.pointValue()`; no more hardcoded FLOWER=2/other=1
 - `VegetationTracker.trackAt()` automatically tracks upper halves of double-height plants (tall grass, sunflowers) with 0 points to keep both halves visually synced
 - `VegetationTransformation` — Descriptor for sapling→tree conversion. No longer carries `targetCategory`
 - `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`. Uses deviation-aware feedback: `computeEffectiveWeights()` adjusts per-plant weights based on actual vs target composition, so the system self-corrects toward the configured plant mix. Accepts `BiomeRules` for plant lists and capacities
 - `BiomePlantSampler` — **New** (2026-06-14); moved to `test/sample/` (2026-06-14). `/ecoflux sample [radius]` command: BFS-scans connected same-biome chunks, counts all adapter-matched vegetation by type, reports per-chunk plant count distribution (min/max/avg/histogram) and per-type totals/percentages. Edge chunks filtered to sampling core biome area only; water chunks (30%+ water surface) filtered. `/ecoflux sample <radius> apply` auto-generates `BiomeRules` JSON. Used to calibrate `BiomeRules` min/max plant counts and weights against vanilla world generation
-- `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted. Maps sapling IDs → `TreeGrowthProfile`. 9 species use `SpaceColonizationProfile` (birch, oak, spruce, cherry, jungle, dark_oak, acacia, mangrove) + 2 `MushroomGrowthProfile`
+- `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted. Maps sapling IDs → `TreeGrowthProfile`. 9 species use `SpaceColonizationProfile` (birch, oak, spruce, cherry, jungle, dark_oak, acacia, mangrove) + 2 `MushroomGrowthProfile`. Public static `resolveProfile(ResourceLocation)` and `resolveProfileFromLog(ResourceLocation)` for external profile lookup from sapling or log block IDs
 - `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, resolved height, timing), NBT-serializable. Transient fields: skeleton/morphologyParams/stagePlan (morphology), scParams/stageLogs/stageLeaves (space colonization) — rebuilt from seed on reload
 - `tree/TreeGrowthProfile` — Interface: species-specific growth parameters (height range, block types, stage count, spacing) + optional `morphologyParams()`. 3 implementations: `SpaceColonizationProfile` (8 species, all trees), `MorphologyTreeProfile` (legacy, retained as reference), `MushroomGrowthProfile` (2 mushroom types)
 - `tree/TreeShapeUtils` — Shared utilities: position-deterministic noise, log placement, 2x2 detection
@@ -93,6 +93,15 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
   - `SpaceColonizationGenerator` — Hybrid algorithm: Dynamic Trees-style discrete-Direction probMap node growth for logs (adapted from ferreusveritas/DynamicTrees, MIT), endpoint-cluster leaf placement (Phase 1) + envelope density falloff (Phase 2). Supports 1x1 and 2x2 trunks (4 parallel signals). Guarantees Chebyshev adjacency. Outputs `FullTreePlan` and `StagePlan`
   - `SpaceColonizationProfile` — Record implementing `TreeGrowthProfile`. Supports `is2x2` flag, optional `PostGrowHook` (e.g., mangrove prop roots). `morphologyParams()` returns null, uses session's `stageLogPositions()`/`stageLeafPositions()` for per-stage block placement
 - `tree/profiles/MushroomGrowthProfile` — Parameterized record for 2 mushroom types. `MushroomCapStyle` (FLAT/DOMED) controls cap shape
+
+### World generation (`worldgen/`)
+
+- `biomemodifier/EcofluxBiomeModifiers` — `DeferredRegister<MapCodec<? extends BiomeModifier>>` registering two biome modifier serializers: `cancel_vanilla_trees` and `add_ecoflux_trees`. Registered in `EcofluxMod`
+- `biomemodifier/CancelVanillaTreesBiomeModifier` — `Phase.REMOVE` biome modifier. Iterates ALL `GenerationStep.Decoration` stages and removes features whose `FeatureConfiguration` is a `TreeConfiguration`, `RootSystemConfiguration`, `RandomFeatureConfiguration`, or `SimpleRandomFeatureConfiguration`. Recursively unwraps nested feature configs. No namespace restriction — cancels all mod's trees
+- `biomemodifier/AddEcofluxTreesBiomeModifier` — `Phase.ADD` biome modifier. Adds `ecoflux:ecoflux_trees` placed feature to `VEGETAL_DECORATION` stage via `ServerLifecycleHooks`
+- `feature/EcofluxTreeFeature` — `extends Feature<NoneFeatureConfiguration>`. Custom tree feature that replaces vanilla trees during world decoration. Reads biome → `BiomeRules` → resolves tree species via `TreeGrowthHandler.resolveProfile()`. Generates SC trees via `SpaceColonizationGenerator.generateFull()`, places blocks via `WorldGenLevel.setBlock()`. Stores tree structures in `static PENDING_TREES` map for consumption by `WorldGenVegetationScanner` during chunk load. Supports 1x1 and 2x2 trees
+- `EcofluxFeatures` — `DeferredRegister`s for `Feature`, `ConfiguredFeature`, and `PlacedFeature` registrations. Provides `ECOFLUX_TREE_PLACED` for use by `AddEcofluxTreesBiomeModifier`
+- JSON triggers: `data/ecoflux/neoforge/biome_modifier/cancel_vanilla_trees.json` and `add_ecoflux_trees.json`
 
 ### Mixins (`mixin/`)
 - `client/BlockRenderDispatcherMixin` — Client-side: suppresses vanilla block render for visually-tracked blocks with non-1.0 scale
@@ -120,7 +129,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ### Initialization (`init/`)
 - `ModAttachments` — Registers the `DataAttachment<SuccessionChunkData>`
-- `ModChunkEvents` — Chunk load/unload/tick handlers, accelerated transition mode
+- `ModChunkEvents` — Chunk load/unload/tick handlers: initializes new chunks via `SuccessionService`, triggers `WorldGenVegetationScanner`, manages `ALL_LOADED_CHUNKS`/`AUTO_CHUNKS`/`TREE_OBSERVE_CHUNKS` tracking sets, cleans up `EcofluxTreeFeature.PENDING_TREES` on chunk unload
 - `ModCommands` — Debug commands under `/ecoflux prototype`, `/ecoflux auto`, `/ecoflux lifecycle`, `/ecoflux visual`, `/ecoflux tree` (instant/grid/stats for tree algorithm testing)
 - `ModReloadListeners` — JSON config reload hooks for succession paths, plant registry, and biome rules
 
@@ -140,9 +149,11 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 5. **Single tracking system**: Plant tracking is now unified under `vegetationRecords` via `VegetationTracker`. The legacy `activePlants` / `ActivePlantRecord` system has been removed.
 
+6. **BiomeModifier-based tree generation**: Vanilla tree features are cancelled at the biome level during `Phase.REMOVE` (all decoration stages, recursive feature-config unwrapping), and custom SC trees are added during `Phase.ADD` via `EcofluxTreeFeature`. The decoration→chunk-load bridge uses a `static PENDING_TREES` map: trees are placed during decoration (`WorldGenLevel.setBlock()`), and their structures are consumed by `WorldGenVegetationScanner` during `ChunkEvent.Load` for lifecycle tracking. This eliminates the old post-hoc BFS-based tree replacement + deferred neighbor-waiting system, solving forest server performance issues and cross-chunk tree boundary problems at the correct architectural layer.
+
 ## Current Development State
 
-- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring — 2026-06-12; Tree profile refactoring (11 boilerplate → 2 parameterized) — 2026-06-12; Space Colonization tree algorithm (9 species, 1x1 + 2x2, endpoint leaf clusters, instant test commands) — 2026-06-13/14; Old morphology system removed — 2026-06-14; World-gen vegetation scanning (WorldGenVegetationScanner) — 2026-06-14; Biome rules refactoring + world-gen density capping — 2026-06-14
+- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring — 2026-06-12; Tree profile refactoring (11 boilerplate → 2 parameterized) — 2026-06-12; Space Colonization tree algorithm (9 species, 1x1 + 2x2, endpoint leaf clusters, instant test commands) — 2026-06-13/14; Old morphology system removed — 2026-06-14; World-gen vegetation scanning (WorldGenVegetationScanner) — 2026-06-14; Biome rules refactoring + world-gen density capping — 2026-06-14; World-gen custom tree replacement + random plant ages — 2026-06-14; BiomeModifier-based tree replacement (CancelVanillaTrees + EcofluxTreeFeature) — 2026-06-14
 - **In progress**: Succession integration, Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 

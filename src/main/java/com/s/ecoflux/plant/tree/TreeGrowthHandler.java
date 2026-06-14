@@ -402,7 +402,7 @@ public final class TreeGrowthHandler {
     }
 
     @Nullable
-    private static TreeGrowthProfile resolveProfile(ResourceLocation saplingId) {
+    public static TreeGrowthProfile resolveProfile(ResourceLocation saplingId) {
         TreeGrowthProfile profile = PROFILES.get(saplingId);
         if (profile != null) return profile;
 
@@ -412,5 +412,20 @@ public final class TreeGrowthHandler {
             return PROFILES.get(ResourceLocation.fromNamespaceAndPath(saplingId.getNamespace(), treeName));
         }
         return null;
+    }
+
+    @Nullable
+    public static TreeGrowthProfile resolveProfileFromLog(ResourceLocation logId) {
+        String path = logId.getPath();
+        if (path.startsWith("stripped_")) {
+            path = path.substring("stripped_".length());
+        }
+        for (String suffix : new String[]{"_log", "_wood", "_stem"}) {
+            if (path.endsWith(suffix)) {
+                path = path.substring(0, path.length() - suffix.length());
+                break;
+            }
+        }
+        return PROFILES.get(ResourceLocation.fromNamespaceAndPath(logId.getNamespace(), path));
     }
 }

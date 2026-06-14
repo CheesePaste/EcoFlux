@@ -443,6 +443,60 @@
       "point_value": 6,
       "max_age_ticks": 288000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
+    },
+    {
+      "plant_id": "minecraft:tall_grass",
+      "point_value": 2,
+      "max_age_ticks": 72000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 6,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:coarse_dirt",
+          "minecraft:podzol",
+          "minecraft:moss_block",
+          "minecraft:rooted_dirt",
+          "minecraft:mud"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:dead_bush",
+      "point_value": 1,
+      "max_age_ticks": 48000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 4,
+        "allowed_base_blocks": [
+          "minecraft:sand",
+          "minecraft:red_sand",
+          "minecraft:terracotta",
+          "minecraft:dirt"
+        ]
+      }
+    },
+    {
+      "plant_id": "minecraft:blue_orchid",
+      "point_value": 2,
+      "max_age_ticks": 60000,
+      "spawn_rules": {
+        "placement": "surface",
+        "require_sky": true,
+        "max_local_density": 4,
+        "allowed_base_blocks": [
+          "minecraft:grass_block",
+          "minecraft:dirt",
+          "minecraft:coarse_dirt",
+          "minecraft:podzol",
+          "minecraft:moss_block",
+          "minecraft:rooted_dirt",
+          "minecraft:mud"
+        ]
+      }
     }
   ]
 }

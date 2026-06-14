@@ -1,9 +1,22 @@
 {
   "schema_version": 1,
   "biome_id": "minecraft:snowy_plains",
-  "min_plant_count": 0,
-  "max_plant_count": 0,
-  "consuming": 0,
-  "queue_fill_factor": 0.0,
-  "plants": []
+  "min_plant_count": 3,
+  "max_plant_count": 12,
+  "consuming": 6,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 20
+    },
+    {
+      "plant_id": "minecraft:dead_bush",
+      "weight": 3
+    },
+    {
+      "plant_id": "minecraft:spruce_sapling",
+      "weight": 1
+    }
+  ]
 }

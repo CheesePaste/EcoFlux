@@ -1,4 +1,4 @@
-package com.s.ecoflux.worldGen;
+package com.s.ecoflux.worldgen;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
@@ -10,6 +10,7 @@ import com.s.ecoflux.config.plant.PlantDefinition;
 import com.s.ecoflux.config.plant.PlantRegistry;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.network.ModNetworking;
+import com.s.ecoflux.worldgen.feature.EcofluxTreeFeature;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,7 +28,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,20 +36,23 @@ import net.minecraft.world.level.chunk.LevelChunk;
 
 /**
  * Scans newly-loaded chunks for world-generation vegetation and registers it
- * with {@code VegetationTracker}. This addresses the gap where plants and trees
- * placed by terrain decoration during world-gen are never intercepted.
+ * with {@code VegetationTracker}.
+ *
+ * <p>Phase 1 (trees): SC trees are now generated during decoration by
+ * {@link EcofluxTreeFeature} and consumed here via {@link #processDecorationTrees}.
+ * No BFS-based post-hoc replacement needed.
+ *
+ * <p>Phase 1b (mushrooms): Detects huge mushrooms in the chunk.
+ * Phase 2 (plants/saplings): Detects simple plants via adapters.
+ * Phase 3 (cap): Removes over-represented plants to respect maxPlantCount.
  *
  * <p>Called once per chunk from {@code ModChunkEvents.onChunkLoad} when the
- * chunk is first initialized (currentBiome was empty before initialization).
+ * chunk is first initialized.
  */
 public final class WorldGenVegetationScanner {
 
     private WorldGenVegetationScanner() {}
 
-    /**
-     * Scans the chunk for existing vegetation and registers it for tracking.
-     * Safe to call multiple times — skips already-tracked positions.
-     */
     public static void scanChunk(ServerLevel level, LevelChunk chunk) {
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
         long gameTime = level.getGameTime();
@@ -62,71 +65,11 @@ public final class WorldGenVegetationScanner {
         int chunkX = chunk.getPos().getMinBlockX();
         int chunkZ = chunk.getPos().getMinBlockZ();
 
-        int treeCount = 0;
+        int scTreeCount = 0;
         int plantCount = 0;
 
-        // Phase 1: Detect mature trees (connected logs + leaves)
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                for (int y = minY; y < maxY; y++) {
-                    BlockPos pos = new BlockPos(chunkX + x, y, chunkZ + z);
-                    if (trackedPositions.contains(pos) || treeProcessed.contains(pos)) {
-                        continue;
-                    }
-
-                    BlockState state = level.getBlockState(pos);
-                    if (!state.is(BlockTags.LOGS)) {
-                        continue;
-                    }
-
-                    TreeComponent tree = extractTreeComponent(level, pos, chunk);
-                    if (tree == null || tree.leaves.isEmpty()) {
-                        treeProcessed.addAll(tree != null ? tree.logs : Set.of(pos));
-                        continue;
-                    }
-
-                    treeProcessed.addAll(tree.logs);
-                    treeProcessed.addAll(tree.leaves);
-
-                    BlockPos root = findLowest(tree.logs);
-                    BlockState rootState = level.getBlockState(root);
-                    ResourceLocation logId = BuiltInRegistries.BLOCK.getKey(rootState.getBlock());
-                    Optional<PlantDefinition> plantDef = PlantRegistry.INSTANCE.getDefinition(logId);
-
-                    if (plantDef.isEmpty()) {
-                        continue;
-                    }
-
-                    long maxAgeTicks = plantDef.get().maxAgeTicks();
-                    long matureDuration = maxAgeTicks / 3;
-                    long randomAge = matureDuration > 1
-                            ? new Random(root.asLong() ^ chunkSeed).nextLong(matureDuration)
-                            : 0;
-                    long birthTime = gameTime - randomAge;
-
-                    long[] logArray = tree.logs.stream().mapToLong(BlockPos::asLong).toArray();
-                    long[] leafArray = tree.leaves.stream().mapToLong(BlockPos::asLong).toArray();
-                    TreeStructure treeStructure = new TreeStructure(logArray, leafArray);
-
-                    ActiveVegetationRecord record = new ActiveVegetationRecord(
-                            logId,
-                            TreeStructureAdapter.TYPE_ID,
-                            root.immutable(),
-                            VegetationLifecycleStage.MATURE,
-                            birthTime,
-                            gameTime,
-                            birthTime + maxAgeTicks,
-                            plantDef.get().pointValue(),
-                            plantDef.get().pointValue() + 1,
-                            chunkData.getCurrentBiome().map(key -> key.location()).orElse(null),
-                            chunkData.getActivePathId().orElse(null),
-                            treeStructure);
-
-                    chunkData.trackVegetation(record);
-                    treeCount++;
-                }
-            }
-        }
+        // Phase 1: Consume SC trees placed by EcofluxTreeFeature during decoration
+        scTreeCount += processDecorationTrees(level, chunk, gameTime, chunkSeed, chunkData);
 
         // Phase 1b: Detect huge mushrooms (stem + cap blocks)
         for (int x = 0; x < 16; x++) {
@@ -162,11 +105,12 @@ public final class WorldGenVegetationScanner {
                     }
 
                     long maxAgeTicks = plantDef.get().maxAgeTicks();
-                    long matureDuration = maxAgeTicks / 3;
-                    long randomAge = matureDuration > 1
-                            ? new Random(root.asLong() ^ chunkSeed).nextLong(matureDuration)
-                            : 0;
+                    Random ageRandom = new Random(root.asLong() ^ chunkSeed);
+                    double lifespanVariation = 0.8 + ageRandom.nextDouble() * 0.4;
+                    long variedMaxAge = (long) (maxAgeTicks * lifespanVariation);
+                    long randomAge = ageRandom.nextLong(Math.max(1, variedMaxAge * 17 / 20));
                     long birthTime = gameTime - randomAge;
+                    long expireTime = birthTime + variedMaxAge;
 
                     long[] stemArray = mushroom.logs.stream().mapToLong(BlockPos::asLong).toArray();
                     long[] capArray = mushroom.leaves.stream().mapToLong(BlockPos::asLong).toArray();
@@ -179,7 +123,7 @@ public final class WorldGenVegetationScanner {
                             VegetationLifecycleStage.MATURE,
                             birthTime,
                             gameTime,
-                            birthTime + maxAgeTicks,
+                            expireTime,
                             plantDef.get().pointValue(),
                             plantDef.get().pointValue() + 1,
                             chunkData.getCurrentBiome().map(key -> key.location()).orElse(null),
@@ -187,7 +131,7 @@ public final class WorldGenVegetationScanner {
                             mushroomStructure);
 
                     chunkData.trackVegetation(record);
-                    treeCount++;
+                    scTreeCount++;
                 }
             }
         }
@@ -211,7 +155,7 @@ public final class WorldGenVegetationScanner {
                         continue;
                     }
 
-                    // Skip tree-structure blocks (already handled in Phase 1)
+                    // Skip tree-structure blocks (handled by Phase 1 / decoration)
                     if (adapter.get() instanceof TreeStructureAdapter) {
                         continue;
                     }
@@ -226,16 +170,16 @@ public final class WorldGenVegetationScanner {
                             level, pos, state, gameTime,
                             sourceBiomeId, sourcePathId, plantDef.get());
 
-                    // Randomize birth time so world-gen plants don't all age/die at once.
-                    // For gradual growth, shift birth time back to put plants in a
-                    // pseudorandom stage. Non-gradual mode already sets MATURE.
+                    // Randomize birth time across 0%–90% of lifespan so world-gen plants
+                    // appear at all life stages. Add ±20% lifespan variation to spread
+                    // out death events and prevent mass simultaneous lag spikes.
                     if (record.lifeStage() != VegetationLifecycleStage.MATURE
                             && record.lifeStage() != VegetationLifecycleStage.GROWING) {
                         long maxAgeTicks = plantDef.get().maxAgeTicks();
-                        // Place the plant somewhere in its mid-life (20%–80% of maxAge)
-                        long offset = maxAgeTicks / 5;
-                        long range = Math.max(1, maxAgeTicks * 3 / 5);
-                        long randomAge = offset + new Random(pos.asLong() ^ chunkSeed).nextLong(range);
+                        Random ageRandom = new Random(pos.asLong() ^ chunkSeed);
+                        double lifespanVariation = 0.8 + ageRandom.nextDouble() * 0.4;
+                        long variedMaxAge = (long) (maxAgeTicks * lifespanVariation);
+                        long randomAge = ageRandom.nextLong(Math.max(1, variedMaxAge * 9 / 10));
                         long birthTime = gameTime - randomAge;
                         record = new ActiveVegetationRecord(
                                 record.vegetationId(),
@@ -244,7 +188,7 @@ public final class WorldGenVegetationScanner {
                                 record.lifeStage(),
                                 Math.max(0, birthTime),
                                 gameTime,
-                                birthTime + maxAgeTicks,
+                                birthTime + variedMaxAge,
                                 record.basePointValue(),
                                 record.currentPointValue(),
                                 record.sourceBiomeId(),
@@ -289,13 +233,11 @@ public final class WorldGenVegetationScanner {
         if (maxPlants > 0 && totalBeforeCap > maxPlants) {
             Map<ResourceLocation, Double> deviation = buildDeviationMap(chunkData, chunkSeed);
             List<ActiveVegetationRecord> allRecords = new ArrayList<>(chunkData.getVegetationRecords().values());
-            // Sort by deviation descending: over-represented plants removed first
             allRecords.sort(Comparator.<ActiveVegetationRecord>comparingDouble(
                     r -> deviation.getOrDefault(r.vegetationId(), 0.0)).reversed());
             int toRemove = totalBeforeCap - maxPlants;
             Random random = new Random(chunkSeed ^ 0x5EED);
             for (int i = 0; i < toRemove && !allRecords.isEmpty(); i++) {
-                // Pick from the most over-represented with some randomness
                 int poolSize = Math.min(allRecords.size(), Math.max(1, toRemove * 2));
                 int idx = random.nextInt(poolSize);
                 ActiveVegetationRecord record = allRecords.get(idx);
@@ -305,18 +247,66 @@ public final class WorldGenVegetationScanner {
             }
         }
 
-        if (treeCount > 0 || plantCount > 0) {
-            EcofluxConstants.LOGGER.info(
-                    "[Ecoflux] World-gen scan chunk {}: {} trees, {} plants registered (cap={}, removed={})",
-                    chunk.getPos(), treeCount, plantCount, maxPlants, removedPlants);
+        EcofluxConstants.LOGGER.info(
+                "[Ecoflux] scanChunk done: chunk {} sc_trees={} plants={} cap={} removed={}",
+                chunk.getPos(), scTreeCount, plantCount, maxPlants, removedPlants);
+
+        if (scTreeCount > 0 || plantCount > 0) {
             ModNetworking.syncChunkToTracking(level, chunk);
         }
     }
 
+    // ── Phase 1: Decoration tree bridge ─────────────────────────────────
+
     /**
-     * Computes how over- or under-represented each plant type is relative to biome rules.
-     * Positive = over-represented (should be removed first). Negative = under-represented.
+     * Consumes tree placements stored by {@link EcofluxTreeFeature} during decoration
+     * and registers them as tracked vegetation in the chunk. Eliminates the need
+     * for BFS-based tree detection.
      */
+    private static int processDecorationTrees(ServerLevel level, LevelChunk chunk,
+                                               long gameTime, long chunkSeed,
+                                               SuccessionChunkData chunkData) {
+        long chunkKey = chunk.getPos().toLong();
+        List<EcofluxTreeFeature.PendingTreePlacement> pending =
+                EcofluxTreeFeature.PENDING_TREES.remove(chunkKey);
+        if (pending == null || pending.isEmpty()) return 0;
+
+        int count = 0;
+        for (var placement : pending) {
+            Optional<PlantDefinition> plantDefOpt = PlantRegistry.INSTANCE.getDefinition(placement.speciesId());
+            if (plantDefOpt.isEmpty()) continue;
+            PlantDefinition plantDef = plantDefOpt.get();
+
+            long maxAgeTicks = plantDef.maxAgeTicks();
+            Random ageRandom = new Random(placement.root().asLong() ^ chunkSeed);
+            double lifespanVariation = 0.8 + ageRandom.nextDouble() * 0.4;
+            long variedMaxAge = (long) (maxAgeTicks * lifespanVariation);
+            long randomAge = ageRandom.nextLong(Math.max(1, variedMaxAge * 17 / 20));
+            long birthTime = gameTime - randomAge;
+
+            ActiveVegetationRecord record = new ActiveVegetationRecord(
+                    placement.speciesId(),
+                    TreeStructureAdapter.TYPE_ID,
+                    placement.root(),
+                    VegetationLifecycleStage.MATURE,
+                    birthTime,
+                    gameTime,
+                    birthTime + variedMaxAge,
+                    plantDef.pointValue(),
+                    plantDef.pointValue() + 1,
+                    chunkData.getCurrentBiome().map(key -> key.location()).orElse(null),
+                    chunkData.getActivePathId().orElse(null),
+                    placement.structure());
+
+            chunkData.trackVegetation(record);
+            count++;
+        }
+
+        return count;
+    }
+
+    // ── Deviation map for Phase 3 cap ──────────────────────────────────
+
     private static Map<ResourceLocation, Double> buildDeviationMap(SuccessionChunkData chunkData, long seed) {
         Map<ResourceLocation, Double> deviation = new HashMap<>();
         Optional<BiomeRules> rulesOpt = chunkData.getActiveBiomeRulesId()
@@ -345,69 +335,15 @@ public final class WorldGenVegetationScanner {
         return deviation;
     }
 
-    // ── Tree detection ────────────────────────────────────────────────────
+    // ── Mushroom detection ─────────────────────────────────────────────
 
-    /**
-     * Extracts a connected tree component (logs + adjacent leaves) starting from a log block.
-     * Returns null if the component is trivial (single log with no leaves).
-     */
-    private static TreeComponent extractTreeComponent(ServerLevel level, BlockPos startLog, LevelChunk chunk) {
-        int minY = chunk.getMinBuildHeight();
-        int maxY = chunk.getMaxBuildHeight();
-        int chunkMinX = chunk.getPos().getMinBlockX();
-        int chunkMinZ = chunk.getPos().getMinBlockZ();
-        int chunkMaxX = chunkMinX + 15;
-        int chunkMaxZ = chunkMinZ + 15;
+    private static final int MAX_BFS_SIZE = 4096;
 
-        // BFS through connected logs
-        Set<BlockPos> logs = new HashSet<>();
-        Queue<BlockPos> logQueue = new ArrayDeque<>();
-        logs.add(startLog);
-        logQueue.add(startLog);
-
-        while (!logQueue.isEmpty()) {
-            BlockPos pos = logQueue.poll();
-            for (BlockPos neighbor : neighbors26(pos)) {
-                if (logs.contains(neighbor)) continue;
-                // Restrict to current chunk to avoid cascading chunk loads
-                if (!inChunk(neighbor, chunkMinX, chunkMaxX, minY, maxY, chunkMinZ, chunkMaxZ)) continue;
-                BlockState ns = level.getBlockState(neighbor);
-                if (ns.is(BlockTags.LOGS)) {
-                    logs.add(neighbor);
-                    logQueue.add(neighbor);
-                }
-            }
-        }
-
-        // BFS through leaves adjacent to log component
-        Set<BlockPos> leaves = new HashSet<>();
-        Queue<BlockPos> leafQueue = new ArrayDeque<>();
-        for (BlockPos log : logs) {
-            for (BlockPos neighbor : neighbors26(log)) {
-                if (logs.contains(neighbor) || leaves.contains(neighbor)) continue;
-                if (!inChunk(neighbor, chunkMinX, chunkMaxX, minY, maxY, chunkMinZ, chunkMaxZ)) continue;
-                BlockState ns = level.getBlockState(neighbor);
-                if (ns.is(BlockTags.LEAVES)) {
-                    leaves.add(neighbor);
-                    leafQueue.add(neighbor);
-                }
-            }
-        }
-
-        while (!leafQueue.isEmpty()) {
-            BlockPos pos = leafQueue.poll();
-            for (BlockPos neighbor : neighbors26(pos)) {
-                if (logs.contains(neighbor) || leaves.contains(neighbor)) continue;
-                if (!inChunk(neighbor, chunkMinX, chunkMaxX, minY, maxY, chunkMinZ, chunkMaxZ)) continue;
-                BlockState ns = level.getBlockState(neighbor);
-                if (ns.is(BlockTags.LEAVES)) {
-                    leaves.add(neighbor);
-                    leafQueue.add(neighbor);
-                }
-            }
-        }
-
-        return new TreeComponent(logs, leaves);
+    @javax.annotation.Nullable
+    private static BlockState getBlockStateIfLoaded(ServerLevel level, BlockPos pos) {
+        LevelChunk c = level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
+        if (c == null) return null;
+        return c.getBlockState(pos);
     }
 
     private static BlockPos findLowest(Set<BlockPos> logs) {
@@ -418,12 +354,6 @@ public final class WorldGenVegetationScanner {
             }
         }
         return lowest;
-    }
-
-    private static boolean inChunk(BlockPos pos, int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
-        return pos.getX() >= minX && pos.getX() <= maxX
-                && pos.getY() >= minY && pos.getY() < maxY
-                && pos.getZ() >= minZ && pos.getZ() <= maxZ;
     }
 
     private static List<BlockPos> neighbors26(BlockPos pos) {
@@ -441,17 +371,9 @@ public final class WorldGenVegetationScanner {
 
     private record TreeComponent(Set<BlockPos> logs, Set<BlockPos> leaves) {}
 
-    /**
-     * Extracts a connected huge mushroom component (stems + adjacent cap blocks).
-     * Returns null if the component is trivial (single stem with no caps).
-     */
     private static TreeComponent extractMushroomComponent(ServerLevel level, BlockPos startStem, LevelChunk chunk) {
         int minY = chunk.getMinBuildHeight();
         int maxY = chunk.getMaxBuildHeight();
-        int chunkMinX = chunk.getPos().getMinBlockX();
-        int chunkMinZ = chunk.getPos().getMinBlockZ();
-        int chunkMaxX = chunkMinX + 15;
-        int chunkMaxZ = chunkMinZ + 15;
 
         Set<BlockPos> stems = new HashSet<>();
         Queue<BlockPos> stemQueue = new ArrayDeque<>();
@@ -462,10 +384,13 @@ public final class WorldGenVegetationScanner {
             BlockPos pos = stemQueue.poll();
             for (BlockPos neighbor : neighbors26(pos)) {
                 if (stems.contains(neighbor)) continue;
-                if (!inChunk(neighbor, chunkMinX, chunkMaxX, minY, maxY, chunkMinZ, chunkMaxZ)) continue;
-                if (level.getBlockState(neighbor).is(Blocks.MUSHROOM_STEM)) {
+                if (neighbor.getY() < minY || neighbor.getY() >= maxY) continue;
+                BlockState ns = getBlockStateIfLoaded(level, neighbor);
+                if (ns == null) continue;
+                if (ns.is(Blocks.MUSHROOM_STEM)) {
                     stems.add(neighbor);
                     stemQueue.add(neighbor);
+                    if (stems.size() > MAX_BFS_SIZE) return null;
                 }
             }
         }
@@ -474,8 +399,9 @@ public final class WorldGenVegetationScanner {
         for (BlockPos stem : stems) {
             for (BlockPos neighbor : neighbors26(stem)) {
                 if (stems.contains(neighbor) || caps.contains(neighbor)) continue;
-                if (!inChunk(neighbor, chunkMinX, chunkMaxX, minY, maxY, chunkMinZ, chunkMaxZ)) continue;
-                BlockState ns = level.getBlockState(neighbor);
+                if (neighbor.getY() < minY || neighbor.getY() >= maxY) continue;
+                BlockState ns = getBlockStateIfLoaded(level, neighbor);
+                if (ns == null) continue;
                 if (ns.is(Blocks.BROWN_MUSHROOM_BLOCK) || ns.is(Blocks.RED_MUSHROOM_BLOCK)) {
                     caps.add(neighbor);
                 }

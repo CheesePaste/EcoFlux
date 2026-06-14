@@ -8,7 +8,7 @@
   "plants": [
     {
       "plant_id": "minecraft:mangrove_propagule",
-      "weight": 94
+      "weight": 5
     },
     {
       "plant_id": "minecraft:short_grass",

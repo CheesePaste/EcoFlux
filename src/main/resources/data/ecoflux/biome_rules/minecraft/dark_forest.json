@@ -12,11 +12,11 @@
     },
     {
       "plant_id": "minecraft:dark_oak_sapling",
-      "weight": 497
+      "weight": 37
     },
     {
       "plant_id": "minecraft:oak_sapling",
-      "weight": 147
+      "weight": 11
     },
     {
       "plant_id": "minecraft:red_mushroom",
@@ -24,7 +24,7 @@
     },
     {
       "plant_id": "minecraft:birch_sapling",
-      "weight": 41
+      "weight": 3
     },
     {
       "plant_id": "minecraft:lily_of_the_valley",

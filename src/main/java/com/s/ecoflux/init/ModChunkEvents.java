@@ -1,10 +1,12 @@
 package com.s.ecoflux.init;
 
+import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
-import com.s.ecoflux.worldGen.WorldGenVegetationScanner;
+import com.s.ecoflux.worldgen.WorldGenVegetationScanner;
+import com.s.ecoflux.worldgen.feature.EcofluxTreeFeature;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import com.s.ecoflux.succession.SuccessionService;
 import com.s.ecoflux.util.TickProfiler;
@@ -84,7 +86,11 @@ public final class ModChunkEvents {
 
         if (chunk instanceof LevelChunk levelChunk) {
             if (isNewChunk) {
-                WorldGenVegetationScanner.scanChunk(serverLevel, levelChunk);
+                try {
+                    WorldGenVegetationScanner.scanChunk(serverLevel, levelChunk);
+                } catch (Exception e) {
+                    EcofluxConstants.LOGGER.error("Error scanning chunk {} for world-gen vegetation", chunk.getPos(), e);
+                }
             }
             TreeGrowthHandler.INSTANCE.onChunkLoad(serverLevel, levelChunk);
         }
@@ -106,6 +112,9 @@ public final class ModChunkEvents {
         removeFrom(ALL_LOADED_CHUNKS, serverLevel.dimension(), pos);
         removeFrom(AUTO_CHUNKS, serverLevel.dimension(), pos);
         removeFrom(TREE_OBSERVE_CHUNKS, serverLevel.dimension(), pos);
+
+        // Clean up any orphaned decoration-tree placements for this chunk
+        EcofluxTreeFeature.PENDING_TREES.remove(pos);
     }
 
     private static void onLevelTick(LevelTickEvent.Post event) {
