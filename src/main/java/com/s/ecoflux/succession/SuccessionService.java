@@ -189,7 +189,8 @@ public final class SuccessionService {
     private static long randomSpawnIntervalTicks(long seed) {
         int min = EcofluxServerConfig.spawnIntervalMinTicks();
         int max = Math.max(min, EcofluxServerConfig.spawnIntervalMaxTicks());
-        if (min == max) return min;
-        return min + new Random(seed).nextLong(max - min + 1L);
+        float speed = SuccessionSpeedConfig.getSpeedMultiplier();
+        long raw = (min == max) ? min : min + new Random(seed).nextLong(max - min + 1L);
+        return Math.max(5L, (long) (raw / speed));
     }
 }

@@ -71,7 +71,9 @@
       "Bash(rm -rf \"C:/Users/huhai/Desktop/Java-mcmod/Succession/build/resources\")",
       "Bash(./gradlew createMinecraftArtifacts --rerun-tasks)",
       "Bash(rm -rf build/classes/java/main/com/s/ecoflux/worldgen)",
-      "Bash(./gradlew compileJava prepareClientRun)"
+      "Bash(./gradlew compileJava prepareClientRun)",
+      "Bash(.\\\\gradlew.bat compileJava)",
+      "Bash(cmd.exe /c \"gradlew.bat compileJava\")"
     ]
   }
 }

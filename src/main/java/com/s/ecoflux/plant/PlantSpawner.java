@@ -69,6 +69,11 @@ public final class PlantSpawner {
             return "区块 " + chunk.getPos() + " 生成失败：世界拒绝在 " + pos + " 放置。";
         }
 
+        if (state.hasProperty(net.minecraft.world.level.block.DoublePlantBlock.HALF)) {
+            level.setBlock(pos.above(), state.setValue(net.minecraft.world.level.block.DoublePlantBlock.HALF,
+                    net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER), Block.UPDATE_ALL);
+        }
+
         VegetationTracker.INSTANCE.trackAt(
                 level,
                 chunk,

@@ -387,61 +387,61 @@
     {
       "plant_id": "minecraft:oak_log",
       "point_value": 12,
-      "max_age_ticks": 576000,
+      "max_age_ticks": 192000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {
       "plant_id": "minecraft:birch_log",
       "point_value": 10,
-      "max_age_ticks": 432000,
+      "max_age_ticks": 144000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {
       "plant_id": "minecraft:spruce_log",
       "point_value": 15,
-      "max_age_ticks": 720000,
+      "max_age_ticks": 288000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {
       "plant_id": "minecraft:cherry_log",
       "point_value": 10,
-      "max_age_ticks": 576000,
+      "max_age_ticks": 192000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {
       "plant_id": "minecraft:jungle_log",
       "point_value": 15,
-      "max_age_ticks": 720000,
+      "max_age_ticks": 288000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {
       "plant_id": "minecraft:acacia_log",
       "point_value": 12,
-      "max_age_ticks": 576000,
+      "max_age_ticks": 192000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {
       "plant_id": "minecraft:mangrove_log",
       "point_value": 15,
-      "max_age_ticks": 720000,
+      "max_age_ticks": 216000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {
       "plant_id": "minecraft:dark_oak_log",
       "point_value": 18,
-      "max_age_ticks": 720000,
+      "max_age_ticks": 288000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {
       "plant_id": "minecraft:brown_mushroom_block",
       "point_value": 6,
-      "max_age_ticks": 288000,
+      "max_age_ticks": 120000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {
       "plant_id": "minecraft:red_mushroom_block",
       "point_value": 6,
-      "max_age_ticks": 288000,
+      "max_age_ticks": 120000,
       "spawn_rules": { "placement": "none", "require_sky": false, "max_local_density": 1, "allowed_base_blocks": [] }
     },
     {

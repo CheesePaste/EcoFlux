@@ -52,29 +52,29 @@ public final class TreeGrowthHandler {
     private static final Map<ResourceLocation, TreeGrowthProfile> PROFILES = new HashMap<>();
 
     static {
-        reg(new SpaceColonizationProfile(id("oak"), 3600, Blocks.OAK_LOG, Blocks.OAK_LEAVES, false,
+        reg(new SpaceColonizationProfile(id("oak"), 1200, Blocks.OAK_LOG, Blocks.OAK_LEAVES, false,
                 SpaceColonizationParams.oak(), null));
-        reg(new SpaceColonizationProfile(id("birch"), 2400, Blocks.BIRCH_LOG, Blocks.BIRCH_LEAVES, false,
+        reg(new SpaceColonizationProfile(id("birch"), 800, Blocks.BIRCH_LOG, Blocks.BIRCH_LEAVES, false,
                 SpaceColonizationParams.birch(), null));
-        reg(new SpaceColonizationProfile(id("spruce"), 4800, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, false,
+        reg(new SpaceColonizationProfile(id("spruce"), 1600, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, false,
                 SpaceColonizationParams.spruce(), null));
-        reg(new SpaceColonizationProfile(id("cherry"), 3600, Blocks.CHERRY_LOG, Blocks.CHERRY_LEAVES, false,
+        reg(new SpaceColonizationProfile(id("cherry"), 1200, Blocks.CHERRY_LOG, Blocks.CHERRY_LEAVES, false,
                 SpaceColonizationParams.cherry(), null));
-        reg(new SpaceColonizationProfile(id("jungle_1x1"), 4200, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, false,
+        reg(new SpaceColonizationProfile(id("jungle_1x1"), 1400, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, false,
                 SpaceColonizationParams.jungle(), null));
-        reg(new SpaceColonizationProfile(id("acacia"), 3600, Blocks.ACACIA_LOG, Blocks.ACACIA_LEAVES, false,
+        reg(new SpaceColonizationProfile(id("acacia"), 1200, Blocks.ACACIA_LOG, Blocks.ACACIA_LEAVES, false,
                 SpaceColonizationParams.acacia(), null));
-        reg(new SpaceColonizationProfile(id("mangrove"), 3200, Blocks.MANGROVE_LOG, Blocks.MANGROVE_LEAVES, false,
+        reg(new SpaceColonizationProfile(id("mangrove"), 1067, Blocks.MANGROVE_LOG, Blocks.MANGROVE_LEAVES, false,
                 SpaceColonizationParams.mangrove(), SpaceColonizationProfile::placePropRoots));
 
-        reg(new SpaceColonizationProfile(id("jungle"), 4800, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, true,
+        reg(new SpaceColonizationProfile(id("jungle"), 1600, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, true,
                 SpaceColonizationParams.jungle(), null));
-        reg(new SpaceColonizationProfile(id("dark_oak"), 3600, Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_LEAVES, true,
+        reg(new SpaceColonizationProfile(id("dark_oak"), 1200, Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_LEAVES, true,
                 SpaceColonizationParams.darkOak(), null));
 
-        reg(new MushroomGrowthProfile(id("brown_mushroom"), 4, 7, 2400,
+        reg(new MushroomGrowthProfile(id("brown_mushroom"), 4, 7, 800,
                 Blocks.BROWN_MUSHROOM_BLOCK, MushroomGrowthProfile.MushroomCapStyle.FLAT));
-        reg(new MushroomGrowthProfile(id("red_mushroom"), 3, 7, 2400,
+        reg(new MushroomGrowthProfile(id("red_mushroom"), 3, 7, 800,
                 Blocks.RED_MUSHROOM_BLOCK, MushroomGrowthProfile.MushroomCapStyle.DOMED));
 
         // Mangrove propagule is a distinct block from mangrove sapling

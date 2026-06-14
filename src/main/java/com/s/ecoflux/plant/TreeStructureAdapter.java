@@ -9,14 +9,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class TreeStructureAdapter implements VegetationTypeAdapter {
     public static final TreeStructureAdapter INSTANCE = new TreeStructureAdapter();
     public static final ResourceLocation TYPE_ID = EcofluxConstants.id("tree_structure");
-    private static final long DECAY_TICKS = 24000L;
+    private static final long DECAY_TICKS = 72000L;
 
     private TreeStructureAdapter() {}
 
@@ -96,20 +95,10 @@ public final class TreeStructureAdapter implements VegetationTypeAdapter {
     private VegetationObservation observeDeath(ServerLevel level, ActiveVegetationRecord record,
                                                 long age) {
         if (record.lifeStage() != VegetationLifecycleStage.DEAD) {
-            EcofluxConstants.LOGGER.error(
-                    "树木已死亡！位置={}, 缩放年龄={}/{}tick, 速度倍率={}x, 实际游戏天数={}",
+            EcofluxConstants.LOGGER.info(
+                    "树木已死亡！位置={}, 缩放年龄={}/{}tick, 速度倍率={}x",
                     record.position(), age, record.expireGameTime() - record.birthGameTime(),
-                    String.format("%.1f", SuccessionSpeedConfig.getSpeedMultiplier()),
-                    level.getGameTime() / 24000L);
-
-            for (ServerPlayer player : level.players()) {
-                BlockPos tpPos = record.position();
-                player.teleportTo(level, tpPos.getX() + 0.5, tpPos.getY() + 2, tpPos.getZ() + 0.5,
-                        player.getYRot(), player.getXRot());
-                EcofluxConstants.LOGGER.error(
-                        "[测试] 已将玩家 {} 传送至树木死亡位置 {}", player.getName().getString(), tpPos);
-                break;
-            }
+                    String.format("%.1f", SuccessionSpeedConfig.getSpeedMultiplier()));
         }
 
         return new VegetationObservation(

@@ -200,6 +200,21 @@ public final class VegetationTracker {
             return ObserveResult.noop("位置 " + pos + " 观察失败：适配器 " + record.adapterType() + " 未注册。");
         }
 
+        if (record.adapterType().equals(SaplingAdapter.TYPE_ID)) {
+            long saplingAge = (long) ((level.getGameTime() - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
+            if (saplingAge >= 1200L) {
+                var handler = com.s.ecoflux.plant.tree.TreeGrowthHandler.INSTANCE;
+                if (handler.findSessionForSapling(level, pos) == null) {
+                    handler.interceptGrowth(level, pos, record);
+                    handler.forceAdvanceStage(level, pos);
+                    chunkData.removeVegetation(pos);
+                    return new ObserveResult(
+                            "树苗成熟，触发树木生长。位置=" + pos,
+                            false, true, true);
+                }
+            }
+        }
+
         VegetationObservation observation = adapter.get().observe(level, record, state, level.getGameTime());
         if (!observation.present()) {
             if (record.treeStructure() != null && !record.treeStructure().isEmpty()) {
@@ -291,7 +306,7 @@ public final class VegetationTracker {
     private TreeStructure processTreeDeath(ServerLevel level, TreeStructure ts) {
         long[] leaves = ts.leafPositions();
         long[] logs = ts.logPositions();
-        int maxRemove = Math.max(1, (leaves.length + logs.length) / 8);
+        int maxRemove = Math.max(1, (leaves.length + logs.length) / 48);
 
         if (leaves.length > 0) {
             int removeLeaves = Math.min(maxRemove, leaves.length);
@@ -349,15 +364,32 @@ public final class VegetationTracker {
             return "区块 " + chunk.getPos() + " 没有已追踪植被记录。";
         }
 
+        long treeCount = chunkData.getVegetationRecords().values().stream()
+                .filter(r -> r.treeStructure() != null && !r.treeStructure().isEmpty())
+                .count();
         String joined = chunkData.getVegetationRecords().values().stream()
-                .limit(8)
-                .map(record -> record.position() + ":" + record.vegetationId() + ":" + record.lifeStage() + ":" + record.currentPointValue())
+                .collect(java.util.stream.Collectors.groupingBy(
+                        ActiveVegetationRecord::vegetationId,
+                        java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.collectingAndThen(
+                                java.util.stream.Collectors.toList(),
+                                list -> list.get(0))))
+                .values().stream()
+                .map(record -> {
+                    String extra = record.treeStructure() != null && !record.treeStructure().isEmpty()
+                            ? "[树:" + record.treeStructure().totalBlocks() + "]"
+                            : "";
+                    long count = chunkData.getVegetationRecords().values().stream()
+                            .filter(r -> r.vegetationId().equals(record.vegetationId())).count();
+                    return record.vegetationId() + "×" + count + extra;
+                })
                 .reduce((left, right) -> left + ", " + right)
                 .orElse("无");
         return "区块 " + chunk.getPos()
                 + " 已追踪植被=" + chunkData.getVegetationRecords().size()
                 + " 总积分=" + chunkData.getTotalVegetationPoints()
-                + " 样本=[" + joined + "]";
+                + " 树木=" + treeCount
+                + " [" + joined + "]";
     }
 
     public String advanceStage(ServerLevel level, LevelChunk chunk, BlockPos pos) {

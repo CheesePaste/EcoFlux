@@ -156,6 +156,10 @@ public final class ChunkSamplingHelper {
         for (int y = surfaceY - 1; y <= surfaceY + 2; y++) {
             BlockPos placePos = new BlockPos(worldX, y, worldZ);
             if (canPlantAt(level, chunkData, block, spawnRules, placePos)) {
+                if (block.defaultBlockState().hasProperty(net.minecraft.world.level.block.DoublePlantBlock.HALF)
+                        && !level.isEmptyBlock(placePos.above())) {
+                    continue;
+                }
                 return Optional.of(placePos);
             }
         }
