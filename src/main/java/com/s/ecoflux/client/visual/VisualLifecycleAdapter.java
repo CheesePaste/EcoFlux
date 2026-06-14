@@ -8,8 +8,10 @@ package com.s.ecoflux.client.visual;
  * {@code demoBlocks()}/{@code supportSummary()} for command feedback. The default
  * {@code resolveState()} method is the core algorithm: it determines the current
  * {@link VisualLifecycleStage} from instance age (or server-synced external state
- * with tick extrapolation), interpolates scale along the stage curve, and applies
- * aging hue/saturation/brightness shifts via HSB color manipulation.
+ * with tick extrapolation), applies 3-stage discrete scale (SMALL/FULL/DECAY),
+ * and applies aging hue/saturation/brightness shifts via HSB color manipulation.
+ * {@code determineStage()} provides a lightweight stage-only check for cache
+ * invalidation without the full scale/color computation.
  * <p>Role in Ecoflux: adapters decouple block-type recognition from visual
  * computation, enabling each plant category (flowers, grass, saplings, generic
  * fallback) to have its own scale curve, timing, and color-degradation parameters.
@@ -34,6 +36,63 @@ public interface VisualLifecycleAdapter {
 
     default String supportSummary() {
         return typeId().toString();
+    }
+
+    /**
+     * Quick stage determination without scale/color computation.
+     * Used as cache key — only recompute render state when stage changes.
+     */
+    default VisualLifecycleStage determineStage(VisualLifecycleInstance instance, long gameTime) {
+        VisualLifecycleStage stage = instance.forcedStage();
+        if (stage != null) {
+            return stage;
+        }
+        VisualLifecycleProfile profile = instance.profile();
+        VisualLifecycleExternalState externalState = instance.externalState();
+        if (externalState != null) {
+            stage = externalState.stage();
+            float accumulated = externalState.stageProgress();
+            long remaining = Math.max(0L, gameTime - externalState.syncGameTime());
+            while (remaining > 0 && stage != null) {
+                int duration = switch (stage) {
+                    case BORN -> profile.bornTicks();
+                    case GROWING -> profile.growingTicks();
+                    case MATURE -> profile.matureTicks();
+                    case AGING -> profile.agingTicks();
+                    case DEAD -> 0;
+                };
+                if (duration <= 0) {
+                    break;
+                }
+                float remainingInStage = 1.0F - accumulated;
+                long ticksToComplete = (long) (remainingInStage * duration);
+                if (remaining >= ticksToComplete) {
+                    remaining -= ticksToComplete;
+                    accumulated = 0.0F;
+                    stage = switch (stage) {
+                        case BORN -> VisualLifecycleStage.GROWING;
+                        case GROWING -> VisualLifecycleStage.MATURE;
+                        case MATURE -> VisualLifecycleStage.AGING;
+                        case AGING -> VisualLifecycleStage.AGING;
+                        case DEAD -> VisualLifecycleStage.DEAD;
+                    };
+                } else {
+                    break;
+                }
+            }
+            return stage == null ? VisualLifecycleStage.AGING : stage;
+        } else {
+            long age = Math.max(0L, gameTime - instance.startGameTime());
+            if (age < profile.bornTicks()) {
+                return VisualLifecycleStage.BORN;
+            } else if (age < profile.bornTicks() + profile.growingTicks()) {
+                return VisualLifecycleStage.GROWING;
+            } else if (age < profile.bornTicks() + profile.growingTicks() + profile.matureTicks()) {
+                return VisualLifecycleStage.MATURE;
+            } else {
+                return VisualLifecycleStage.AGING;
+            }
+        }
     }
 
     default VisualLifecycleRenderState resolveState(VisualLifecycleInstance instance, long gameTime, int baseColor) {
@@ -99,16 +158,11 @@ public interface VisualLifecycleAdapter {
             }
         }
 
-        float bornScale = VisualLifecycleClientConfig.bornScale(profile);
-        float growingStartScale = VisualLifecycleClientConfig.growingStartScale(profile);
-        float matureScale = VisualLifecycleClientConfig.matureScale(profile);
-        float agingScale = VisualLifecycleClientConfig.agingScale(profile);
+        // 3-stage discrete scale: SMALL (born+growing), FULL (mature), DECAY (aging+dead)
         float scale = switch (stage) {
-            case BORN -> lerp(bornScale, growingStartScale, progress);
-            case GROWING -> lerp(growingStartScale, matureScale, progress);
-            case MATURE -> matureScale;
-            case AGING -> lerp(matureScale, agingScale, progress);
-            case DEAD -> lerp(agingScale, 0.0F, progress);
+            case BORN, GROWING -> VisualLifecycleClientConfig.bornScale(profile);
+            case MATURE -> VisualLifecycleClientConfig.matureScale(profile);
+            case AGING, DEAD -> VisualLifecycleClientConfig.agingScale(profile);
         };
         int tintedColor = stage == VisualLifecycleStage.AGING || stage == VisualLifecycleStage.DEAD
                 ? shiftColor(baseColor, profile, progress)

@@ -45,6 +45,8 @@ public final class VisualLifecycleClientRuntime {
     /** Per-chunk index: chunkPosLong → Set<posLong> for VEGETATION_SYSTEM entries only. */
     private final Map<Long, Set<Long>> vegSystemByChunk = new ConcurrentHashMap<>();
     private final Map<Long, Integer> baseColorCache = new ConcurrentHashMap<>();
+    /** Per-position render state cache: posKey → (stage, state). Only recomputed on stage change. */
+    private final Map<Long, CachedRenderState> renderStateCache = new ConcurrentHashMap<>();
     private final ThreadLocal<Boolean> manualWorldRenderPass = ThreadLocal.withInitial(() -> false);
     private volatile List<VisualLifecycleInstance> cachedTrackedList = List.of();
     private volatile boolean trackedListDirty = true;
@@ -93,6 +95,7 @@ public final class VisualLifecycleClientRuntime {
         VisualLifecycleInstance removed = trackedInstances.remove(key(level, pos));
         trackedInstancesByPos.remove(pos.asLong());
         baseColorCache.remove(pos.asLong());
+        renderStateCache.remove(pos.asLong());
         invalidateTrackedList();
         markDirty(pos);
         return removed == null
@@ -176,6 +179,7 @@ public final class VisualLifecycleClientRuntime {
         trackedInstancesByPos.clear();
         vegSystemByChunk.clear();
         baseColorCache.clear();
+        renderStateCache.clear();
         invalidateTrackedList();
         refreshAll();
         return "视觉生命周期追踪已清空。";
@@ -222,6 +226,7 @@ public final class VisualLifecycleClientRuntime {
             trackedInstances.clear();
             trackedInstancesByPos.clear();
             baseColorCache.clear();
+            renderStateCache.clear();
             invalidateTrackedList();
             return;
         }
@@ -240,6 +245,7 @@ public final class VisualLifecycleClientRuntime {
                 long posKey = instance.pos().asLong();
                 trackedInstancesByPos.remove(posKey);
                 baseColorCache.remove(posKey);
+                renderStateCache.remove(posKey);
                 if (instance.source() == VisualLifecycleTrackingSource.VEGETATION_SYSTEM) {
                     long ck = new ChunkPos(instance.pos()).toLong();
                     Set<Long> chunkPlants = vegSystemByChunk.get(ck);
@@ -272,6 +278,7 @@ public final class VisualLifecycleClientRuntime {
         VisualLifecycleInstance instance = trackedInstancesByPos.get(posKey);
         if (instance == null) {
             baseColorCache.remove(posKey);
+            renderStateCache.remove(posKey);
             return null;
         }
 
@@ -280,10 +287,21 @@ public final class VisualLifecycleClientRuntime {
             return null;
         }
 
+        long gameTime = level.getGameTime();
+
+        // Quick stage check — only recompute render state on stage change
+        VisualLifecycleStage currentStage = adapter.get().determineStage(instance, gameTime);
+        CachedRenderState cached = renderStateCache.get(posKey);
+        if (cached != null && cached.stage() == currentStage) {
+            return cached.state();
+        }
+
+        // Stage changed or first lookup — compute full render state and cache
         int baseColor = baseColorCache.computeIfAbsent(posKey,
                 k -> defaultColor(level, pos, state));
-        long gameTime = level.getGameTime();
-        return adapter.get().resolveState(instance, gameTime, baseColor);
+        VisualLifecycleRenderState renderState = adapter.get().resolveState(instance, gameTime, baseColor);
+        renderStateCache.put(posKey, new CachedRenderState(currentStage, renderState));
+        return renderState;
     }
 
     public int adjustTint(BlockState state, BlockPos pos, int baseColor) {
@@ -366,6 +384,7 @@ public final class VisualLifecycleClientRuntime {
                 trackedInstances.remove(key);
                 trackedInstancesByPos.remove(posKey);
                 baseColorCache.remove(posKey);
+                renderStateCache.remove(posKey);
                 markDirty(BlockPos.of(posKey));
                 chunkPlants.remove(posKey);
                 changed = true;
@@ -447,4 +466,6 @@ public final class VisualLifecycleClientRuntime {
         ResourceLocation dimensionId = level.dimension().location();
         return dimensionId + "|" + posKey;
     }
+
+    private record CachedRenderState(VisualLifecycleStage stage, VisualLifecycleRenderState state) {}
 }
