@@ -9,10 +9,6 @@
     {
       "plant_id": "minecraft:dead_bush",
       "weight": 202
-    },
-    {
-      "plant_id": "minecraft:red_mushroom",
-      "weight": 1
     }
   ]
 }
