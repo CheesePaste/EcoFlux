@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:old_growth_spruce_taiga",
+  "min_plant_count": 25,
+  "max_plant_count": 70,
+  "consuming": 28,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:fern",
+      "weight": 192
+    },
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 54
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "weight": 51
+    },
+    {
+      "plant_id": "minecraft:spruce_sapling",
+      "weight": 38
+    },
+    {
+      "plant_id": "minecraft:large_fern",
+      "weight": 28
+    },
+    {
+      "plant_id": "minecraft:dead_bush",
+      "weight": 6
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "weight": 1
+    }
+  ]
+}

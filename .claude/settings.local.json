@@ -56,7 +56,17 @@
       "Bash(sed -i 's/\"max_plant_count\": 30/\"max_plant_count\": 7/' birch_forest_to_old_growth_birch_forest.json)",
       "WebFetch(domain:pex.gl)",
       "Bash(./gradlew compileJava --rerun-tasks)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(bash *)",
+      "Read(//c/tmp/**)",
+      "Bash(jar xf *)",
+      "Bash(javap -public net/minecraft/world/level/biome/BiomeSource.class)",
+      "Bash(./gradlew neoForgeIdeSync)",
+      "Bash(javap -c -l -p -classpath \"build/moddev/artifacts/neoforge-21.1.227-sources.jar\" net.minecraft.world.level.chunk.ChunkGenerator)",
+      "Bash(javap -c -l -p /tmp/ChunkGenerator.class)",
+      "Bash(javap -l -p /tmp/CG.class)",
+      "Bash(javap -c -p /tmp/CG.class)",
+      "Bash(javap -p /tmp/IntSet.class)"
     ]
   }
 }

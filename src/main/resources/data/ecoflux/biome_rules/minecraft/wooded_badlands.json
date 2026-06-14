@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:wooded_badlands",
+  "min_plant_count": 6,
+  "max_plant_count": 18,
+  "consuming": 18,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:dead_bush",
+      "weight": 1
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:forest",
+  "min_plant_count": 8,
+  "max_plant_count": 27,
+  "consuming": 18,
+  "queue_fill_factor": 2.2,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 608
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 292
+    },
+    {
+      "plant_id": "minecraft:birch_sapling",
+      "weight": 56
+    },
+    {
+      "plant_id": "minecraft:peony",
+      "weight": 32
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "weight": 7
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "weight": 2
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 1
+    }
+  ]
+}

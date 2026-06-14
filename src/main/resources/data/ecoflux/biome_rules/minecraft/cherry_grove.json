@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:cherry_grove",
+  "min_plant_count": 36,
+  "max_plant_count": 57,
+  "consuming": 24,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:pink_petals",
+      "weight": 65
+    },
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 28
+    },
+    {
+      "plant_id": "minecraft:cherry_sapling",
+      "weight": 20
+    }
+  ]
+}

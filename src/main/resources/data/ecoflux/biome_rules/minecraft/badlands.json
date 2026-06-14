@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:badlands",
+  "min_plant_count": 6,
+  "max_plant_count": 21,
+  "consuming": 18,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:dead_bush",
+      "weight": 202
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "weight": 1
+    }
+  ]
+}

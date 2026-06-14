@@ -16,8 +16,8 @@ package com.s.ecoflux.world;
 
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
-import com.s.ecoflux.config.PlantDefinition;
-import com.s.ecoflux.config.PlantSpawnRules;
+import com.s.ecoflux.config.plant.PlantDefinition;
+import com.s.ecoflux.config.plant.PlantSpawnRules;
 import java.util.Optional;
 import java.util.Random;
 import net.minecraft.core.BlockPos;

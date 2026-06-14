@@ -19,9 +19,11 @@ public final class EcofluxServerConfig {
     private static final ModConfigSpec.BooleanValue GRADUAL_TREE_GROWTH;
     private static final ModConfigSpec.BooleanValue GRADUAL_PLANT_GROWTH;
     private static final ModConfigSpec.IntValue PRUNE_INTERVAL_TICKS;
+    private static final ModConfigSpec.BooleanValue ENABLE_VISUAL_SYSTEM;
     private static final ModConfigSpec.IntValue OBSERVE_INTERVAL_TICKS;
     private static final ModConfigSpec.IntValue SPAWN_INTERVAL_MIN_TICKS;
     private static final ModConfigSpec.IntValue SPAWN_INTERVAL_MAX_TICKS;
+    private static final ModConfigSpec.IntValue EVALUATION_INTERVAL_TICKS;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -43,9 +45,19 @@ public final class EcofluxServerConfig {
                 .comment("植物生成间隔的最大 tick 数。实际间隔在 min 和 max 之间随机均匀分布。")
                 .defineInRange("spawn_interval_max_ticks", 1800, 40, 72000);
         builder.pop();
+        builder.push("succession");
+        EVALUATION_INTERVAL_TICKS = builder
+                .comment("全局演替评估间隔 tick 数。控制演替进度评估的频率。要降低演替速度，应减小各路径的正向/负向步长，而非修改此值。")
+                .defineInRange("evaluation_interval_ticks", 24000, 20, 480000);
+        builder.pop();
+        builder.push("visual");
+        ENABLE_VISUAL_SYSTEM = builder
+                .comment("为 true 时启用视觉系统（缩放动画 + 颜色渐变 + 网络同步），客户端会收到植物视觉数据并进行自定义渲染。为 false 时完全关闭视觉系统，所有植物使用原版渲染，可大幅提升客户端性能。")
+                .define("enable_visual_system", true);
+        builder.pop();
         builder.push("performance");
         PRUNE_INTERVAL_TICKS = builder
-                .comment("清理无效植物（已死亡、被破坏、被替换）的间隔 tick 数。值越小清理越及时但 CPU 开销越大。")
+                .comment("区块管线处理间隔 tick 数。控制每个区块执行清理+观察+评估管线的频率。值越小响应越快但 CPU 开销越大。修剪操作本身很轻量，每次管线都会执行。")
                 .defineInRange("prune_interval_ticks", 120, 5, 1200);
         OBSERVE_INTERVAL_TICKS = builder
                 .comment("重新观察每个植物生命周期阶段的间隔 tick 数。值越小阶段变化越流畅但 CPU 开销越大。")
@@ -59,6 +71,10 @@ public final class EcofluxServerConfig {
 
     public static boolean gradualTreeGrowth() {
         return GRADUAL_TREE_GROWTH.get();
+    }
+
+    public static boolean enableVisualSystem() {
+        return ENABLE_VISUAL_SYSTEM.get();
     }
 
     public static boolean gradualPlantGrowth() {
@@ -79,5 +95,9 @@ public final class EcofluxServerConfig {
 
     public static int spawnIntervalMaxTicks() {
         return SPAWN_INTERVAL_MAX_TICKS.get();
+    }
+
+    public static int evaluationIntervalTicks() {
+        return EVALUATION_INTERVAL_TICKS.get();
     }
 }

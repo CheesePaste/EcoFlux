@@ -15,7 +15,9 @@
     "perf.ModChunkEventsMixin",
     "perf.TreeGrowthHandlerMixin",
     "perf.ModNetworkingMixin",
-    "perf.SuccessionChunkDataMixin"
+    "perf.SuccessionChunkDataMixin",
+    "worldgen.ApplyBiomeDecorationMixin",
+    "worldgen.ChunkGeneratorMixin"
   ],
   "client": [
     "client.BlockRenderDispatcherMixin"

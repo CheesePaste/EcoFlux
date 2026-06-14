@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:mangrove_swamp",
+  "min_plant_count": 8,
+  "max_plant_count": 18,
+  "consuming": 18,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:mangrove_propagule",
+      "weight": 94
+    },
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 42
+    }
+  ]
+}

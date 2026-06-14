@@ -18,34 +18,7 @@
     }
   },
   "chunk_rules": {
-    "consuming": 22,
-    "max_plant_count": 8,
-    "queue_fill_factor": 2.2,
-    "evaluation_interval_days": {
-      "min": 5,
-      "max": 8
-    }
-  },
-  "plants": [
-    {
-      "plant_id": "minecraft:dark_oak_sapling",
-      "weight": 6
-    },
-    {
-      "plant_id": "minecraft:oak_sapling",
-      "weight": 3
-    },
-    {
-      "plant_id": "minecraft:red_mushroom",
-      "weight": 4
-    },
-    {
-      "plant_id": "minecraft:brown_mushroom",
-      "weight": 4
-    },
-    {
-      "plant_id": "minecraft:fern",
-      "weight": 5
-    }
-  ]
+    "positive_progress_step": 0.25,
+    "negative_progress_step": 0.25
+  }
 }

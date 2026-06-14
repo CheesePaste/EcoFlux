@@ -19,26 +19,7 @@
     }
   },
   "chunk_rules": {
-    "consuming": 8,
-    "max_plant_count": 4,
-    "queue_fill_factor": 1.5,
-    "evaluation_interval_days": {
-      "min": 4,
-      "max": 7
-    }
-  },
-  "plants": [
-    {
-      "plant_id": "minecraft:short_grass",
-      "weight": 8
-    },
-    {
-      "plant_id": "minecraft:poppy",
-      "weight": 3
-    },
-    {
-      "plant_id": "minecraft:spruce_sapling",
-      "weight": 2
-    }
-  ]
+    "positive_progress_step": 0.25,
+    "negative_progress_step": 0.25
+  }
 }

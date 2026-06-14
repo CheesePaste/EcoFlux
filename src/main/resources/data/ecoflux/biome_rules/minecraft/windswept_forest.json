@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:windswept_forest",
+  "min_plant_count": 6,
+  "max_plant_count": 21,
+  "consuming": 16,
+  "queue_fill_factor": 1.8,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 80
+    },
+    {
+      "plant_id": "minecraft:spruce_sapling",
+      "weight": 19
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 7
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "weight": 1
+    }
+  ]
+}

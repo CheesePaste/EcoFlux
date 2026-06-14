@@ -1,11 +1,13 @@
 package com.s.ecoflux.succession;
 
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.biome.BiomeRules;
+import com.s.ecoflux.config.biome.BiomeRulesRegistry;
 import com.s.ecoflux.config.EcofluxServerConfig;
-import com.s.ecoflux.config.SuccessionConfigRegistry;
-import com.s.ecoflux.config.SuccessionPathDefinition;
-import com.s.ecoflux.init.ModAttachments;
+import com.s.ecoflux.config.succession.SuccessionConfigRegistry;
+import com.s.ecoflux.config.succession.SuccessionPathDefinition;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
+import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.plant.VegetationTracker;
 import java.util.ArrayList;
@@ -53,7 +55,11 @@ public final class SuccessionService {
         if (pathOptional.isEmpty()) {
             return "区块 " + chunk.getPos() + " 没有激活的演替路径。";
         }
-        return doPipeline(level, chunk, chunkData, pathOptional.get(), true, true, true);
+        Optional<BiomeRules> rules = getBiomeRules(chunkData);
+        if (rules.isEmpty()) {
+            return "区块 " + chunk.getPos() + " 没有群系规则。";
+        }
+        return doPipeline(level, chunk, chunkData, pathOptional.get(), rules.get(), true, true, true);
     }
 
     public static String pruneChunk(ServerLevel level, LevelChunk chunk) {
@@ -69,9 +75,13 @@ public final class SuccessionService {
         if (pathOptional.isEmpty()) {
             return "区块 " + chunk.getPos() + " 没有激活的演替路径。";
         }
+        Optional<BiomeRules> rules = getBiomeRules(chunkData);
+        if (rules.isEmpty()) {
+            return "区块 " + chunk.getPos() + " 没有群系规则。";
+        }
         PlantSpawner.pruneInvalidPlants(level, chunkData, level.getGameTime());
-        PlantSpawner.ensureQueue(chunkData, pathOptional.get());
-        return PlantSpawner.trySpawnPlant(level, chunk, chunkData, pathOptional.get(), level.getGameTime());
+        PlantSpawner.ensureQueue(chunkData, rules.get());
+        return PlantSpawner.trySpawnPlant(level, chunk, chunkData, level.getGameTime());
     }
 
     public static String evaluateChunk(ServerLevel level, LevelChunk chunk) {
@@ -104,16 +114,19 @@ public final class SuccessionService {
             return "自动演替跳过区块 " + chunk.getPos() + "：没有激活的演替路径。";
         }
 
+        Optional<BiomeRules> rules = getBiomeRules(chunkData);
+        if (rules.isEmpty()) {
+            return "自动演替跳过区块 " + chunk.getPos() + "：没有群系规则。";
+        }
+
         SuccessionPathDefinition path = pathOptional.get();
         long gameTime = level.getGameTime();
         float speed = SuccessionSpeedConfig.getSpeedMultiplier();
         long chunkHash = Math.abs(chunk.getPos().x * 31L + chunk.getPos().z);
 
-        // Observe/evaluate interval — affected by speed
-        long effectiveInterval = Math.max(5L, (long) (path.chunkRules().processingIntervalTicks() / speed));
+        long effectiveInterval = Math.max(5L, (long) (EcofluxServerConfig.pruneIntervalTicks() / speed));
         boolean processElapsed = (gameTime + chunkHash) % effectiveInterval == 0L;
 
-        // Spawn interval — random between configured min/max, global across all paths
         boolean spawnElapsed;
         if (chunkData.getNextSpawnGameTime() <= 0L) {
             chunkData.setNextSpawnGameTime(gameTime + randomSpawnIntervalTicks(chunk.getPos().toLong() ^ gameTime));
@@ -128,32 +141,30 @@ public final class SuccessionService {
             return "自动演替跳过区块 " + chunk.getPos() + "：等待处理间隔。";
         }
 
-        return doPipeline(level, chunk, chunkData, path, processElapsed, spawnElapsed, false);
+        return doPipeline(level, chunk, chunkData, path, rules.get(), processElapsed, spawnElapsed, false);
     }
 
     private static String doPipeline(ServerLevel level, LevelChunk chunk,
                                       SuccessionChunkData chunkData,
                                       SuccessionPathDefinition path,
+                                      BiomeRules rules,
                                       boolean shouldObserve,
                                       boolean shouldSpawn,
                                       boolean ignoreInterval) {
         long gameTime = level.getGameTime();
         List<String> messages = new ArrayList<>();
 
-        // Prune always runs (cheap if no dead/missing plants)
         int pruned = PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
         messages.add("已清理 " + pruned + " 个植物。");
 
-        // Spawn — only when spawnElapsed and not at capacity
         if (shouldSpawn) {
             chunkData.setNextSpawnGameTime(gameTime + randomSpawnIntervalTicks(chunk.getPos().toLong() ^ gameTime));
             if (chunkData.getCurrentPlantCount() < chunkData.getMaxPlantCount()) {
-                PlantSpawner.ensureQueue(chunkData, path);
-                messages.add(PlantSpawner.trySpawnPlant(level, chunk, chunkData, path, gameTime));
+                PlantSpawner.ensureQueue(chunkData, rules);
+                messages.add(PlantSpawner.trySpawnPlant(level, chunk, chunkData, gameTime));
             }
         }
 
-        // Observe + evaluate — only when processElapsed
         if (shouldObserve) {
             messages.add(VegetationTracker.INSTANCE.observeChunk(level, chunk));
 
@@ -168,6 +179,11 @@ public final class SuccessionService {
         }
 
         return String.join(" ", messages);
+    }
+
+    private static Optional<BiomeRules> getBiomeRules(SuccessionChunkData chunkData) {
+        return chunkData.getActiveBiomeRulesId()
+                .flatMap(BiomeRulesRegistry::getRules);
     }
 
     private static long randomSpawnIntervalTicks(long seed) {

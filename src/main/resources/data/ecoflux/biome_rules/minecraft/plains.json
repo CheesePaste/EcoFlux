@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:plains",
+  "min_plant_count": 21,
+  "max_plant_count": 58,
+  "consuming": 12,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 838
+    },
+    {
+      "plant_id": "minecraft:tall_grass",
+      "weight": 138
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 19
+    },
+    {
+      "plant_id": "minecraft:oxeye_daisy",
+      "weight": 4
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "weight": 4
+    },
+    {
+      "plant_id": "minecraft:azure_bluet",
+      "weight": 3
+    },
+    {
+      "plant_id": "minecraft:cornflower",
+      "weight": 3
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 8
+    }
+  ]
+}

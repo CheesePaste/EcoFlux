@@ -3,10 +3,12 @@ package com.s.ecoflux.plant;
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.config.EcofluxServerConfig;
-import com.s.ecoflux.config.PlantDefinition;
-import com.s.ecoflux.config.PlantRegistry;
+import com.s.ecoflux.config.plant.PlantDefinition;
+import com.s.ecoflux.config.plant.PlantRegistry;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
+
+import com.s.ecoflux.config.plant.PlantSpawnRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -174,7 +176,7 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
             PlantDefinition treeDef = PlantRegistry.INSTANCE.getDefinition(blockId)
                     .orElseGet(() -> {
                         EcofluxConstants.LOGGER.warn("[Ecoflux] No PlantDefinition for mature tree block {}, using fallback", blockId);
-                        return new PlantDefinition(blockId, 4, 288000L, com.s.ecoflux.config.PlantSpawnRules.EMPTY);
+                        return new PlantDefinition(blockId, 4, 288000L, PlantSpawnRules.EMPTY);
                     });
             return Optional.of(new VegetationTransformation(
                     blockId,

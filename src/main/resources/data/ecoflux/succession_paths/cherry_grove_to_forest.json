@@ -18,34 +18,7 @@
     }
   },
   "chunk_rules": {
-    "consuming": 18,
-    "max_plant_count": 6,
-    "queue_fill_factor": 2.0,
-    "evaluation_interval_days": {
-      "min": 5,
-      "max": 8
-    }
-  },
-  "plants": [
-    {
-      "plant_id": "minecraft:oak_sapling",
-      "weight": 5
-    },
-    {
-      "plant_id": "minecraft:birch_sapling",
-      "weight": 3
-    },
-    {
-      "plant_id": "minecraft:cherry_sapling",
-      "weight": 2
-    },
-    {
-      "plant_id": "minecraft:peony",
-      "weight": 3
-    },
-    {
-      "plant_id": "minecraft:short_grass",
-      "weight": 5
-    }
-  ]
+    "positive_progress_step": 0.25,
+    "negative_progress_step": 0.25
+  }
 }

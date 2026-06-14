@@ -3,14 +3,15 @@ package com.s.ecoflux.plant;
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.PlantQueueEntry;
 import com.s.ecoflux.attachment.SuccessionChunkData;
-import com.s.ecoflux.config.PathPlantEntry;
-import com.s.ecoflux.config.PlantDefinition;
-import com.s.ecoflux.config.PlantRegistry;
-import com.s.ecoflux.config.SuccessionPathDefinition;
-import com.s.ecoflux.config.SuccessionSpeedConfig;
+import com.s.ecoflux.config.biome.BiomeRules;
+import com.s.ecoflux.config.plant.PathPlantEntry;
+import com.s.ecoflux.config.plant.PlantDefinition;
+import com.s.ecoflux.config.plant.PlantRegistry;
 import com.s.ecoflux.world.ChunkSamplingHelper;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import net.minecraft.core.BlockPos;
@@ -24,13 +25,15 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class PlantSpawner {
+    /** How aggressively effective weights correct toward target composition. */
+    private static final double DEVIATION_STRENGTH = 2.0;
+
     private PlantSpawner() {}
 
     public static String trySpawnPlant(
             ServerLevel level,
             LevelChunk chunk,
             SuccessionChunkData chunkData,
-            SuccessionPathDefinition path,
             long gameTime) {
         if (chunkData.getCurrentPlantCount() >= chunkData.getMaxPlantCount()) {
             return "区块 " + chunk.getPos() + " 跳过生成：植物数量已达上限。";
@@ -82,7 +85,7 @@ public final class PlantSpawner {
         int removed = 0;
         for (var record : snapshot) {
             BlockState state = level.getBlockState(record.position());
-            long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
+            long age = (long) (Math.max(0L, gameTime - record.birthGameTime()) * com.s.ecoflux.config.SuccessionSpeedConfig.getSpeedMultiplier());
             long totalLifetime = Math.max(1L, record.expireGameTime() - record.birthGameTime());
             boolean expired = age >= totalLifetime;
             boolean missing = state.isAir()
@@ -101,29 +104,28 @@ public final class PlantSpawner {
         return removed;
     }
 
-    public static void ensureQueue(SuccessionChunkData chunkData, SuccessionPathDefinition path) {
+    public static void ensureQueue(SuccessionChunkData chunkData, BiomeRules rules) {
         if (!chunkData.getPlantQueue().isEmpty() || chunkData.getCurrentPlantCount() >= chunkData.getMaxPlantCount()) {
             return;
         }
 
-        int capacity = path.chunkRules().queueCapacity();
-        chunkData.replacePlantQueue(buildWeightedQueue(path, capacity, new Random()));
+        chunkData.replacePlantQueue(buildWeightedQueue(rules, new Random(), chunkData));
     }
 
     public static void fillPlants(
             ServerLevel level,
             LevelChunk chunk,
             SuccessionChunkData chunkData,
-            SuccessionPathDefinition path,
+            BiomeRules rules,
             int targetPlantCount,
             int maxNewPlants) {
         int clampedTarget = Mth.clamp(targetPlantCount, 0, chunkData.getMaxPlantCount());
         int guard = Math.max(8, clampedTarget * 4);
         int planted = 0;
         while (chunkData.getCurrentPlantCount() < clampedTarget && planted < maxNewPlants && guard-- > 0) {
-            ensureQueue(chunkData, path);
+            ensureQueue(chunkData, rules);
             int before = chunkData.getCurrentPlantCount();
-            trySpawnPlant(level, chunk, chunkData, path, level.getGameTime() + guard);
+            trySpawnPlant(level, chunk, chunkData, level.getGameTime() + guard);
             if (chunkData.getCurrentPlantCount() > before) {
                 planted++;
             }
@@ -133,22 +135,28 @@ public final class PlantSpawner {
         }
     }
 
-    public static List<PlantQueueEntry> buildWeightedQueue(
-            SuccessionPathDefinition path,
-            int queueCapacity,
-            Random random) {
-        int totalWeight = path.plants().stream().mapToInt(PathPlantEntry::weight).sum();
-        return buildWeightedQueue(path, queueCapacity, random, totalWeight);
+    /**
+     * Builds a weighted queue for a brand-new chunk (no existing plants).
+     * Uses raw config weights since there's nothing to deviate from.
+     */
+    public static List<PlantQueueEntry> buildWeightedQueue(BiomeRules rules, Random random) {
+        return buildWeightedQueue(rules, random, null);
     }
 
-    public static List<PlantQueueEntry> buildWeightedQueue(
-            SuccessionPathDefinition path,
-            int queueCapacity,
-            Random random,
-            int totalWeight) {
+    /**
+     * Builds a deviation-aware weighted queue. When {@code chunkData} is non-null,
+     * effective weights are adjusted so the next batch of spawns pushes the chunk's
+     * actual plant composition toward the target composition defined by config weights.
+     */
+    public static List<PlantQueueEntry> buildWeightedQueue(BiomeRules rules, Random random, SuccessionChunkData chunkData) {
+        List<PathPlantEntry> plants = rules.plants();
+        int queueCapacity = rules.queueCapacity();
+        Map<ResourceLocation, Integer> effectiveWeights = computeEffectiveWeights(rules, chunkData);
+        int totalWeight = effectiveWeights.values().stream().mapToInt(Integer::intValue).sum();
+
         List<PlantQueueEntry> queue = new ArrayList<>(queueCapacity);
         for (int i = 0; i < queueCapacity; i++) {
-            PathPlantEntry entry = pickWeightedPlant(path.plants(), totalWeight, random);
+            PathPlantEntry entry = pickWeightedPlant(plants, effectiveWeights, totalWeight, random);
             PlantDefinition def = PlantRegistry.INSTANCE.getDefinition(entry.plantId())
                     .orElse(null);
             if (def == null) {
@@ -160,17 +168,56 @@ public final class PlantSpawner {
         return List.copyOf(queue);
     }
 
-    public static Optional<PlantDefinition> findPlantDefinition(SuccessionPathDefinition path, ResourceLocation plantId) {
-        return PlantRegistry.INSTANCE.getDefinition(plantId);
+    /**
+     * Computes deviation-adjusted effective weights per plant type.
+     * Returns a map from plant_id → effective weight.
+     *
+     * <p>For each plant: effective = originalWeight × (1 + (targetShare − actualShare) × strength),
+     * floored at 1. Under-represented plants get boosted; over-represented plants get suppressed.
+     */
+    public static Map<ResourceLocation, Integer> computeEffectiveWeights(BiomeRules rules, SuccessionChunkData chunkData) {
+        List<PathPlantEntry> plants = rules.plants();
+        Map<ResourceLocation, Integer> result = new LinkedHashMap<>();
+
+        // Start with raw weights
+        for (PathPlantEntry entry : plants) {
+            result.put(entry.plantId(), entry.weight());
+        }
+
+        if (chunkData == null) {
+            return result;
+        }
+
+        int totalWeight = result.values().stream().mapToInt(Integer::intValue).sum();
+        int totalPlants = chunkData.getCurrentPlantCount();
+        if (totalPlants == 0 || totalWeight == 0) {
+            return result;
+        }
+
+        // Count current plants by vegetation ID
+        Map<ResourceLocation, Integer> currentCounts = new LinkedHashMap<>();
+        for (var record : chunkData.getVegetationRecords().values()) {
+            currentCounts.merge(record.vegetationId(), 1, Integer::sum);
+        }
+
+        // Compute deviation-adjusted weights
+        for (PathPlantEntry entry : plants) {
+            double targetShare = (double) entry.weight() / totalWeight;
+            double actualShare = (double) currentCounts.getOrDefault(entry.plantId(), 0) / totalPlants;
+            double bias = 1.0 + (targetShare - actualShare) * DEVIATION_STRENGTH;
+            int effectiveWeight = Math.max(1, (int) Math.round(entry.weight() * bias));
+            result.put(entry.plantId(), effectiveWeight);
+        }
+
+        return result;
     }
 
     public static PlantQueueEntry toQueueEntry(PathPlantEntry entry, PlantDefinition plant) {
         return new PlantQueueEntry(plant.plantId(), plant.pointValue(), entry.weight(), plant.maxAgeTicks());
     }
 
-    public static void forceRefillQueue(SuccessionChunkData chunkData, SuccessionPathDefinition path) {
-        int capacity = path.chunkRules().queueCapacity();
-        chunkData.replacePlantQueue(buildWeightedQueue(path, capacity, new Random()));
+    public static void forceRefillQueue(SuccessionChunkData chunkData, BiomeRules rules) {
+        chunkData.replacePlantQueue(buildWeightedQueue(rules, new Random(), chunkData));
     }
 
     public static String getQueueSummary(SuccessionChunkData chunkData) {
@@ -179,7 +226,7 @@ public final class PlantSpawner {
             return "队列=空";
         }
 
-        var counts = new java.util.LinkedHashMap<ResourceLocation, Integer>();
+        var counts = new LinkedHashMap<ResourceLocation, Integer>();
         for (PlantQueueEntry entry : queue) {
             counts.merge(entry.plantId(), 1, Integer::sum);
         }
@@ -192,6 +239,19 @@ public final class PlantSpawner {
         return String.format("队列=%d项(总权重=%d)[%s]", queue.size(), totalWeight, breakdown);
     }
 
+    public static PathPlantEntry pickWeightedPlant(List<PathPlantEntry> plants, Map<ResourceLocation, Integer> effectiveWeights, int totalWeight, Random random) {
+        int roll = random.nextInt(totalWeight);
+        int cursor = 0;
+        for (PathPlantEntry plant : plants) {
+            cursor += effectiveWeights.getOrDefault(plant.plantId(), plant.weight());
+            if (roll < cursor) {
+                return plant;
+            }
+        }
+        return plants.get(plants.size() - 1);
+    }
+
+    /** Fallback for callers that don't use effective weights (e.g. old queue rebuilds). */
     public static PathPlantEntry pickWeightedPlant(List<PathPlantEntry> plants, int totalWeight, Random random) {
         int roll = random.nextInt(totalWeight);
         int cursor = 0;

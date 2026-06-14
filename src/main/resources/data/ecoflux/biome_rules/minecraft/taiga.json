@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:taiga",
+  "min_plant_count": 20,
+  "max_plant_count": 40,
+  "consuming": 24,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:fern",
+      "weight": 800
+    },
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 400
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "weight": 200
+    },
+    {
+      "plant_id": "minecraft:spruce_sapling",
+      "weight": 300
+    },
+    {
+      "plant_id": "minecraft:large_fern",
+      "weight": 234
+    },
+    {
+      "plant_id": "minecraft:dead_bush",
+      "weight": 38
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "weight": 14
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "weight": 2
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 1
+    }
+  ]
+}

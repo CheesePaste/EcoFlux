@@ -18,26 +18,7 @@
     }
   },
   "chunk_rules": {
-    "consuming": 14,
-    "max_plant_count": 5,
-    "queue_fill_factor": 1.8,
-    "evaluation_interval_days": {
-      "min": 5,
-      "max": 8
-    }
-  },
-  "plants": [
-    {
-      "plant_id": "minecraft:acacia_sapling",
-      "weight": 5
-    },
-    {
-      "plant_id": "minecraft:short_grass",
-      "weight": 6
-    },
-    {
-      "plant_id": "minecraft:oak_sapling",
-      "weight": 2
-    }
-  ]
+    "positive_progress_step": 0.15,
+    "negative_progress_step": 0.25
+  }
 }

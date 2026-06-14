@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:dripstone_caves",
+  "min_plant_count": 0,
+  "max_plant_count": 4,
+  "consuming": 1,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 20
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 1
+    }
+  ]
+}

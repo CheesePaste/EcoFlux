@@ -19,6 +19,9 @@ import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
+import com.s.ecoflux.config.plant.PlantDefinition;
+import com.s.ecoflux.config.plant.PlantRegistry;
+import com.s.ecoflux.config.plant.PlantSpawnRules;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.init.ModChunkEvents;
 import com.s.ecoflux.plant.TreeStructure;
@@ -377,10 +380,10 @@ public final class TreeGrowthHandler {
                 session.placedLeaves().stream().mapToLong(BlockPos::asLong).toArray());
 
         net.minecraft.resources.ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(basePos).getBlock());
-        com.s.ecoflux.config.PlantDefinition treeDef = com.s.ecoflux.config.PlantRegistry.INSTANCE.getDefinition(blockId)
+        PlantDefinition treeDef = PlantRegistry.INSTANCE.getDefinition(blockId)
                 .orElseGet(() -> {
                     EcofluxConstants.LOGGER.warn("[Ecoflux] No PlantDefinition for mature tree block {}, using fallback", blockId);
-                    return new com.s.ecoflux.config.PlantDefinition(blockId, 4, 288000L, com.s.ecoflux.config.PlantSpawnRules.EMPTY);
+                    return new PlantDefinition(blockId, 4, 288000L, PlantSpawnRules.EMPTY);
                 });
         ActiveVegetationRecord treeRecord = TreeStructureAdapter.INSTANCE.captureBirth(
                 level,

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:bamboo_jungle",
+  "min_plant_count": 17,
+  "max_plant_count": 42,
+  "consuming": 22,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 537
+    },
+    {
+      "plant_id": "minecraft:fern",
+      "weight": 168
+    },
+    {
+      "plant_id": "minecraft:jungle_sapling",
+      "weight": 30
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 8
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "weight": 2
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 1
+    }
+  ]
+}

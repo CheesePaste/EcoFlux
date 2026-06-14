@@ -4,7 +4,7 @@ import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.config.EcofluxBlockTags;
 import com.s.ecoflux.config.EcofluxServerConfig;
-import com.s.ecoflux.config.PlantDefinition;
+import com.s.ecoflux.config.plant.PlantDefinition;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;

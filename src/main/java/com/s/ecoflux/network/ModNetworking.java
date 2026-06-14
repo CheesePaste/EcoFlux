@@ -43,6 +43,9 @@ public final class ModNetworking {
     }
 
     public static void syncChunkToTracking(ServerLevel level, LevelChunk chunk) {
+        if (!com.s.ecoflux.config.EcofluxServerConfig.enableVisualSystem()) {
+            return;
+        }
         PacketDistributor.sendToPlayersTrackingChunk(level, chunk.getPos(), buildChunkSyncPayload(level, chunk));
     }
 
@@ -55,10 +58,16 @@ public final class ModNetworking {
     }
 
     private static void onChunkSent(ChunkWatchEvent.Sent event) {
+        if (!com.s.ecoflux.config.EcofluxServerConfig.enableVisualSystem()) {
+            return;
+        }
         syncChunkToPlayer(event.getPlayer(), event.getLevel(), event.getChunk());
     }
 
     private static void onChunkUnwatch(ChunkWatchEvent.UnWatch event) {
+        if (!com.s.ecoflux.config.EcofluxServerConfig.enableVisualSystem()) {
+            return;
+        }
         PacketDistributor.sendToPlayer(
                 event.getPlayer(),
                 new VegetationVisualChunkSyncPayload(

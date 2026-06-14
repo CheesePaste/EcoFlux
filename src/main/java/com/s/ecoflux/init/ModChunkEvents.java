@@ -4,6 +4,7 @@ import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.attachment.SuccessionChunkData;
 import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
+import com.s.ecoflux.worldGen.WorldGenVegetationScanner;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import com.s.ecoflux.succession.SuccessionService;
 import com.s.ecoflux.util.TickProfiler;
@@ -72,7 +73,8 @@ public final class ModChunkEvents {
 
         ChunkAccess chunk = event.getChunk();
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-        if (chunkData.getCurrentBiome().isEmpty()) {
+        boolean isNewChunk = chunkData.getCurrentBiome().isEmpty();
+        if (isNewChunk) {
             SuccessionService.initializeChunk(chunk);
         }
 
@@ -81,6 +83,9 @@ public final class ModChunkEvents {
                 .add(chunk.getPos().toLong());
 
         if (chunk instanceof LevelChunk levelChunk) {
+            if (isNewChunk) {
+                WorldGenVegetationScanner.scanChunk(serverLevel, levelChunk);
+            }
             TreeGrowthHandler.INSTANCE.onChunkLoad(serverLevel, levelChunk);
         }
     }

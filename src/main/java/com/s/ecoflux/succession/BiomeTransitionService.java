@@ -19,6 +19,7 @@ package com.s.ecoflux.succession;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;
+import com.s.ecoflux.config.succession.SuccessionPathDefinition;
 import com.s.ecoflux.network.ModNetworking;
 import java.util.List;
 import net.minecraft.core.Holder;
@@ -38,7 +39,7 @@ public final class BiomeTransitionService {
             ServerLevel level,
             LevelChunk chunk,
             SuccessionChunkData chunkData,
-            com.s.ecoflux.config.SuccessionPathDefinition path) {
+            SuccessionPathDefinition path) {
         ResourceKey<Biome> fallbackKey = chunkData.getPreviousBiome().orElse(null);
         if (path.fallbackBiome() != null) {
             ResourceLocation fallbackId = path.fallbackBiome();

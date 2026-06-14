@@ -11,6 +11,8 @@ package com.s.ecoflux.init;
  * place or destroy plants.
  */
 
+import com.s.ecoflux.config.plant.PlantDefinition;
+import com.s.ecoflux.config.plant.PlantRegistry;
 import com.s.ecoflux.plant.VegetationTracker;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import java.util.Optional;
@@ -50,7 +52,7 @@ public final class ModPlayerEvents {
         }
 
         net.minecraft.resources.ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
-        com.s.ecoflux.config.PlantDefinition plantDef = com.s.ecoflux.config.PlantRegistry.INSTANCE.getDefinition(blockId)
+        PlantDefinition plantDef = PlantRegistry.INSTANCE.getDefinition(blockId)
                 .orElse(null);
         if (plantDef == null) return;
         VegetationTracker.INSTANCE.trackAt(level, chunk, pos, Optional.empty(), Optional.empty(), plantDef);

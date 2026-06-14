@@ -16,11 +16,16 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;
-import com.s.ecoflux.config.PlantRegistry;
-import com.s.ecoflux.config.SuccessionConfigRegistry;
+import com.s.ecoflux.config.biome.BiomeRulesRegistry;
+import com.s.ecoflux.config.plant.PlantRegistry;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
+import com.s.ecoflux.config.plant.PlantDefinition;
 import com.s.ecoflux.network.ModNetworking;
+import com.s.ecoflux.test.sample.ChunkGeneratorAccessor;
+import com.s.ecoflux.test.sample.BiomePlantSampler;
+import com.s.ecoflux.test.sample.SamplingBiomeSource;
 import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.plant.VegetationTracker;
 import com.s.ecoflux.plant.tree.TreeShapeUtils;
@@ -36,17 +41,28 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -55,6 +71,9 @@ import org.jetbrains.annotations.Nullable;
 public final class ModCommands {
     private ModCommands() {
     }
+
+    private static int batchOffsetX = 0;
+    private static int batchOffsetZ = 0;
 
     public static void register() {
         NeoForge.EVENT_BUS.addListener(ModCommands::onRegisterCommands);
@@ -68,7 +87,8 @@ public final class ModCommands {
                 .then(registerLifecycleCommands())
                 .then(registerPrototypeCommands())
                 .then(registerTreeCommands())
-                .then(registerProfileCommands()));
+                .then(registerProfileCommands())
+                .then(registerSampleCommands()));
     }
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerAutoCommands() {
@@ -152,11 +172,12 @@ public final class ModCommands {
             }
             case QUEUE -> PlantSpawner.getQueueSummary(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA));
             case PLANTS -> {
-                var pathOpt = SuccessionConfigRegistry.getPath(
-                        chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA).getActivePathId().orElse(null));
-                yield pathOpt.map(path -> {
-                    int totalWeight = path.plants().stream().mapToInt(p -> p.weight()).sum();
-                    String list = path.plants().stream()
+                var rulesOpt = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA)
+                        .getActiveBiomeRulesId()
+                        .flatMap(BiomeRulesRegistry::getRules);
+                yield rulesOpt.map(rules -> {
+                    int totalWeight = rules.plants().stream().mapToInt(p -> p.weight()).sum();
+                    String list = rules.plants().stream()
                             .map(p -> {
                                 int pts = PlantRegistry.INSTANCE.getDefinition(p.plantId())
                                         .map(def -> def.pointValue()).orElse(0);
@@ -164,17 +185,19 @@ public final class ModCommands {
                             })
                             .reduce((a, b) -> a + " " + b)
                             .orElse("无");
-                    return "路径=" + path.pathId() + " 植物总数=" + path.plants().size()
-                            + " 总权重=" + totalWeight + " [" + list + "]";
-                }).orElse("当前区块没有激活的演替路径。");
+                    return "群系=" + rules.biomeId() + " 植物总数=" + rules.plants().size()
+                            + " 总权重=" + totalWeight + " 植物数范围=" + rules.minPlantCount() + "~" + rules.maxPlantCount()
+                            + " 消耗=" + rules.consuming() + " [" + list + "]";
+                }).orElse("当前区块没有群系规则。");
             }
             case REFILL -> {
-                var pathOpt = SuccessionConfigRegistry.getPath(
-                        chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA).getActivePathId().orElse(null));
-                yield pathOpt.map(path -> {
-                    PlantSpawner.forceRefillQueue(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA), path);
+                var rulesOpt = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA)
+                        .getActiveBiomeRulesId()
+                        .flatMap(BiomeRulesRegistry::getRules);
+                yield rulesOpt.map(rules -> {
+                    PlantSpawner.forceRefillQueue(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA), rules);
                     return "已强制重新填充队列。 " + PlantSpawner.getQueueSummary(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA));
-                }).orElse("当前区块没有激活的演替路径。");
+                }).orElse("当前区块没有群系规则。");
             }
         };
 
@@ -193,7 +216,7 @@ public final class ModCommands {
             case INSPECT -> VegetationTracker.INSTANCE.inspect(level, pos);
             case TRACK -> {
                 net.minecraft.resources.ResourceLocation blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
-                com.s.ecoflux.config.PlantDefinition plantDef = PlantRegistry.INSTANCE.getDefinition(blockId)
+                PlantDefinition plantDef = PlantRegistry.INSTANCE.getDefinition(blockId)
                         .orElse(null);
                 yield VegetationTracker.INSTANCE.trackAt(
                         level,
@@ -663,6 +686,166 @@ public final class ModCommands {
         } catch (IOException e) {
             com.s.ecoflux.EcofluxConstants.LOGGER.warn("[Ecoflux] 无法保存性能报告到文件", e);
         }
+    }
+
+    // ── Sample commands ─────────────────────────────────────────────────
+
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerSampleCommands() {
+        return Commands.literal("sample")
+                .executes(context -> runSample(context.getSource(), 5, false))
+                .then(Commands.argument("radius", IntegerArgumentType.integer(1, 20))
+                        .executes(context -> runSample(
+                                context.getSource(),
+                                IntegerArgumentType.getInteger(context, "radius"), false))
+                        .then(Commands.literal("apply")
+                                .executes(context -> runSample(
+                                        context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "radius"), true))))
+                .then(Commands.literal("batchall")
+                        .executes(context -> runBatchAll(context.getSource(), 5, 0, ""))
+                        .then(Commands.argument("radius", IntegerArgumentType.integer(1, 20))
+                                .executes(context -> runBatchAll(
+                                        context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "radius"), 0, ""))
+                                .then(Commands.argument("startFrom", IntegerArgumentType.integer(0))
+                                        .executes(context -> runBatchAll(
+                                                context.getSource(),
+                                                IntegerArgumentType.getInteger(context, "radius"),
+                                                IntegerArgumentType.getInteger(context, "startFrom"), ""))
+                                        .then(Commands.argument("biomeFilter", StringArgumentType.word())
+                                                .executes(context -> runBatchAll(
+                                                        context.getSource(),
+                                                        IntegerArgumentType.getInteger(context, "radius"),
+                                                        IntegerArgumentType.getInteger(context, "startFrom"),
+                                                        StringArgumentType.getString(context, "biomeFilter")))))));
+    }
+
+    private static int runSample(CommandSourceStack source, int radius, boolean apply)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = player.serverLevel();
+        LevelChunk centerChunk = level.getChunkAt(player.blockPosition());
+
+        source.sendSuccess(() -> Component.literal(
+                "正在采样群系 (半径=" + radius + (apply ? ", 自动生成配置)" : ")") + "..."), true);
+
+        if (apply) {
+            String result = BiomePlantSampler.sampleAndApply(level, centerChunk, radius);
+            EcofluxConstants.LOGGER.info("[Ecoflux] {}", result);
+            source.sendSuccess(() -> Component.literal(result), false);
+        } else {
+            BiomePlantSampler.BiomePlantSample sample = BiomePlantSampler.sample(level, centerChunk, radius);
+            if (sample == null) {
+                source.sendFailure(Component.literal("无法确定当前区块的群系。"));
+                return 0;
+            }
+
+            String report = sample.formatReport();
+            EcofluxConstants.LOGGER.info("[Ecoflux] 群系采样报告:\n{}", report);
+            source.sendSuccess(() -> Component.literal(report), false);
+        }
+        return 1;
+    }
+
+    private static int runBatchAll(CommandSourceStack source, int radius, int startFrom, String biomeFilter)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        source.getPlayerOrException();
+        ServerLevel level = source.getServer().overworld();
+        ChunkGenerator generator = level.getChunkSource().getGenerator();
+        BiomeSource originalSource = generator.getBiomeSource();
+        Registry<Biome> biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
+
+        ModChunkEvents.setGlobalAutoEnabled(false);
+
+        int success = 0;
+        int fail = 0;
+        List<String> failures = new ArrayList<>();
+
+        List<Holder.Reference<Biome>> biomes = biomeRegistry.holders()
+                .filter(h -> h.unwrapKey()
+                        .map(k -> k.location().getNamespace().equals("minecraft"))
+                        .orElse(false))
+                .toList();
+
+        int total = biomes.size();
+        int remaining = total - startFrom;
+
+        source.sendSuccess(() -> Component.literal(
+                "开始批量采样群系 (半径=" + radius + ", 起始=" + startFrom
+                        + ", 剩余=" + remaining + "/" + total + ")..."), true);
+
+        if (startFrom == 0) {
+            batchOffsetX = (int) (System.nanoTime() % 100000);
+            batchOffsetZ = (int) ((System.nanoTime() / 100000) % 100000);
+            EcofluxConstants.LOGGER.info("[Ecoflux] 新批次采样偏移: X={}, Z={}", batchOffsetX, batchOffsetZ);
+        } else {
+            EcofluxConstants.LOGGER.info("[Ecoflux] 续跑批次采样，使用偏移: X={}, Z={}", batchOffsetX, batchOffsetZ);
+        }
+
+        ChunkGeneratorAccessor accessor = (ChunkGeneratorAccessor) (Object) generator;
+
+        for (int i = startFrom; i < total; i++) {
+            Holder<Biome> biomeHolder = biomes.get(i);
+            ResourceKey<Biome> biomeKey = biomeHolder.unwrapKey().orElseThrow();
+            ResourceLocation biomeId = biomeKey.location();
+
+            if (!biomeFilter.isEmpty() && !biomeId.toString().contains(biomeFilter)) {
+                continue;
+            }
+
+            boolean isWaterBiome = biomeHolder.is(BiomeTags.IS_OCEAN) || biomeHolder.is(BiomeTags.IS_RIVER);
+            boolean isNonOverworld = biomeHolder.is(BiomeTags.IS_NETHER) || biomeHolder.is(BiomeTags.IS_END);
+
+            if (isWaterBiome || isNonOverworld) {
+                success++;
+                EcofluxConstants.LOGGER.info("[Ecoflux] 跳过群系 [{}/{}] {}: 水域/非主世界群系，生成空规则", i + 1, total, biomeId);
+                String emptyJson = String.format(
+                        "{\n  \"schema_version\": 1,\n  \"biome_id\": \"%s\",\n"
+                                + "  \"min_plant_count\": 0,\n  \"max_plant_count\": 0,\n"
+                                + "  \"consuming\": 0,\n  \"queue_fill_factor\": 0.0,\n  \"plants\": []\n}",
+                        biomeId);
+                BiomePlantSampler.writeRulesJson(level, biomeId, emptyJson);
+                continue;
+            }
+
+            SamplingBiomeSource samplingSource = new SamplingBiomeSource(biomeHolder);
+            accessor.ecoflux$swapBiomeSourceForSampling(samplingSource);
+            generator.refreshFeaturesPerStep();
+
+            int centerX = batchOffsetX + (i % 16) * 256 + 8;
+            int centerZ = batchOffsetZ + (i / 16) * 256 + 8;
+            BlockPos samplePos = new BlockPos(centerX, 64, centerZ);
+
+            try {
+                LevelChunk sampleChunk = level.getChunkAt(samplePos);
+                String result = BiomePlantSampler.sampleAndApply(level, sampleChunk, radius);
+                if (result.contains("采样失败")) {
+                    fail++;
+                    failures.add(biomeId.toString());
+                    EcofluxConstants.LOGGER.warn("[Ecoflux] 批量采样失败 [{}/{}] {}: {}", i + 1, total, biomeId, result);
+                } else {
+                    success++;
+                    EcofluxConstants.LOGGER.info("[Ecoflux] 批量采样完成 [{}/{}] {}", i + 1, total, biomeId);
+                }
+            } catch (Exception e) {
+                fail++;
+                failures.add(biomeId.toString());
+                EcofluxConstants.LOGGER.error("[Ecoflux] 批量采样异常 [{}/{}] {}: {}", i + 1, total, biomeId, e.getMessage());
+            }
+        }
+
+        // Restore original biome source
+        accessor.ecoflux$swapBiomeSourceForSampling(originalSource);
+        generator.refreshFeaturesPerStep();
+        ModChunkEvents.setGlobalAutoEnabled(true);
+
+        String summary = String.format(
+                "批量采样完成: 成功=%d 失败=%d 总计=%d%s",
+                success, fail, total,
+                failures.isEmpty() ? "" : " 失败群系: " + String.join(", ", failures));
+        EcofluxConstants.LOGGER.info("[Ecoflux] {}", summary);
+        source.sendSuccess(() -> Component.literal(summary), true);
+        return 1;
     }
 
     private enum PrototypeAction {

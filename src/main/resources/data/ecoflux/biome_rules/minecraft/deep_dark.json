@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:deep_dark",
+  "min_plant_count": 0,
+  "max_plant_count": 55,
+  "consuming": 19,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 846
+    },
+    {
+      "plant_id": "minecraft:tall_grass",
+      "weight": 161
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 33
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "weight": 4
+    },
+    {
+      "plant_id": "minecraft:cornflower",
+      "weight": 4
+    },
+    {
+      "plant_id": "minecraft:oxeye_daisy",
+      "weight": 3
+    },
+    {
+      "plant_id": "minecraft:azure_bluet",
+      "weight": 2
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 1
+    }
+  ]
+}

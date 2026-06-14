@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:mushroom_fields",
+  "min_plant_count": 2,
+  "max_plant_count": 3,
+  "consuming": 3,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "weight": 8
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "weight": 12
+    }
+  ]
+}

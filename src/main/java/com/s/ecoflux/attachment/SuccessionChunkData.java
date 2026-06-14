@@ -41,6 +41,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private static final String TARGET_BIOME = "target_biome";
     private static final String PREVIOUS_BIOME = "previous_biome";
     private static final String ACTIVE_PATH_ID = "active_path_id";
+    private static final String ACTIVE_BIOME_RULES_ID = "active_biome_rules_id";
     private static final String PROGRESS = "progress";
     private static final String CONSUMING_VALUE = "consuming_value";
     private static final String MAX_PLANT_COUNT = "max_plant_count";
@@ -60,6 +61,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private @Nullable ResourceKey<Biome> targetBiome;
     private @Nullable ResourceKey<Biome> previousBiome;
     private @Nullable ResourceLocation activePathId;
+    private @Nullable ResourceLocation activeBiomeRulesId;
     private double progress;
     private int consumingValue;
     private int maxPlantCount;
@@ -116,6 +118,15 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
 
     public void setActivePathId(@Nullable ResourceLocation activePathId) {
         this.activePathId = activePathId;
+        markDirty();
+    }
+
+    public Optional<ResourceLocation> getActiveBiomeRulesId() {
+        return Optional.ofNullable(activeBiomeRulesId);
+    }
+
+    public void setActiveBiomeRulesId(@Nullable ResourceLocation biomeRulesId) {
+        this.activeBiomeRulesId = biomeRulesId;
         markDirty();
     }
 
@@ -268,6 +279,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
 
     public void clearRuntimeState() {
         activePathId = null;
+        activeBiomeRulesId = null;
         targetBiome = null;
         consumingValue = 0;
         maxPlantCount = 0;
@@ -282,6 +294,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
 
     public void softReset() {
         activePathId = null;
+        activeBiomeRulesId = null;
         targetBiome = null;
         consumingValue = 0;
         maxPlantCount = 0;
@@ -300,6 +313,9 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         writeBiomeKey(tag, PREVIOUS_BIOME, previousBiome);
         if (activePathId != null) {
             tag.putString(ACTIVE_PATH_ID, activePathId.toString());
+        }
+        if (activeBiomeRulesId != null) {
+            tag.putString(ACTIVE_BIOME_RULES_ID, activeBiomeRulesId.toString());
         }
         tag.putDouble(PROGRESS, progress);
         tag.putInt(CONSUMING_VALUE, consumingValue);
@@ -334,6 +350,8 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         previousBiome = readBiomeKey(tag, PREVIOUS_BIOME);
         String storedPathId = tag.getString(ACTIVE_PATH_ID);
         activePathId = storedPathId.isEmpty() ? null : ResourceLocation.parse(storedPathId);
+        String storedBiomeRulesId = tag.getString(ACTIVE_BIOME_RULES_ID);
+        activeBiomeRulesId = storedBiomeRulesId.isEmpty() ? null : ResourceLocation.parse(storedBiomeRulesId);
         progress = tag.getDouble(PROGRESS);
         consumingValue = tag.getInt(CONSUMING_VALUE);
         maxPlantCount = tag.getInt(MAX_PLANT_COUNT);

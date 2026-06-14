@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:swamp",
+  "min_plant_count": 25,
+  "max_plant_count": 44,
+  "consuming": 16,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 105
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "weight": 77
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 6
+    },
+    {
+      "plant_id": "minecraft:dead_bush",
+      "weight": 2
+    },
+    {
+      "plant_id": "minecraft:blue_orchid",
+      "weight": 1
+    }
+  ]
+}

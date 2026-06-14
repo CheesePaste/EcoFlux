@@ -1,29 +1,17 @@
 package com.s.ecoflux.succession;
 
-/**
- * Chunk initialization: resolves the succession target for a newly loaded chunk.
- *
- * <p>Structure: static utility class with a single {@code resolveTarget()} method.
- * Samples the chunk's center biome and climate via {@code ChunkSamplingHelper},
- * queries {@code SuccessionConfigRegistry} for the best-matching succession path,
- * and populates all fields of {@code SuccessionChunkData} (path id, target/fallback
- * biomes, consuming value, plant count limit, weighted plant queue).
- *
- * <p>Role in Ecoflux: called by {@code SuccessionService.initializeChunk()} when a
- * chunk is first loaded. This is the entry point that determines what succession
- * path (if any) governs a given chunk.
- */
-
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;
-import com.s.ecoflux.config.SuccessionConfigRegistry;
-import com.s.ecoflux.config.SuccessionPathDefinition;
+import com.s.ecoflux.config.biome.BiomeRules;
+import com.s.ecoflux.config.biome.BiomeRulesRegistry;
+import com.s.ecoflux.config.succession.SuccessionConfigRegistry;
+import com.s.ecoflux.config.succession.SuccessionPathDefinition;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.plant.PlantSpawner;
 import com.s.ecoflux.world.ChunkSamplingHelper;
-import java.util.List;
 import java.util.Optional;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkAccess;
 
@@ -48,16 +36,32 @@ public final class SuccessionTargetResolver {
 
         chunkData.setCurrentBiome(climateSample.biomeKey());
 
-        if (matchedPath.isPresent()) {
+        ResourceLocation biomeId = climateSample.biomeKey().location();
+        Optional<BiomeRules> biomeRules = BiomeRulesRegistry.getRules(biomeId);
+
+        if (matchedPath.isPresent() && biomeRules.isPresent()) {
             SuccessionPathDefinition path = matchedPath.get();
+            BiomeRules rules = biomeRules.get();
             chunkData.setActivePathId(path.pathId());
             chunkData.setPreviousBiome(ChunkSamplingHelper.toBiomeKey(path.fallbackBiome()));
             chunkData.setTargetBiome(ChunkSamplingHelper.toBiomeKey(path.targetBiome()));
-            chunkData.setConsumingValue(path.chunkRules().consuming());
-            chunkData.setMaxPlantCount(path.chunkRules().maxPlantCount());
+            chunkData.setConsumingValue(rules.consuming());
+            chunkData.setMaxPlantCount(rules.samplePlantCount(new java.util.Random(chunk.getPos().toLong())));
+            chunkData.setActiveBiomeRulesId(biomeId);
             chunkData.replacePlantQueue(PlantSpawner.buildWeightedQueue(
-                    path, path.chunkRules().queueCapacity(), new java.util.Random(chunk.getPos().toLong())));
+                    rules, new java.util.Random(chunk.getPos().toLong())));
             return;
+        }
+
+        if (matchedPath.isEmpty() && biomeRules.isEmpty()) {
+            EcofluxConstants.LOGGER.debug(
+                    "区块 {} 的群系 {} 没有匹配的演替路径和群系规则", chunk.getPos(), biomeId);
+        } else if (matchedPath.isEmpty()) {
+            EcofluxConstants.LOGGER.warn(
+                    "区块 {} 的群系 {} 没有匹配的演替路径", chunk.getPos(), biomeId);
+        } else {
+            EcofluxConstants.LOGGER.warn(
+                    "区块 {} 的群系 {} 没有群系规则配置", chunk.getPos(), biomeId);
         }
 
         chunkData.setPreviousBiome(null);

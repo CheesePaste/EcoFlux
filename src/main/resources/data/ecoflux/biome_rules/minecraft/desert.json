@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:desert",
+  "min_plant_count": 0,
+  "max_plant_count": 3,
+  "consuming": 18,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:dead_bush",
+      "weight": 1
+    }
+  ]
+}

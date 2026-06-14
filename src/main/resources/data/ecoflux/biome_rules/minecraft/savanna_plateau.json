@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:savanna_plateau",
+  "min_plant_count": 28,
+  "max_plant_count": 50,
+  "consuming": 16,
+  "queue_fill_factor": 1.8,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 315
+    },
+    {
+      "plant_id": "minecraft:tall_grass",
+      "weight": 58
+    },
+    {
+      "plant_id": "minecraft:acacia_sapling",
+      "weight": 2
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 1
+    }
+  ]
+}

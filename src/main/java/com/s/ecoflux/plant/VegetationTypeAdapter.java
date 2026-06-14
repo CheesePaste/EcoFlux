@@ -1,7 +1,7 @@
 package com.s.ecoflux.plant;
 
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
-import com.s.ecoflux.config.PlantDefinition;
+import com.s.ecoflux.config.plant.PlantDefinition;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -37,6 +37,9 @@ public interface VegetationTypeAdapter {
     }
 
     static float progress(long age, long start, long endExclusive) {
+        if (!com.s.ecoflux.config.EcofluxServerConfig.enableVisualSystem()) {
+            return 1.0F;
+        }
         if (endExclusive <= start) {
             return 1.0F;
         }

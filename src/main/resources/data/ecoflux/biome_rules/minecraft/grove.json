@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:grove",
+  "min_plant_count": 3,
+  "max_plant_count": 8,
+  "consuming": 10,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:spruce_sapling",
+      "weight": 1
+    }
+  ]
+}

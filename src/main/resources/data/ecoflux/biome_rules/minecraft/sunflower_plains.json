@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:sunflower_plains",
+  "min_plant_count": 22,
+  "max_plant_count": 50,
+  "consuming": 12,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 69
+    },
+    {
+      "plant_id": "minecraft:sunflower",
+      "weight": 14
+    },
+    {
+      "plant_id": "minecraft:tall_grass",
+      "weight": 4
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 3
+    },
+    {
+      "plant_id": "minecraft:azure_bluet",
+      "weight": 1
+    }
+  ]
+}

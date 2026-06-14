@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:lush_caves",
+  "min_plant_count": 0,
+  "max_plant_count": 53,
+  "consuming": 11,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 88
+    },
+    {
+      "plant_id": "minecraft:tall_grass",
+      "weight": 32
+    },
+    {
+      "plant_id": "minecraft:azalea",
+      "weight": 12
+    },
+    {
+      "plant_id": "minecraft:flowering_azalea",
+      "weight": 8
+    },
+    {
+      "plant_id": "minecraft:spore_blossom",
+      "weight": 1
+    }
+  ]
+}

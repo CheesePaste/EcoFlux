@@ -2,8 +2,10 @@ package com.s.ecoflux.test.prototype;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.SuccessionChunkData;
-import com.s.ecoflux.config.SuccessionConfigRegistry;
-import com.s.ecoflux.config.SuccessionPathDefinition;
+import com.s.ecoflux.config.biome.BiomeRules;
+import com.s.ecoflux.config.biome.BiomeRulesRegistry;
+import com.s.ecoflux.config.succession.SuccessionConfigRegistry;
+import com.s.ecoflux.config.succession.SuccessionPathDefinition;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.init.ModChunkEvents;
 import com.s.ecoflux.plant.PlantSpawner;
@@ -33,15 +35,19 @@ public final class PrototypeChunkController {
             return "区块 " + chunk.getPos() + " 没有可用的演替路径。";
         }
 
-        SuccessionPathDefinition path = pathOptional.get();
+        Optional<BiomeRules> rules = chunkData.getActiveBiomeRulesId()
+                .flatMap(BiomeRulesRegistry::getRules);
+        if (rules.isEmpty()) {
+            return "区块 " + chunk.getPos() + " 没有群系规则。";
+        }
+
         long gameTime = level.getGameTime();
 
         PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
-        PlantSpawner.ensureQueue(chunkData, path);
-        String spawnResult = PlantSpawner.trySpawnPlant(level, chunk, chunkData, path, gameTime);
+        PlantSpawner.ensureQueue(chunkData, rules.get());
+        String spawnResult = PlantSpawner.trySpawnPlant(level, chunk, chunkData, gameTime);
         String observeResult = VegetationTracker.INSTANCE.observeChunk(level, chunk);
 
-        // Per-chunk only — does NOT enable global auto
         ModChunkEvents.enableAutoForChunk(level, chunk);
 
         EcofluxConstants.LOGGER.info(

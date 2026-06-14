@@ -44,13 +44,19 @@ The codebase is in `src/main/java/com/s/ecoflux/`. Key architectural layers:
 ### Configuration layer (`config/`)
 - `SuccessionConfigLoader` — Gson-based JSON loader, extends `SimpleJsonResourceReloadListener` for hot-reload on `/reload`
 - `SuccessionConfigRegistry` — Thread-safe cached lookup. `findBestMatch(biome, temperature, downfall)` resolves the best succession path for a given chunk
-- `SuccessionPathDefinition` — Record: path_id, source/target/fallback biomes, climate conditions, `PathPlantEntry` list, `ChunkRules` (consuming, max_plants, intervals, progress steps)
-- `PathPlantEntry` — Record: `plant_id` + `weight`. Plants in succession paths reference the central registry by ID, with path-specific spawn weight
-- `PlantDefinition` — Record: plant intrinsic properties (`plant_id`, `point_value`, `max_age_ticks`, `spawn_rules`). No longer carries `weight` (path-specific) or `category` (removed)
+- `SuccessionPathDefinition` — Record: path_id, priority, source/target/fallback biomes, climate conditions, `positiveProgressStep`, `negativeProgressStep`. No longer carries `plants[]` or `ChunkRules` (2026-06-14 refactoring)
+- `BiomeRules` — Record: `biomeId`, `minPlantCount`, `maxPlantCount`, `consuming`, `queueFillFactor`, `plants` (List<PathPlantEntry>). Per-biome plant ecosystem config. `samplePlantCount(Random)` returns a per-chunk cap sampled from a normal distribution centered at (min+max)/2 with σ=(max-min)/6, clamped to [min,max], simulating vanilla's variable per-chunk plant density. If `min_plant_count` is absent from JSON, it defaults to `max_plant_count` (no randomness). Queue capacity is computed from `maxPlantCount`, not the sampled value
+- `BiomeRulesRegistry` — Thread-safe singleton registry. `getRules(biomeId)` returns the `BiomeRules` for a biome. Loaded by `BiomeRulesLoader`
+- `BiomeRulesLoader` — `SimpleJsonResourceReloadListener` watching `biome_rules/` directory, populates `BiomeRulesRegistry`
+- `PathPlantEntry` — Record: `plant_id` + `weight`. Used by both path config (historical) and biome rules
+- `PlantDefinition` — Record: plant intrinsic properties (`plant_id`, `point_value`, `max_age_ticks`, `spawn_rules`)
 - `PlantRegistry` — Singleton central plant registry. `getDefinition(plantId)` returns the canonical `PlantDefinition`. Loaded from `data/ecoflux/plant_definitions/*.json`
 - `PlantRegistryLoader` — `SimpleJsonResourceReloadListener` watching `plant_definitions/` directory, populates `PlantRegistry` on startup and `/reload`
-- JSON path files live at `src/main/resources/data/ecoflux/succession_paths/*.json`
-- Plant registry JSON lives at `src/main/resources/data/ecoflux/plant_definitions/*.json`
+- `ChunkRules` — **Removed** (2026-06-14). Contents split into `BiomeRules` (maxPlantCount, consuming, queueFillFactor, plants) and `SuccessionPathDefinition` (step sizes). Evaluation/processing intervals moved to `EcofluxServerConfig` as global config
+- `EcofluxServerConfig` — Server-side NeoForge config. Now includes global `evaluation_interval_ticks` and `processing_interval_ticks` (moved from per-path ChunkRules)
+- JSON path files: `src/main/resources/data/ecoflux/succession_paths/*.json`
+- Biome rules: `src/main/resources/data/ecoflux/biome_rules/<namespace>/<biome>.json`
+- Plant registry: `src/main/resources/data/ecoflux/plant_definitions/*.json`
 
 ### Data layer (`attachment/`)
 - `SuccessionChunkData` — Core per-chunk state attached via NeoForge `DataAttachment<SuccessionChunkData>`. Contains: current/target/previous biome, progress (double), consuming value, max/current plant count, plant queue, vegetationRecords map, evaluation timer. Fully NBT-serializable
@@ -72,10 +78,12 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `VegetationTypeAdapter` — Core interface: `matches(BlockState)`, `captureBirth(level, pos, state, gameTime, sourceBiomeId, sourcePathId, plantDefinition)`, `observe(record, gameTime)`, `visualState(record, gameTime)`. `captureBirth` now receives `PlantDefinition` for point values and lifetime from config. `category()` method removed
 - `VegetationTracker` — Singleton that tracks/observes/syncs all vegetation. Key methods: `trackAt()`, `observeTracked()`, `observeChunk()`. `trackAt()` now accepts `PlantDefinition` parameter
 - Adapters: `SimplePlantAdapter` (flowers, grass, ferns, mushrooms, dead bushes, double plants), `SaplingAdapter` (tree saplings/propagules → tree transformation), `TreeStructureAdapter` (mature trees). All no longer hardcode point values or lifetimes — these come from `PlantDefinition`
+- `WorldGenVegetationScanner` — Scans newly-loaded chunks for world-generation vegetation (plants, saplings, trees) and registers them with `VegetationTracker`. Uses BFS-based tree component detection (connected logs + leaves) for mature trees. Caps to biome's `maxPlantCount` using deviation-based removal (over-represented types removed first). Called once per chunk from `ModChunkEvents.onChunkLoad`
 - `VegetationCategory` enum — **Removed** (2026-06-12). Point values now come directly from `PlantDefinition.pointValue()`; no more hardcoded FLOWER=2/other=1
 - `VegetationTracker.trackAt()` automatically tracks upper halves of double-height plants (tall grass, sunflowers) with 0 points to keep both halves visually synced
 - `VegetationTransformation` — Descriptor for sapling→tree conversion. No longer carries `targetCategory`
-- `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`. Uses `PlantRegistry` to resolve plant definitions, `PathPlantEntry` for weighted selection
+- `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`. Uses deviation-aware feedback: `computeEffectiveWeights()` adjusts per-plant weights based on actual vs target composition, so the system self-corrects toward the configured plant mix. Accepts `BiomeRules` for plant lists and capacities
+- `BiomePlantSampler` — **New** (2026-06-14); moved to `test/sample/` (2026-06-14). `/ecoflux sample [radius]` command: BFS-scans connected same-biome chunks, counts all adapter-matched vegetation by type, reports per-chunk plant count distribution (min/max/avg/histogram) and per-type totals/percentages. Edge chunks filtered to sampling core biome area only; water chunks (30%+ water surface) filtered. `/ecoflux sample <radius> apply` auto-generates `BiomeRules` JSON. Used to calibrate `BiomeRules` min/max plant counts and weights against vanilla world generation
 - `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted. Maps sapling IDs → `TreeGrowthProfile`. 9 species use `SpaceColonizationProfile` (birch, oak, spruce, cherry, jungle, dark_oak, acacia, mangrove) + 2 `MushroomGrowthProfile`
 - `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, resolved height, timing), NBT-serializable. Transient fields: skeleton/morphologyParams/stagePlan (morphology), scParams/stageLogs/stageLeaves (space colonization) — rebuilt from seed on reload
 - `tree/TreeGrowthProfile` — Interface: species-specific growth parameters (height range, block types, stage count, spacing) + optional `morphologyParams()`. 3 implementations: `SpaceColonizationProfile` (8 species, all trees), `MorphologyTreeProfile` (legacy, retained as reference), `MushroomGrowthProfile` (2 mushroom types)
@@ -89,11 +97,17 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 ### Mixins (`mixin/`)
 - `client/BlockRenderDispatcherMixin` — Client-side: suppresses vanilla block render for visually-tracked blocks with non-1.0 scale
 - `SaplingBlockMixin` — Server-side: intercepts `SaplingBlock.advanceTree()`, cancels vanilla instant tree growth for Ecoflux-tracked saplings (delegates to `TreeGrowthHandler`)
+- `worldgen/ChunkGeneratorMixin` — Server-side: makes `biomeSource` field mutable for batch sampling world. Implements `ChunkGeneratorAccessor` duck interface for type-safe biome source swapping at runtime
 - `perf/*` — 13 profiling mixins that inject `PerformanceProfiler.push/pop` at HEAD/RETURN of key methods. Zero-cost when profiling is disabled. All in `mixin/perf/` for easy removal
 
 ### Test utilities (`test/`)
 - `test/prototype/PrototypeChunkController` — Accelerated 10-second demo mode. Calls into `SuccessionService`, `PlantSpawner`, `BiomeTransitionService` for shared operations
 - `test/performance/PerformanceProfiler` — Lightweight span-based performance profiler. Named spans with aggregated statistics (count, total, min, max, avg). `/ecoflux profile on/off/report` for control. Report also saved to `logs/ecoflux-profile.txt`
+- `test/sample/BiomePlantSampler` — Vanilla world-gen plant distribution sampler. BFS same-biome chunk scanning, tree inference from logs, edge/water filtering, auto-generates `BiomeRules` JSON from P5-P95 percentiles and proportional weights. Commands: `/ecoflux sample`, `/ecoflux sample <radius> apply`
+- `test/sample/SamplingBiomeSource` — Mutable single-biome `BiomeSource` for batch sampling world. Extends `BiomeSource` + `NoiseBiomeSource`, uses `Biome.CODEC` for JSON world preset deserialization. `setTargetBiome(Holder<Biome>)` for runtime biome switching
+- `test/sample/SamplingBiomeSources` — `DeferredRegister` for the `ecoflux:sampling` biome source codec. Registered in `EcofluxMod`
+- World preset: `data/ecoflux/worldgen/world_preset/sampling.json` — Single-biome world preset using `ecoflux:sampling` biome source
+- `/ecoflux sample batchall [radius]` — Iterates all `minecraft:` biomes, swaps biome source via mixin, runs sampler at offset positions, auto-saves `biome_rules` JSON to `{server}/ecoflux/sampled_rules/minecraft/`
 
 ### Client visual layer (`client/visual/`)
 - `VisualLifecycleClientRuntime` — Client singleton receiving visual state from server
@@ -108,7 +122,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `ModAttachments` — Registers the `DataAttachment<SuccessionChunkData>`
 - `ModChunkEvents` — Chunk load/unload/tick handlers, accelerated transition mode
 - `ModCommands` — Debug commands under `/ecoflux prototype`, `/ecoflux auto`, `/ecoflux lifecycle`, `/ecoflux visual`, `/ecoflux tree` (instant/grid/stats for tree algorithm testing)
-- `ModReloadListeners` — JSON config reload hooks for succession paths and plant registry
+- `ModReloadListeners` — JSON config reload hooks for succession paths, plant registry, and biome rules
 
 ### Constants and entry point
 - `EcofluxConstants` — `MOD_ID = "ecoflux"`, logger, `ResourceLocation` factory method
@@ -116,7 +130,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Key Design Decisions
 
-1. **Data-driven paths**: Succession paths are JSON files in the data pack, loaded via `SimpleJsonResourceReloadListener`. Each path defines source→target biome, climate matching, plant weights, and chunk rules.
+1. **Data-driven paths + biome rules**: Succession paths define source→target biome transitions with priority, climate matching, and step sizes. Biome-level plant ecosystem config (plant list, weights, max density, consumption threshold, queue fill factor) lives in separate `biome_rules/` JSON files. Evaluation/processing intervals are global in `EcofluxServerConfig`.
 
 2. **Per-chunk state via Data Attachments**: Chunk state persists across chunk reloads via NBT serialization. Access pattern: `chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA)`.
 
@@ -128,7 +142,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Current Development State
 
-- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring — 2026-06-12; Tree profile refactoring (11 boilerplate → 2 parameterized) — 2026-06-12; Space Colonization tree algorithm (9 species, 1x1 + 2x2, endpoint leaf clusters, instant test commands) — 2026-06-13/14; Old morphology system removed — 2026-06-14
+- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring — 2026-06-12; Tree profile refactoring (11 boilerplate → 2 parameterized) — 2026-06-12; Space Colonization tree algorithm (9 species, 1x1 + 2x2, endpoint leaf clusters, instant test commands) — 2026-06-13/14; Old morphology system removed — 2026-06-14; World-gen vegetation scanning (WorldGenVegetationScanner) — 2026-06-14; Biome rules refactoring + world-gen density capping — 2026-06-14
 - **In progress**: Succession integration, Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 
@@ -147,6 +161,7 @@ All design docs are in `docs/`, written in Chinese:
 - `todolist.md` — Priority-ordered TODO list and JSON config coverage analysis
 - `plant-death-system.md` — Plant death/decay system design and implementation (completed 2026-06-11)
 - `plant-registry-refactor.md` — Central plant registry refactoring design doc (completed 2026-06-12)
+- `biome-rules-refactor.md` — Biome rules system: separating plant ecosystem config from succession paths (completed 2026-06-14)
 - `tree-profile-refactor.md` — Tree profile refactoring design: replacing 11 boilerplate profile classes with 2 parameterized classes
 
 ## Important Conventions

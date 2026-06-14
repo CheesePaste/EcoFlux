@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:snowy_taiga",
+  "min_plant_count": 0,
+  "max_plant_count": 10,
+  "consuming": 6,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:spruce_sapling",
+      "weight": 14
+    },
+    {
+      "plant_id": "minecraft:fern",
+      "weight": 8
+    },
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 3
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "weight": 3
+    },
+    {
+      "plant_id": "minecraft:large_fern",
+      "weight": 1
+    }
+  ]
+}

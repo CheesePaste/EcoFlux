@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:savanna",
+  "min_plant_count": 26,
+  "max_plant_count": 54,
+  "consuming": 16,
+  "queue_fill_factor": 1.8,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 501
+    },
+    {
+      "plant_id": "minecraft:tall_grass",
+      "weight": 42
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "weight": 5
+    },
+    {
+      "plant_id": "minecraft:acacia_sapling",
+      "weight": 4
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "weight": 4
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 3
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "weight": 2
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 1
+    }
+  ]
+}

@@ -18,30 +18,7 @@
     }
   },
   "chunk_rules": {
-    "consuming": 20,
-    "max_plant_count": 7,
-    "queue_fill_factor": 2.0,
-    "evaluation_interval_days": {
-      "min": 6,
-      "max": 10
-    }
-  },
-  "plants": [
-    {
-      "plant_id": "minecraft:birch_sapling",
-      "weight": 6
-    },
-    {
-      "plant_id": "minecraft:peony",
-      "weight": 3
-    },
-    {
-      "plant_id": "minecraft:fern",
-      "weight": 5
-    },
-    {
-      "plant_id": "minecraft:lilac",
-      "weight": 2
-    }
-  ]
+    "positive_progress_step": 0.15,
+    "negative_progress_step": 0.25
+  }
 }

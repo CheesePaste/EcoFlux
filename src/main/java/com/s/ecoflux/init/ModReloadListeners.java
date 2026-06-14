@@ -10,8 +10,9 @@ package com.s.ecoflux.init;
  * {@code /reload} without restarting the server.
  */
 
-import com.s.ecoflux.config.PlantRegistryLoader;
-import com.s.ecoflux.config.SuccessionConfigLoader;
+import com.s.ecoflux.config.biome.BiomeRulesLoader;
+import com.s.ecoflux.config.plant.PlantRegistryLoader;
+import com.s.ecoflux.config.succession.SuccessionConfigLoader;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 
@@ -26,5 +27,6 @@ public final class ModReloadListeners {
     private static void onAddReloadListener(AddReloadListenerEvent event) {
         event.addListener(SuccessionConfigLoader.INSTANCE);
         event.addListener(PlantRegistryLoader.INSTANCE);
+        event.addListener(BiomeRulesLoader.INSTANCE);
     }
 }

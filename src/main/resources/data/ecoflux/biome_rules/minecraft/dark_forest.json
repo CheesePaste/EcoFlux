@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:dark_forest",
+  "min_plant_count": 12,
+  "max_plant_count": 30,
+  "consuming": 21,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 400
+    },
+    {
+      "plant_id": "minecraft:dark_oak_sapling",
+      "weight": 497
+    },
+    {
+      "plant_id": "minecraft:oak_sapling",
+      "weight": 147
+    },
+    {
+      "plant_id": "minecraft:red_mushroom",
+      "weight": 150
+    },
+    {
+      "plant_id": "minecraft:birch_sapling",
+      "weight": 41
+    },
+    {
+      "plant_id": "minecraft:lily_of_the_valley",
+      "weight": 14
+    },
+    {
+      "plant_id": "minecraft:brown_mushroom",
+      "weight": 150
+    },
+    {
+      "plant_id": "minecraft:rose_bush",
+      "weight": 2
+    },
+    {
+      "plant_id": "minecraft:poppy",
+      "weight": 1
+    },
+    {
+      "plant_id": "minecraft:dandelion",
+      "weight": 1
+    }
+  ]
+}

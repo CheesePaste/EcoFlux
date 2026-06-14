@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:crimson_forest",
+  "min_plant_count": 0,
+  "max_plant_count": 0,
+  "consuming": 0,
+  "queue_fill_factor": 0.0,
+  "plants": []
+}

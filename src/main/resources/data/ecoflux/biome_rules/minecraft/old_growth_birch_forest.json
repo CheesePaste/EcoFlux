@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "biome_id": "minecraft:old_growth_birch_forest",
+  "min_plant_count": 8,
+  "max_plant_count": 22,
+  "consuming": 26,
+  "queue_fill_factor": 2.0,
+  "plants": [
+    {
+      "plant_id": "minecraft:short_grass",
+      "weight": 22
+    },
+    {
+      "plant_id": "minecraft:birch_sapling",
+      "weight": 42
+    },
+    {
+      "plant_id": "minecraft:lilac",
+      "weight": 9
+    }
+  ]
+}
