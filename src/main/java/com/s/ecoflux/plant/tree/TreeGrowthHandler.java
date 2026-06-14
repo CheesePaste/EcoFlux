@@ -23,8 +23,8 @@ import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.init.ModChunkEvents;
 import com.s.ecoflux.plant.TreeStructure;
 import com.s.ecoflux.plant.TreeStructureAdapter;
-import com.s.ecoflux.plant.tree.morphology.MorphologyPresets;
-import com.s.ecoflux.plant.tree.profiles.MorphologyTreeProfile;
+import com.s.ecoflux.plant.tree.spacecolonization.SpaceColonizationParams;
+import com.s.ecoflux.plant.tree.spacecolonization.SpaceColonizationProfile;
 import com.s.ecoflux.plant.tree.profiles.MushroomGrowthProfile;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,26 +49,25 @@ public final class TreeGrowthHandler {
     private static final Map<ResourceLocation, TreeGrowthProfile> PROFILES = new HashMap<>();
 
     static {
-        reg(new MorphologyTreeProfile(id("oak"), 3600, Blocks.OAK_LOG, Blocks.OAK_LEAVES, false,
-                MorphologyPresets.oak(), MorphologyTreeProfile.SINGLE_TRUNK, null));
-        reg(new MorphologyTreeProfile(id("birch"), 2400, Blocks.BIRCH_LOG, Blocks.BIRCH_LEAVES, false,
-                MorphologyPresets.birch(), MorphologyTreeProfile.SINGLE_TRUNK, null));
-        reg(new MorphologyTreeProfile(id("spruce"), 4800, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, false,
-                MorphologyPresets.spruce(), MorphologyTreeProfile.SINGLE_TRUNK, null));
-        reg(new MorphologyTreeProfile(id("cherry"), 3600, Blocks.CHERRY_LOG, Blocks.CHERRY_LEAVES, false,
-                MorphologyPresets.cherry(), MorphologyTreeProfile.SINGLE_TRUNK, null));
-        reg(new MorphologyTreeProfile(id("jungle_1x1"), 4200, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, false,
-                MorphologyPresets.jungle1x1(), MorphologyTreeProfile.SINGLE_TRUNK, null));
-        reg(new MorphologyTreeProfile(id("acacia"), 3600, Blocks.ACACIA_LOG, Blocks.ACACIA_LEAVES, false,
-                MorphologyPresets.acacia(), MorphologyTreeProfile.ACACIA_3X3, null));
-        reg(new MorphologyTreeProfile(id("mangrove"), 3200, Blocks.MANGROVE_LOG, Blocks.MANGROVE_LEAVES, false,
-                MorphologyPresets.mangrove(), MorphologyTreeProfile.SINGLE_TRUNK,
-                MorphologyTreeProfile::placePropRoots));
+        reg(new SpaceColonizationProfile(id("oak"), 3600, Blocks.OAK_LOG, Blocks.OAK_LEAVES, false,
+                SpaceColonizationParams.oak(), null));
+        reg(new SpaceColonizationProfile(id("birch"), 2400, Blocks.BIRCH_LOG, Blocks.BIRCH_LEAVES, false,
+                SpaceColonizationParams.birch(), null));
+        reg(new SpaceColonizationProfile(id("spruce"), 4800, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, false,
+                SpaceColonizationParams.spruce(), null));
+        reg(new SpaceColonizationProfile(id("cherry"), 3600, Blocks.CHERRY_LOG, Blocks.CHERRY_LEAVES, false,
+                SpaceColonizationParams.cherry(), null));
+        reg(new SpaceColonizationProfile(id("jungle_1x1"), 4200, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, false,
+                SpaceColonizationParams.jungle(), null));
+        reg(new SpaceColonizationProfile(id("acacia"), 3600, Blocks.ACACIA_LOG, Blocks.ACACIA_LEAVES, false,
+                SpaceColonizationParams.acacia(), null));
+        reg(new SpaceColonizationProfile(id("mangrove"), 3200, Blocks.MANGROVE_LOG, Blocks.MANGROVE_LEAVES, false,
+                SpaceColonizationParams.mangrove(), SpaceColonizationProfile::placePropRoots));
 
-        reg(new MorphologyTreeProfile(id("jungle"), 4800, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, true,
-                MorphologyPresets.jungle(), MorphologyTreeProfile.TRUNK_2X2, null));
-        reg(new MorphologyTreeProfile(id("dark_oak"), 3600, Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_LEAVES, true,
-                MorphologyPresets.darkOak(), MorphologyTreeProfile.TRUNK_2X2, null));
+        reg(new SpaceColonizationProfile(id("jungle"), 4800, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, true,
+                SpaceColonizationParams.jungle(), null));
+        reg(new SpaceColonizationProfile(id("dark_oak"), 3600, Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_LEAVES, true,
+                SpaceColonizationParams.darkOak(), null));
 
         reg(new MushroomGrowthProfile(id("brown_mushroom"), 4, 7, 2400,
                 Blocks.BROWN_MUSHROOM_BLOCK, MushroomGrowthProfile.MushroomCapStyle.FLAT));
@@ -128,17 +127,32 @@ public final class TreeGrowthHandler {
         TreeGrowthSession session = new TreeGrowthSession(
                 sessionPos, profile.treeType(), level.getGameTime(), stages, interval, height);
 
-        var morphologyParams = profile.morphologyParams();
-        if (morphologyParams != null) {
-            session.ensureSkeleton(level, morphologyParams);
+        if (profile instanceof SpaceColonizationProfile scProfile) {
+            session.ensureConnectedPlan(level, scProfile.scParams(), scProfile.is2x2());
+        }
+
+        // Replace sapling with log immediately
+        Block logBlock = profile.logBlock();
+        if (profile.is2x2()) {
+            for (BlockPos trunkPos : TreeShapeUtils.trunk2x2Positions(sessionPos, sessionPos.getY())) {
+                chunkData.removeVegetation(trunkPos);
+                level.removeBlock(trunkPos, false);
+                level.setBlock(trunkPos, logBlock.defaultBlockState(), 3);
+                session.placedLogs().add(trunkPos.immutable());
+            }
+        } else {
+            chunkData.removeVegetation(sessionPos);
+            level.removeBlock(sessionPos, false);
+            level.setBlock(sessionPos, logBlock.defaultBlockState(), 3);
+            session.placedLogs().add(sessionPos.immutable());
         }
 
         chunkData.addTreeGrowthSession(sessionPos, session);
         chunksWithSessions.add(chunk.getPos().toLong());
 
         EcofluxConstants.LOGGER.info(
-                "[Ecoflux] Intercepted tree growth at {} (type={}), height={}, totalStages={}, morphology={}",
-                sessionPos, saplingId, height, stages, morphologyParams != null);
+                "[Ecoflux] Intercepted tree growth at {} (type={}), height={}, totalStages={}",
+                sessionPos, saplingId, height, stages);
     }
 
     public void interceptMushroomGrowth(ServerLevel level, BlockPos pos, BlockState state) {
@@ -178,8 +192,11 @@ public final class TreeGrowthHandler {
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
         TreeGrowthSession session = chunkData.getTreeGrowthSessions().get(pos);
         if (session != null) return session;
+
+        // Search 2x2 area for 2x2 trees (session stored at NW corner)
         for (int dx = 0; dx >= -1; dx--) {
             for (int dz = 0; dz >= -1; dz--) {
+                if (dx == 0 && dz == 0) continue;
                 session = chunkData.getTreeGrowthSessions().get(
                         new BlockPos(pos.getX() + dx, pos.getY(), pos.getZ() + dz));
                 if (session != null) return session;
@@ -249,19 +266,8 @@ public final class TreeGrowthHandler {
                 }
 
                 RandomSource treeRandom = TreeShapeUtils.positionRandom(pos, level.getSeed());
-                var morphologyParams = profile.morphologyParams();
-                if (morphologyParams != null) {
-                    session.ensureSkeleton(level, morphologyParams);
-                    var skel = session.skeleton();
-                    var plan = session.stagePlan();
-                    if (skel != null && plan != null) {
-                        com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
-                                level, skel, morphologyParams, plan,
-                                session.currentStage(), level.getSeed(), treeRandom,
-                                profile.logBlock(), profile.leavesBlock(),
-                                session.placedLogs(), session.placedLeaves());
-                    }
-                    // Species-specific post-morphology behavior (e.g., mangrove prop roots)
+                if (profile instanceof SpaceColonizationProfile scProfile) {
+                    session.ensureConnectedPlan(level, scProfile.scParams(), scProfile.is2x2());
                     profile.growStage(level, pos, session.currentStage(),
                             session.totalStages(), session.resolvedHeight(), treeRandom);
                 } else {
@@ -301,18 +307,8 @@ public final class TreeGrowthHandler {
                 session.totalStages(), session.resolvedHeight())) return false;
 
         RandomSource treeRandom = TreeShapeUtils.positionRandom(session.saplingPos(), level.getSeed());
-        var morphologyParams = profile.morphologyParams();
-        if (morphologyParams != null) {
-            session.ensureSkeleton(level, morphologyParams);
-            var skel = session.skeleton();
-            var plan = session.stagePlan();
-            if (skel != null && plan != null) {
-                com.s.ecoflux.plant.tree.morphology.TreeMorphology.growStage(
-                        level, skel, morphologyParams, plan,
-                        session.currentStage(), level.getSeed(), treeRandom,
-                        profile.logBlock(), profile.leavesBlock(),
-                        session.placedLogs(), session.placedLeaves());
-            }
+        if (profile instanceof SpaceColonizationProfile scProfile) {
+            session.ensureConnectedPlan(level, scProfile.scParams(), scProfile.is2x2());
             profile.growStage(level, session.saplingPos(), session.currentStage(),
                     session.totalStages(), session.resolvedHeight(), treeRandom);
         } else {
@@ -346,9 +342,8 @@ public final class TreeGrowthHandler {
         for (TreeGrowthSession session : sessions.values()) {
             TreeGrowthProfile profile = resolveProfile(session.treeType());
             if (profile == null) continue;
-            var morphologyParams = profile.morphologyParams();
-            if (morphologyParams != null) {
-                session.ensureSkeleton(level, morphologyParams);
+            if (profile instanceof SpaceColonizationProfile scProfile) {
+                session.ensureConnectedPlan(level, scProfile.scParams(), scProfile.is2x2());
             }
             hasValidSessions = true;
         }

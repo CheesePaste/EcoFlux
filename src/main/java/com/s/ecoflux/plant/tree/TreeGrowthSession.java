@@ -14,11 +14,11 @@ package com.s.ecoflux.plant.tree;
  * tree growth session map. Drives the staged placement of logs and leaves over time.
  */
 
-import com.s.ecoflux.plant.tree.morphology.MorphologyParams;
-import com.s.ecoflux.plant.tree.morphology.TreeMorphology;
-import com.s.ecoflux.plant.tree.morphology.TreeMorphology.GrowStagePlan;
-import com.s.ecoflux.plant.tree.morphology.TreeSkeleton;
+import com.s.ecoflux.plant.tree.spacecolonization.SpaceColonizationGenerator;
+import com.s.ecoflux.plant.tree.spacecolonization.SpaceColonizationParams;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -46,9 +46,9 @@ public final class TreeGrowthSession {
     private int currentStage;
     private long lastStageTime;
 
-    private transient TreeSkeleton skeleton;
-    private transient MorphologyParams morphologyParams;
-    private transient GrowStagePlan stagePlan;
+    private transient SpaceColonizationParams scParams;
+    private transient List<List<BlockPos>> stageLogs;
+    private transient List<List<BlockPos>> stageLeaves;
     private final transient Set<BlockPos> placedLogs = new HashSet<>();
     private final transient Set<BlockPos> placedLeaves = new HashSet<>();
 
@@ -69,27 +69,35 @@ public final class TreeGrowthSession {
         this.lastStageTime = growthStartTime;
     }
 
-    public void ensureSkeleton(ServerLevel level, MorphologyParams params) {
-        if (skeleton != null && params.equals(morphologyParams)) return;
-        this.morphologyParams = params;
+    public void ensureConnectedPlan(ServerLevel level, SpaceColonizationParams params, boolean is2x2) {
+        if (stageLogs != null && params.equals(scParams)) return;
+        this.scParams = params;
         RandomSource random = TreeShapeUtils.positionRandom(saplingPos, level.getSeed());
-        this.skeleton = TreeMorphology.generateSkeleton(saplingPos, params, resolvedHeight, random);
-        this.stagePlan = TreeMorphology.planStages(skeleton, params);
+        SpaceColonizationGenerator.StagePlan plan = SpaceColonizationGenerator.generateAndPartition(
+                saplingPos, params, resolvedHeight, totalStages, is2x2, random);
+        this.stageLogs = plan.logsByStage();
+        this.stageLeaves = plan.leavesByStage();
+        for (List<BlockPos> stagePositions : this.stageLogs) {
+            this.placedLogs.addAll(stagePositions);
+        }
+        for (List<BlockPos> stagePositions : this.stageLeaves) {
+            this.placedLeaves.addAll(stagePositions);
+        }
     }
 
     @Nullable
-    public TreeSkeleton skeleton() {
-        return skeleton;
+    public SpaceColonizationParams scParams() {
+        return scParams;
     }
 
-    @Nullable
-    public MorphologyParams morphologyParams() {
-        return morphologyParams;
+    public List<BlockPos> stageLogPositions(int stage) {
+        if (stageLogs == null || stage >= stageLogs.size()) return Collections.emptyList();
+        return stageLogs.get(stage);
     }
 
-    @Nullable
-    public GrowStagePlan stagePlan() {
-        return stagePlan;
+    public List<BlockPos> stageLeafPositions(int stage) {
+        if (stageLeaves == null || stage >= stageLeaves.size()) return Collections.emptyList();
+        return stageLeaves.get(stage);
     }
 
     public BlockPos saplingPos() {

@@ -76,21 +76,14 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `VegetationTracker.trackAt()` automatically tracks upper halves of double-height plants (tall grass, sunflowers) with 0 points to keep both halves visually synced
 - `VegetationTransformation` — Descriptor for sapling→tree conversion. No longer carries `targetCategory`
 - `PlantSpawner` — Plant spawning and pruning: `trySpawnPlant()`, `pruneInvalidPlants()`, `ensureQueue()`, `buildWeightedQueue()`, `fillPlants()`. Uses `PlantRegistry` to resolve plant definitions, `PathPlantEntry` for weighted selection
-- `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted. Maps sapling IDs → `TreeGrowthProfile`, supports 1x1 and 2x2 trees. If profile has `morphologyParams()`, calls `TreeMorphology.growStage()`; otherwise falls back to legacy `profile.growStage()`
-- `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, resolved height, timing), NBT-serializable. Transient fields: skeleton, morphologyParams, stagePlan (rebuilt from seed on reload)
-- `tree/TreeGrowthProfile` — Interface: species-specific growth parameters (height range, block types, stage count, spacing) + optional `morphologyParams()`. 2 parameterized implementations: `MorphologyTreeProfile` (9 tree species) + `MushroomGrowthProfile` (2 mushroom types)
-- `tree/TreeShapeUtils` — Shared utilities: position-deterministic noise, canopy radius functions, leaf disc placement, 2x2 detection, branch generation, log/leaf block placement helpers
-- `tree/morphology/` — **Morphology system**:
-  - `NodeType` — Enum: TRUNK, PRIMARY_BRANCH, SECONDARY_BRANCH, TWIG
-  - `SkeletonNode` — Record: pos, type, radius, parentIndex, depth
-  - `TreeSkeleton` — Skeleton data structure: node list, trunk path, primary branch list, trunkLevels (for 2x2)
-  - `SkeletonGenerator` — Parametric recursive branching: trunk with lean/noise, primary branches with radial+upward angle, secondary branches from branch midpoints
-  - `CanopyEnvelope` — 6 canopy shape density functions (ELLIPSOID/TALL_ELLIPSOID/CONE/CLUSTERED_ELLIPSOID/FLAT_CYLINDER/FLAT_DISC_CLUSTERED) with edge feathering
-  - `LeafFiller` — Skeleton-aware leaf placement: AABB traversal, canopy density check, skeleton distance, noise probability, sorted by proximity, max 50/stage
-  - `MorphologyParams` — Species morphology parameter record
-  - `MorphologyPresets` — 9 static factory methods (oak/birch/spruce/jungle/darkOak/jungle1x1/cherry/mangrove/acacia) returning pre-configured `MorphologyParams`
-  - `TreeMorphology` — Integration entry: generateSkeleton → planStages → growStage (place logs + fill leaves)
-- `tree/profiles/MorphologyTreeProfile` — Parameterized record for 9 tree species. Configurable `CanGrowStageStrategy` (SINGLE_TRUNK/TRUNK_2X2/ACACIA_3X3) and optional `GrowStageHook` for species-specific post-morphology behavior (e.g., mangrove prop roots)
+- `tree/TreeGrowthHandler` — Singleton managing active tree growth sessions. Called by `SaplingBlockMixin` when growth is intercepted. Maps sapling IDs → `TreeGrowthProfile`. 9 species use `SpaceColonizationProfile` (birch, oak, spruce, cherry, jungle, dark_oak, acacia, mangrove) + 2 `MushroomGrowthProfile`
+- `tree/TreeGrowthSession` — Per-tree growth state (position, tree type, stage counter, resolved height, timing), NBT-serializable. Transient fields: skeleton/morphologyParams/stagePlan (morphology), scParams/stageLogs/stageLeaves (space colonization) — rebuilt from seed on reload
+- `tree/TreeGrowthProfile` — Interface: species-specific growth parameters (height range, block types, stage count, spacing) + optional `morphologyParams()`. 3 implementations: `SpaceColonizationProfile` (8 species, all trees), `MorphologyTreeProfile` (legacy, retained as reference), `MushroomGrowthProfile` (2 mushroom types)
+- `tree/TreeShapeUtils` — Shared utilities: position-deterministic noise, log placement, 2x2 detection
+- `tree/spacecolonization/` — **Space Colonization system** (2026-06-13, expanded 2026-06-14):
+  - `SpaceColonizationParams` — 12-field parameter record with envelope-based leaf shaping (ELLIPSOID/TALL_ELLIPSOID/CONE) + DT-inspired node growth params (upProbability, splitChance, branchLengthRatio, secondaryChance). Species presets: birch, oak, cherry, spruce, jungle, dark_oak, acacia, mangrove
+  - `SpaceColonizationGenerator` — Hybrid algorithm: Dynamic Trees-style discrete-Direction probMap node growth for logs (adapted from ferreusveritas/DynamicTrees, MIT), endpoint-cluster leaf placement (Phase 1) + envelope density falloff (Phase 2). Supports 1x1 and 2x2 trunks (4 parallel signals). Guarantees Chebyshev adjacency. Outputs `FullTreePlan` and `StagePlan`
+  - `SpaceColonizationProfile` — Record implementing `TreeGrowthProfile`. Supports `is2x2` flag, optional `PostGrowHook` (e.g., mangrove prop roots). `morphologyParams()` returns null, uses session's `stageLogPositions()`/`stageLeafPositions()` for per-stage block placement
 - `tree/profiles/MushroomGrowthProfile` — Parameterized record for 2 mushroom types. `MushroomCapStyle` (FLAT/DOMED) controls cap shape
 
 ### Mixins (`mixin/`)
@@ -114,7 +107,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 ### Initialization (`init/`)
 - `ModAttachments` — Registers the `DataAttachment<SuccessionChunkData>`
 - `ModChunkEvents` — Chunk load/unload/tick handlers, accelerated transition mode
-- `ModCommands` — Debug commands under `/ecoflux prototype`, `/ecoflux auto`, `/ecoflux lifecycle`, `/ecoflux visual`
+- `ModCommands` — Debug commands under `/ecoflux prototype`, `/ecoflux auto`, `/ecoflux lifecycle`, `/ecoflux visual`, `/ecoflux tree` (instant/grid/stats for tree algorithm testing)
 - `ModReloadListeners` — JSON config reload hooks for succession paths and plant registry
 
 ### Constants and entry point
@@ -135,7 +128,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Current Development State
 
-- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring (central `plants.json`, `VegetationCategory` removal, adapter config-driven values) — 2026-06-12; Tree profile refactoring (11 boilerplate profiles → 2 parameterized classes) — 2026-06-12
+- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring — 2026-06-12; Tree profile refactoring (11 boilerplate → 2 parameterized) — 2026-06-12; Space Colonization tree algorithm (9 species, 1x1 + 2x2, endpoint leaf clusters, instant test commands) — 2026-06-13/14; Old morphology system removed — 2026-06-14
 - **In progress**: Succession integration, Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 

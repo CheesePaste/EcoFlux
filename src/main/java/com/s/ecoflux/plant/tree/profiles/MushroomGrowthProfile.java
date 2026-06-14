@@ -34,6 +34,17 @@ public record MushroomGrowthProfile(
     public boolean is2x2() { return false; }
 
     @Override
+    public int resolveHeight(RandomSource random) {
+        int range = maxTrunkHeight - minTrunkHeight;
+        return minTrunkHeight + (range > 0 ? random.nextInt(range + 1) : 0);
+    }
+
+    @Override
+    public int totalStagesForHeight(int resolvedHeight) {
+        return resolvedHeight + 2;
+    }
+
+    @Override
     public boolean canGrowStage(ServerLevel level, BlockPos saplingPos, int currentStage,
                                 int totalStages, int resolvedHeight) {
         if (currentStage < resolvedHeight) {
