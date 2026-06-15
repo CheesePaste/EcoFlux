@@ -64,7 +64,7 @@ See the [README](https://github.com/CheesePaste/Succession) for full documentati
 
 ## Notes
 
-- This is an **Alpha** release — it has not been widely tested and may contain bugs.
+- This is a **Beta** release — public testing, may contain bugs. Feedback welcome.
 - Compatible with **Sodium**.
 - Source code and full docs: [GitHub](https://github.com/CheesePaste/Succession)
 
@@ -112,6 +112,6 @@ Ecoflux 为 Minecraft 带来**区块尺度的生态演替系统**。每一个 16
 
 ## 注意事项
 
-- 这是 **Alpha 测试版**，尚未进行大规模测试，可能存在 bug。欢迎反馈。
+- 这是 **Beta 测试版**，面向公众测试，可能存在 bug。欢迎反馈。
 - 兼容 **Sodium**（钠模组）。
 - 源代码和完整文档：[GitHub](https://github.com/CheesePaste/Succession)

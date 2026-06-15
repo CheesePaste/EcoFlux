@@ -1,21 +1,33 @@
-## Ecoflux v0.2.0 — 首次 Alpha 发布
+## Ecoflux v0.2.0 — First Beta Release
 
-**Minecraft 1.21.1 | NeoForge | 0.2.0 Alpha**
+**Minecraft 1.21.1 | NeoForge | 0.2.0 Beta | MIT License**
 
-### 特性
+### Features
 
-- **生态演替**：每个 16×16 区块独立进化，20 条演替路径，群系真实替换
-- **植物生命周期**：BORN → MATURE → AGING → DEAD，完整生死循环
-- **渐进树木生长**：空间定殖算法，9 种树种 + 2 种巨型蘑菇，数十分钟渐进生长
-- **数据驱动**：64 个群系独立 JSON 规则，支持数据包覆盖 + /reload 热重载
-- **世界生成集成**：自动替换原版树木为 SC 树，区块加载时扫描植被
+- **Ecological Succession** — 20 succession paths, biome replacement driven by plant point accumulation
+- **Plant Lifecycle** — BORN → MATURE → AGING → DEAD, full life cycle with configurable lifespan
+- **Progressive Tree Growth** — Space colonization algorithm, 9 tree species + 2 huge mushrooms
+- **Data-Driven** — 64 biomes with independent JSON rules, data pack overrides + /reload
+- **Worldgen Integration** — Replaces vanilla trees, scans vegetation on chunk load
+
+### Install
+
+1. Download `ecoflux-0.2.0.jar`
+2. Place in `.minecraft/mods/`
+3. Requires **NeoForge 21.1.227+**
+4. In-game: `/ecoflux auto on`
+
+### Notes
+
+Beta release — public testing, may contain bugs. Feedback welcome.
 
 ### 安装
 
 1. 下载 `ecoflux-0.2.0.jar`
 2. 放入 `.minecraft/mods/` 目录
 3. 需要 **NeoForge 21.1.227+**
+4. 进入世界后执行 `/ecoflux auto on`
 
 ### 注意事项
 
-这是 Alpha 版本，尚未大范围测试，可能存在 bug。欢迎反馈。
+Beta 测试版，面向公众测试，可能存在 bug。欢迎反馈。

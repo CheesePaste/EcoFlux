@@ -92,7 +92,12 @@
       "Bash(gh release create v0.2.0 build/libs/ecoflux-0.2.0.jar --title 'Ecoflux v0.2.0 Alpha' --notes ' *)",
       "Bash(where gh *)",
       "Read(//c/Users/huhai/AppData/Local/**)",
-      "Read(//c//**)"
+      "Read(//c//**)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "Bash(gh auth *)",
+      "Bash(gh release *)",
+      "Bash(./gradlew --stop)",
+      "Bash(./gradlew cleanIdea idea)"
     ]
   }
 }
