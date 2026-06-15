@@ -7,6 +7,7 @@ import com.s.ecoflux.config.EcofluxServerConfig;
 import com.s.ecoflux.config.plant.PlantDefinition;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
+import java.util.Random;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -41,6 +42,9 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
             PlantDefinition plantDefinition) {
         int basePointValue = plantDefinition.pointValue();
         long maxAgeTicks = plantDefinition.maxAgeTicks();
+        Random random = new Random(pos.asLong());
+        double lifespanVariation = 0.8 + random.nextDouble() * 0.4;
+        long variedMaxAge = (long) (maxAgeTicks * lifespanVariation);
         if (!EcofluxServerConfig.gradualPlantGrowth()) {
             int maxPoints = basePointValue + 1;
             return new ActiveVegetationRecord(
@@ -50,7 +54,7 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
                     VegetationLifecycleStage.MATURE,
                     gameTime,
                     gameTime,
-                    gameTime + maxAgeTicks,
+                    gameTime + variedMaxAge,
                     maxPoints,
                     maxPoints,
                     sourceBiomeId.orElse(null),
@@ -64,7 +68,7 @@ public final class SimplePlantAdapter implements VegetationTypeAdapter {
                 VegetationLifecycleStage.BORN,
                 gameTime,
                 gameTime,
-                gameTime + maxAgeTicks,
+                gameTime + variedMaxAge,
                 basePointValue,
                 Math.max(0, basePointValue / 2),
                 sourceBiomeId.orElse(null),

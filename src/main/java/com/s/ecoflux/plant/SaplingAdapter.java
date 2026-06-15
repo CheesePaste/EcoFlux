@@ -7,6 +7,7 @@ import com.s.ecoflux.config.plant.PlantDefinition;
 import com.s.ecoflux.config.plant.PlantRegistry;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
+import java.util.Random;
 
 import com.s.ecoflux.config.plant.PlantSpawnRules;
 import net.minecraft.core.BlockPos;
@@ -45,6 +46,9 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
             PlantDefinition plantDefinition) {
         int basePointValue = plantDefinition.pointValue();
         long maxAgeTicks = plantDefinition.maxAgeTicks();
+        Random random = new Random(pos.asLong());
+        double lifespanVariation = 0.8 + random.nextDouble() * 0.4;
+        long variedMaxAge = (long) (maxAgeTicks * lifespanVariation);
         if (!EcofluxServerConfig.gradualPlantGrowth()) {
             return new ActiveVegetationRecord(
                     BuiltInRegistries.BLOCK.getKey(state.getBlock()),
@@ -53,7 +57,7 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
                     VegetationLifecycleStage.GROWING,
                     gameTime,
                     gameTime,
-                    gameTime + maxAgeTicks,
+                    gameTime + variedMaxAge,
                     basePointValue,
                     basePointValue,
                     sourceBiomeId.orElse(null),
@@ -67,7 +71,7 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
                 VegetationLifecycleStage.BORN,
                 gameTime,
                 gameTime,
-                gameTime + maxAgeTicks,
+                gameTime + variedMaxAge,
                 basePointValue,
                 1,
                 sourceBiomeId.orElse(null),
@@ -178,13 +182,16 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
                         EcofluxConstants.LOGGER.warn("[Ecoflux] No PlantDefinition for mature tree block {}, using fallback", blockId);
                         return new PlantDefinition(blockId, 4, 288000L, PlantSpawnRules.EMPTY);
                     });
+            long treeMaxAge = treeDef.maxAgeTicks();
+            Random treeRandom = new Random(record.position().asLong());
+            long variedTreeMaxAge = (long) (treeMaxAge * (0.8 + treeRandom.nextDouble() * 0.4));
             return Optional.of(new VegetationTransformation(
                     blockId,
                     TreeStructureAdapter.TYPE_ID,
                     VegetationLifecycleStage.MATURE,
                     treeDef.pointValue(),
                     treeDef.pointValue() + 1,
-                    gameTime + treeDef.maxAgeTicks()));
+                    gameTime + variedTreeMaxAge));
         }
 
         return Optional.empty();

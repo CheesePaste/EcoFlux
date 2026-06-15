@@ -5,6 +5,7 @@ import com.s.ecoflux.attachment.ActiveVegetationRecord;
 import com.s.ecoflux.config.plant.PlantDefinition;
 import com.s.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
+import java.util.Random;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -40,6 +41,9 @@ public final class TreeStructureAdapter implements VegetationTypeAdapter {
             PlantDefinition plantDefinition) {
         int basePointValue = plantDefinition.pointValue();
         long maxAgeTicks = plantDefinition.maxAgeTicks();
+        Random random = new Random(pos.asLong());
+        double lifespanVariation = 0.8 + random.nextDouble() * 0.4;
+        long variedMaxAge = (long) (maxAgeTicks * lifespanVariation);
         return new ActiveVegetationRecord(
                 BuiltInRegistries.BLOCK.getKey(state.getBlock()),
                 typeId(),
@@ -47,7 +51,7 @@ public final class TreeStructureAdapter implements VegetationTypeAdapter {
                 VegetationLifecycleStage.MATURE,
                 gameTime,
                 gameTime,
-                gameTime + maxAgeTicks,
+                gameTime + variedMaxAge,
                 basePointValue,
                 basePointValue + 1,
                 sourceBiomeId.orElse(null),
