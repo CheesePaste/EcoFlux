@@ -8,6 +8,12 @@
 
 **Ecoflux** brings real ecological succession to Minecraft. Every 16×16 chunk evolves independently — plants grow, mature, age, and die, and their collective vitality pushes plains toward forests, or lets barren land regress into desert.
 
+| | |
+|---|---|
+| **Minecraft** | 1.21.1 |
+| **Loader** | NeoForge |
+| **Version** | 0.2.0 (Alpha) |
+
 ---
 
 ## 特性 | Features

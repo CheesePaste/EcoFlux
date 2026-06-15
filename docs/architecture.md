@@ -3,7 +3,7 @@
 ## 包结构
 
 ```
-com.s.ecoflux/
+com.cp.ecoflux/
 ├── EcofluxMod.java              # @Mod 入口，组装所有子系统
 ├── EcofluxConstants.java        # MOD_ID, LOGGER, ResourceLocation 工厂
 │

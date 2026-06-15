@@ -1,5 +1,5 @@
 // ===== Ecoflux Config Types =====
-// Mirrors the Java records in com.s.ecoflux.config
+// Mirrors the Java records in com.cp.ecoflux.config
 
 export interface FloatRange {
   min: number;

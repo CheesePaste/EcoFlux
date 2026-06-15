@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.s.ecoflux.mixin",
+  "package": "com.cp.ecoflux.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MushroomBlockMixin",
