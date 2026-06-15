@@ -16,6 +16,26 @@
 
 ---
 
+## 快速开始 | Quick Start
+
+安装模组后，进入世界，执行以下命令开启演替系统：
+
+```
+/ecoflux auto on
+```
+
+**默认关闭**，必须手动开启模组才会生效。你可以用 `/ecoflux auto status` 检查当前状态。
+
+After installing the mod, enter your world and run this command to enable succession:
+
+```
+/ecoflux auto on
+```
+
+The system is **off by default**. You must enable it manually.
+
+---
+
 ## 特性 | Features
 
 ### 生态演替 | Ecological Succession
@@ -54,6 +74,9 @@ Rich built-in debug commands: succession state inspection, performance profiler,
 
 | 命令 | 说明 |
 |------|------|
+| `/ecoflux auto on` | **开启演替系统（必须执行）** |
+| `/ecoflux auto off` | 关闭演替系统 |
+| `/ecoflux auto status` | 查看当前开关状态 |
 | `/ecoflux prototype start/stop` | 开启/关闭 10 秒加速演替演示 |
 | `/ecoflux prototype step` | 手动触发一步演替 |
 | `/ecoflux prototype describe` | 查看当前区块演替状态 |

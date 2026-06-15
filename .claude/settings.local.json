@@ -88,7 +88,11 @@
       "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/neoforge/render/ForgeColorProviders.class\")",
       "Bash(\"/d/java21/bin/javap.exe\" -p -c \"net/caffeinemc/mods/sodium/mixin/core/model/colors/BlockColorsMixin.class\")",
       "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/mixin/features/render/model/block/ModelBlockRendererMixin.class\")",
-      "Bash(\"/d/java21/bin/javap.exe\" -c -p \"net/caffeinemc/mods/sodium/mixin/features/render/model/block/ModelBlockRendererMixin.class\")"
+      "Bash(\"/d/java21/bin/javap.exe\" -c -p \"net/caffeinemc/mods/sodium/mixin/features/render/model/block/ModelBlockRendererMixin.class\")",
+      "Bash(gh release create v0.2.0 build/libs/ecoflux-0.2.0.jar --title 'Ecoflux v0.2.0 Alpha' --notes ' *)",
+      "Bash(where gh *)",
+      "Read(//c/Users/huhai/AppData/Local/**)",
+      "Read(//c//**)"
     ]
   }
 }
