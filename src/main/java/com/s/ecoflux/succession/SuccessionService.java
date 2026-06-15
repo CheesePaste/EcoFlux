@@ -69,6 +69,9 @@ public final class SuccessionService {
     }
 
     public static String spawnInChunk(ServerLevel level, LevelChunk chunk) {
+        if (EcofluxServerConfig.disablePlantSpawning()) {
+            return "区块 " + chunk.getPos() + "：植物生成已禁用。";
+        }
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
         Optional<SuccessionPathDefinition> pathOptional = SuccessionConfigRegistry.getPath(
                 chunkData.getActivePathId().orElse(null));
@@ -157,7 +160,7 @@ public final class SuccessionService {
         int pruned = PlantSpawner.pruneInvalidPlants(level, chunkData, gameTime);
         messages.add("已清理 " + pruned + " 个植物。");
 
-        if (shouldSpawn) {
+        if (shouldSpawn && !EcofluxServerConfig.disablePlantSpawning()) {
             chunkData.setNextSpawnGameTime(gameTime + randomSpawnIntervalTicks(chunk.getPos().toLong() ^ gameTime));
             if (chunkData.getCurrentPlantCount() < chunkData.getMaxPlantCount()) {
                 PlantSpawner.ensureQueue(chunkData, rules);

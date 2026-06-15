@@ -73,7 +73,22 @@
       "Bash(rm -rf build/classes/java/main/com/s/ecoflux/worldgen)",
       "Bash(./gradlew compileJava prepareClientRun)",
       "Bash(.\\\\gradlew.bat compileJava)",
-      "Bash(cmd.exe /c \"gradlew.bat compileJava\")"
+      "Bash(cmd.exe /c \"gradlew.bat compileJava\")",
+      "Bash(xxd)",
+      "Bash(javap -p -c \"net/caffeinemc/mods/sodium/client/render/chunk/compile/pipeline/BlockRenderer.class\")",
+      "Read(//d/java21/bin/**)",
+      "Bash(find /d -name \"javap*\" -type f)",
+      "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/client/render/chunk/compile/pipeline/BlockRenderer.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/client/render/frapi/render/AbstractBlockRenderContext.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/client/render/chunk/compile/tasks/ChunkBuilderMeshingTask.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/client/world/cloned/ClonedChunkSection.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -c -p \"net/caffeinemc/mods/sodium/client/render/chunk/compile/pipeline/BlockRenderer.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/client/render/SodiumWorldRenderer.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/mixin/core/render/world/LevelRendererMixin.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/neoforge/render/ForgeColorProviders.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -p -c \"net/caffeinemc/mods/sodium/mixin/core/model/colors/BlockColorsMixin.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -p \"net/caffeinemc/mods/sodium/mixin/features/render/model/block/ModelBlockRendererMixin.class\")",
+      "Bash(\"/d/java21/bin/javap.exe\" -c -p \"net/caffeinemc/mods/sodium/mixin/features/render/model/block/ModelBlockRendererMixin.class\")"
     ]
   }
 }

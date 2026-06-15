@@ -7,6 +7,7 @@
 - 后续演替逻辑不应直接操作某一类具体植物，而应建立在这个系统之上
 - 系统已落地为可工作的实现：adapter 模式 + VegetationTracker + 视觉同步
 - 可复用到：地被植物、花、蘑菇、树苗、树木、后续可能的 Dynamic Trees 兼容对象
+- WorldGenVegetationScanner 在 chunk 加载时自动扫描和注册世界生成的植被
 
 ## 设计原则
 
@@ -22,14 +23,15 @@
 
 ### 3. 数据驱动优先
 
-植物配置通过 JSON 描述：哪些植物属于哪个阶段池、成熟后贡献多少分、衰老/死亡后积分如何变化。
+植物配置通过 JSON 描述：植物定义通过 `PlantRegistry` 集中管理，群系规则通过 `BiomeRules` 配置植物列表和权重。
 
 ### 4. 输入源分层
 
 生命周期系统的来源收敛为三层：
-1. **事件**（玩家放置/破坏）→ `ModPlayerEvents`
-2. **低频校正扫描**（observeChunk）→ `VegetationTracker`
-3. **少量关键 Mixin**（补洞）→ `SaplingBlockMixin`, `MushroomBlockMixin`
+1. **世界生成扫描**（`WorldGenVegetationScanner`）→ chunk 加载时自动注册原版植被
+2. **事件**（玩家放置/破坏）→ `ModPlayerEvents`
+3. **低频校正扫描**（observeChunk）→ `VegetationTracker`
+4. **少量关键 Mixin**（补洞）→ `SaplingBlockMixin`, `MushroomBlockMixin`
 
 ## 核心概念
 
@@ -51,7 +53,7 @@ BORN → JUVENILE → GROWING → MATURE → AGING → DEAD
 | `DEAD` | 死亡，方块即将移除，记录清理 |
 | `TRANSFORMED` | 树苗到树的转换进行中 |
 
-### 死亡系统（2026-06-11 实现）
+### 死亡系统
 
 所有 adapter 的 `observe()` 方法在 `gameTime >= expireGameTime` 时返回 DEAD 阶段。
 `gameTime >= expireGameTime + DECAY_TICKS` 时返回 `present=false`，触发 VegetationTracker 破坏方块并清理记录。
@@ -107,7 +109,7 @@ public interface VegetationTypeAdapter {
 
 | 方法 | 说明 |
 |------|------|
-| `trackAt(level, pos, adapter, birthState)` | 注册出生 |
+| `trackAt(level, pos, adapter, birthState, plantDefinition)` | 注册出生 |
 | `observeTracked(level, pos, gameTime)` | 更新单条观察结果 |
 | `observeChunk(chunk, gameTime)` | 批量观察 chunk 内所有追踪植物 |
 | `untrack(level, pos)` | 移除追踪 |
@@ -139,7 +141,17 @@ public interface VegetationTypeAdapter {
 负责树苗和红树繁殖体。处理树苗出生、观察、消失。当树苗生长被 `SaplingBlockMixin` 拦截后，通过 `VegetationTransformation` 转换为 TreeStructure。树苗阶段 0→1 放行（视觉成熟），阶段 1→树 拦截。支持 9 种树种：橡树、白桦、云杉、丛林(2×2)、丛林(1×1)、深色橡树、金合欢、樱花、红树。
 
 ### TreeStructureAdapter
-负责成熟树结构。支持 MATURE → AGING → DEAD 阶段。是树苗转化后的承接点。
+负责成熟树结构（包括由 `EcofluxTreeFeature` 在世界生成时放置的 SC 树和巨型蘑菇）。支持 MATURE → AGING → DEAD 阶段。是树苗转化后的承接点，通过 `TreeStructure` record 管理多块结构。
+
+## 世界生成植被扫描 (WorldGenVegetationScanner)
+
+Chunk 加载时（`ModChunkEvents.onChunkLoad`），`WorldGenVegetationScanner` 分三个阶段扫描和注册世界生成的植被：
+
+1. **Phase 1**: 消费 `EcofluxTreeFeature.PENDING_TREES`（decoration→chunk-load 桥接），将世界生成阶段放置的 SC 树注册到 VegetationTracker
+2. **Phase 1b**: BFS 检测巨型蘑菇（棕色/红色蘑菇方块连通组件）
+3. **Phase 2**: 扫描小型植物（花草/蕨/小蘑菇/枯灌木/高草丛），通过 adapters 匹配并注册
+4. **Phase 3**: 密度上限裁剪，移除过度代表的植物类型，使每区块植物数不超过 `BiomeRules.maxPlantCount`
+5. 随机化植物出生时间（±20% 寿命变化）以分散死亡事件
 
 ## 与树木生长系统的关系
 
@@ -162,9 +174,9 @@ public interface VegetationTypeAdapter {
   │  Mixin 拦截瞬间生长
   │  ┌──────────────────────────────────────────────┐
   │  │ TreeGrowthSession                            │
-  │  │ ticksPerStage (MorphologyTreeProfile)        │
+  │  │ ticksPerStage (SpaceColonizationProfile)     │
   │  │ 控制: 生长动画速度 (每阶段放多少方块)           │
-  │  │ 如 oak: 3600 tick/stage × ~10 stages ≈ 27分   │
+  │  │ 如 oak: 1200 tick/stage × ~10 stages ≈ 10分   │
   │  └──────────────────────────────────────────────┘
   │
   ▼
@@ -182,10 +194,9 @@ AGING → DEAD → 树叶先腐烂 → 原木后消失
 ```
 
 **关键区别**：
-- `ticksPerStage`（在 `MorphologyTreeProfile` / `MushroomGrowthProfile` 中）只控制**生长动画**的节奏，是树木生长子系统特有的
+- `ticksPerStage`（在 `SpaceColonizationProfile` / `MushroomGrowthProfile` 中）只控制**生长动画**的节奏
 - `maxAgeTicks`（在 `PlantDefinition` 中）控制每个阶段的**寿命上限**，是所有植物共用的生命周期框架
 - 树苗/小蘑菇有一个 `maxAgeTicks`（到期未生长则死亡），成熟后换了一个新的 `maxAgeTicks`（原木/蘑菇方块条目）
-- 两个条目的 `plant_id` 不同：如 `oak_sapling` → `oak_log`，`red_mushroom` → `red_mushroom_block`
 - 生长完成时 `onGrowthComplete()` 从 `PlantRegistry` 查找原木/蘑菇方块的 `PlantDefinition` 获取新寿命
 
 ## 当前相关文件
@@ -204,14 +215,23 @@ plant/
 ├── SaplingAdapter.java               # 树苗适配器
 └── TreeStructureAdapter.java         # 成熟树适配器
 
+worldgen/
+└── WorldGenVegetationScanner.java    # 世界生成植被扫描器
+
 init/
 ├── ModPlayerEvents.java              # 玩家放置/破坏 → VegetationTracker
-└── ModChunkEvents.java               # Chunk tick → observeChunk + prune
+└── ModChunkEvents.java               # Chunk tick → observeChunk + prune + WorldGenScanner
+
+config/
+├── plant/PlantRegistry.java          # 中心植物注册表
+├── plant/PlantRegistryLoader.java    # 植物定义加载器
+└── biome/BiomeRulesRegistry.java     # 群系规则注册表
 ```
 
 ## 当前决议
 
 - 演替系统建立在植物生命系统之上
 - 视觉层复用生命系统给出的阶段快照，不自己猜生命周期
-- 采用"事件 + 扫描 + 少量关键 Mixin"的组合路线
+- 采用"世界生成扫描 + 事件 + 少量关键 Mixin"的组合路线
 - 所有植物追踪统一到 `vegetationRecords`，`activePlants` 已退役
+- WorldGenVegetationScanner 在 chunk 加载时自动注册原版植被，无需手动初始化

@@ -17,14 +17,16 @@
 | `previousBiome` | ResourceKey\<Biome\> | 上一个群系（用于退化回退） |
 | `activePathId` | ResourceLocation? | 当前活跃演替路径 ID（可空） |
 | `progress` | double | 演替进度 [-1.0, 1.0]，达到 ±1.0 触发转换 |
-| `consumingValue` | double | 维持当前群系所需植物点数 |
-| `maxPlantCount` | int | 最大植物容量 |
+| `consumingValue` | double | 维持当前群系所需植物点数（来自 BiomeRules） |
+| `maxPlantCount` | int | 最大植物容量（正态分布采样值，来自 BiomeRules） |
+| `currentPlantCount` | int | 当前活跃植物数 |
 | `plantQueue` | Deque\<PlantQueueEntry\> | 预生成植物队列 |
 | `vegetationRecords` | Map\<BlockPos, ActiveVegetationRecord\> | 活跃植被追踪记录 |
 | `treeGrowthSessions` | Map\<BlockPos, TreeGrowthSession\> | 活跃树木生长会话 |
 | `lastEvaluationGameTime` | long | 上次评估的游戏时间 |
+| `lastSpawnGameTime` | long | 上次生成植物的游戏时间 |
 
-**NBT 序列化**: 所有字段均写入 NBT，chunk 卸载/重载后自动恢复。`vegetationRecords` 中每个 `ActiveVegetationRecord` 独立序列化。`treeGrowthSessions` 也完整序列化。
+**NBT 序列化**: 所有字段均写入 NBT，chunk 卸载/重载后自动恢复。`vegetationRecords` 中每个 `ActiveVegetationRecord` 独立序列化。`treeGrowthSessions` 也完整序列化，transient 字段在加载后从种子重建。
 
 **访问方式:**
 ```java
@@ -40,12 +42,12 @@ SuccessionChunkData data = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `vegetationId` | ResourceLocation | 植物方块 ID |
-| `adapterType` | ResourceLocation | 适配器类型 ID（如 `"simple_plant"`, `"sapling"`, `"tree_structure"`） |
+| `adapterType` | ResourceLocation | 适配器类型 ID（如 `"ecoflux:simple_plant"`, `"ecoflux:sapling"`, `"ecoflux:tree_structure"`） |
 | `position` | BlockPos | 方块位置 |
 | `lifeStage` | VegetationLifecycleStage | 当前生命周期阶段 |
 | `birthGameTime` | long | 出生游戏时间 |
 | `lastObservedGameTime` | long | 上次观察游戏时间 |
-| `expireGameTime` | long | 过期时间（死亡） |
+| `expireGameTime` | long | 过期时间（死亡），由 `PlantDefinition.maxAgeTicks()` 决定 |
 | `basePointValue` | int | 基准演替点数（来自 PlantDefinition） |
 | `currentPointValue` | int | 当前演替点数（可能随阶段变化） |
 | `sourceBiomeId` | ResourceLocation? | 来源群系（可空） |
@@ -61,9 +63,9 @@ SuccessionChunkData data = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `plantId` | ResourceLocation | 植物方块 ID |
-| `pointValue` | int | 演替点数 |
-| `weight` | int | 随机权重 |
-| `maxAgeTicks` | long | 最大寿命（游戏 tick） |
+| `pointValue` | int | 演替点数（来自 PlantDefinition） |
+| `weight` | int | 随机权重（来自 BiomeRules） |
+| `maxAgeTicks` | long | 最大寿命（游戏 tick，来自 PlantDefinition） |
 
 ### 生命周期阶段 (VegetationLifecycleStage)
 
@@ -80,7 +82,7 @@ BORN → JUVENILE → GROWING → MATURE → AGING → DEAD
 | `GROWING` | 生长中，缩放渐增 |
 | `MATURE` | 成熟，标准大小，提供满额点数 |
 | `AGING` | 老化，着色变化，触发演替评估 gate |
-| `DEAD` | 死亡，方块即移除，记录清理 |
+| `DEAD` | 死亡，方块即将移除，记录清理 |
 | `TRANSFORMED` | 树苗到树的转换中 |
 
 > `VegetationCategory` 枚举已于 2026-06-12 移除。植物分类不再需要，点数通过 `PlantDefinition.pointValue()` 获取。
@@ -119,7 +121,7 @@ BORN → JUVENILE → GROWING → MATURE → AGING → DEAD
 ```
 服务端 (Server Level)
   │
-  ├─ VegetationTracker.trackAt(level, pos, adapter, birthState)
+  ├─ VegetationTracker.trackAt(level, pos, adapter, birthState, plantDef)
   │     └─ chunkData.vegetationRecords.put(pos, record)
   │
   ├─ VegetationTracker.observeChunk(chunk)
@@ -167,5 +169,37 @@ public static final DataAttachment<SuccessionChunkData> SUCCESSION_CHUNK_DATA =
 
 监听 `/reload` 命令和数据包重载事件：
 - 触发 `SuccessionConfigLoader` 重新扫描 JSON
-- 更新 `SuccessionConfigRegistry` 缓存
+- 触发 `BiomeRulesLoader` 重新扫描群系规则
+- 触发 `PlantRegistryLoader` 重新扫描植物定义
+- 更新所有注册表缓存
 - 所有已加载 chunk 在下次 tick 时使用新配置
+
+## 树木生长会话持久化
+
+`TreeGrowthSession` 持久化关键字段（NBT），transient 字段在加载时重建：
+- 持久化：`saplingPos`, `treeType`, `currentStage`, `totalStages`, `ticksPerStage`, `resolvedHeight`, `growthStartTime`, `lastStageTime`, `scSeed`
+- 重建：`scParams`（从 profile 查找）、`stageLogs`/`stageLeaves`（从种子重新运行 SC 算法）、`placedLogs`/`placedLeaves`（从已完成的阶段累积）
+
+## 世界生成数据流
+
+```
+WorldGen Decoration 阶段
+  │
+  ├─ CancelVanillaTreesBiomeModifier (Phase.REMOVE)
+  │     └─ 移除所有 mod 的原版树 feature
+  │
+  └─ AddEcofluxTreesBiomeModifier (Phase.ADD)
+        └─ EcofluxTreeFeature.place()
+              ├─ 读取 biome → BiomeRules → 树种
+              ├─ SpaceColonizationGenerator.generateFull()
+              ├─ WorldGenLevel.setBlock() 放置 SC 树
+              └─ 存入 static PENDING_TREES map
+
+Chunk Load (ModChunkEvents)
+  │
+  └─ WorldGenVegetationScanner.scanChunk()
+        ├─ Phase 1: 消费 PENDING_TREES → VegetationTracker
+        ├─ Phase 1b: BFS 检测巨型蘑菇
+        ├─ Phase 2: 扫描简单植物 → VegetationTracker
+        └─ Phase 3: 密度上限裁剪
+```

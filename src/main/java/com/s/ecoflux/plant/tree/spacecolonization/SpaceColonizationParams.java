@@ -32,7 +32,9 @@ public record SpaceColonizationParams(
         return resolvedHeight + canopyStages;
     }
 
-    // --- Presets (calibrated against Dynamic Trees species JSONs) ---
+    // --- Presets ---
+    // Parameter values derived from DynamicTrees species JSONs (MIT License).
+    // DynamicTrees: https://github.com/ferreusveritas/DynamicTrees, Copyright (c) 2025 DynamicTreesTeam
 
     public static SpaceColonizationParams birch() {
         return new SpaceColonizationParams(

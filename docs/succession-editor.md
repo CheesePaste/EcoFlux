@@ -87,7 +87,7 @@ succession-editor/
 - [x] 自定义 BiomeNode 渲染（按温度着色）
 - [x] 自定义 SuccessionEdge 渲染（路径标签、选中高亮）
 - [x] 属性面板 — Path Identity、Climate、ChunkRules、Plant Table 编辑器
-- [x] JSON 导出（兼容 schema v1）
+- [x] JSON 导出（兼容 schema v1，含简化的 chunk_rules）
 - [x] JSON 导入（解析现有文件 → 还原为图）
 - [x] 校验（pathId 唯一、数值范围、必填字段）+ 错误高亮
 - [x] 撤销/重做、键盘快捷键（Ctrl+Z/Y、Delete、Escape）
@@ -101,8 +101,9 @@ succession-editor/
 - [ ] 导出时展平条件分支为独立路径
 - [ ] 导入时自动检测分支还原条件节点
 
-### Phase 3：植物池 + 高级编排（计划中）
+### Phase 3：BiomeRules 编辑器 + 高级编排（计划中）
 
+- [ ] BiomeRules 编辑器：可视化编辑群系植物规则（maxPlantCount, consuming, plants[]）
 - [ ] 植物池（PlantLibrary）：独立面板，定义可复用的 PlantDefinition 集合
 - [ ] 路径引用植物池而非内联植物列表
 - [ ] PriorityRouterNode
@@ -127,5 +128,6 @@ npm run build   # 生产构建
 
 - 编辑器产出 JSON 直接放入 `src/main/resources/data/ecoflux/succession_paths/`
 - `SuccessionConfigLoader` 无需任何修改
-- 导出格式与现有 JSON 完全相同（schema v1）
+- 导出格式与现有 JSON 相同（schema v1，简化的 chunk_rules）
 - 编辑器项目独立于 Minecraft mod，位于 `succession-editor/`
+- **注意**: 2026-06-14 重构后，`plants[]` 已从路径 JSON 移至 `biome_rules/`。编辑器导出的 JSON 不再包含植物列表，植物配置需要单独编辑 `biome_rules/` 文件

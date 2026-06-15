@@ -1,6 +1,6 @@
 # 配置系统
 
-配置系统负责加载、缓存和匹配演替路径定义和群系植物规则。所有演替规则由 JSON 数据驱动，不需要硬编码。
+配置系统负责加载、缓存和匹配演替路径定义、群系植物规则和植物定义。所有演替规则由 JSON 数据驱动，不需要硬编码。
 
 ## 核心组件
 
@@ -9,17 +9,17 @@
 | `SuccessionConfigLoader` | Gson JSON 加载器，继承 `SimpleJsonResourceReloadListener`，加载演替路径定义 |
 | `SuccessionConfigRegistry` | 线程安全缓存，提供 `findBestMatch(biome, temperature, downfall)` 查找路径 |
 | `SuccessionPathDefinition` | Record: 演替路径定义（pathId, priority, source/target/fallback biomes, climate, step sizes） |
-| `BiomeRules` | **新增 (2026-06-14)**: Record: 群系植物生态规则（biomeId, maxPlantCount, consuming, queueFillFactor, plants） |
+| `BiomeRules` | Record: 群系植物生态规则（biomeId, maxPlantCount, consuming, queueFillFactor, plants） |
 | `BiomeRulesRegistry` | 线程安全单例，`getRules(biomeId)` 返回群系规则 |
 | `BiomeRulesLoader` | `SimpleJsonResourceReloadListener`，加载 `biome_rules/` 目录 |
-| `ClimateCondition` | Record: temperature/rainfall 范围匹配 |
+| `ClimateCondition` | Record: temperature/downfall 范围匹配 |
 | `PlantDefinition` | Record: 中心植物注册表条目 (plant_id, pointValue, maxAgeTicks, spawnRules) |
 | `PlantRegistry` | 单例：中心植物注册表，`getDefinition(plantId)` 按 ID 查找 |
 | `PlantRegistryLoader` | `SimpleJsonResourceReloadListener`，加载 `plant_definitions/` 目录 |
 | `PathPlantEntry` | Record: 植物引用 (plant_id + weight)，被 BiomeRules 和旧路径共用 |
 | `PlantSpawnRules` | Record: 生成规则 (requireSky, maxLocalDensity, allowedBaseBlocks) |
 | `FloatRange` / `IntRange` | Record: 范围工具类型（min/max） |
-| `EcofluxServerConfig` | 服务端 NeoForge 配置，包含全局 `evaluation_interval_ticks` 和 `processing_interval_ticks` |
+| `EcofluxServerConfig` | 服务端 NeoForge 配置，包含全局 `evaluation_interval_ticks`、生成间隔、性能间隔等 |
 | ~~`ChunkRules`~~ | **已删除 (2026-06-14)**。内容拆分到 `BiomeRules`、`SuccessionPathDefinition` 和 `EcofluxServerConfig` |
 
 ## JSON 文件位置
@@ -30,13 +30,15 @@ src/main/resources/data/ecoflux/
 │   ├── plains_to_forest.json
 │   ├── plains_to_meadow.json
 │   └── ...
-├── biome_rules/                   # 群系植物规则 (16 个文件) — 新增 2026-06-14
-│   └── minecraft/
-│       ├── plains.json
-│       ├── forest.json
-│       └── ...
+├── biome_rules/minecraft/         # 群系植物规则 (64 个文件)
+│   ├── plains.json
+│   ├── forest.json
+│   └── ...
 ├── plant_definitions/
 │   └── plants.json                # 中心植物注册表 (所有植物的完整定义)
+├── neoforge/biome_modifier/
+│   ├── cancel_vanilla_trees.json
+│   └── add_ecoflux_trees.json
 └── tags/blocks/
     ├── simple_vegetation.json
     ├── grass_cover.json
@@ -65,7 +67,7 @@ src/main/resources/data/ecoflux/
 }
 ```
 
-**重要变更 (2026-06-14):** `plants[]` 移除，植物生态配置移至 `biome_rules/`。`chunk_rules` 简化为仅含步长。`consuming`、`max_plant_count`、`queue_fill_factor` 移至 BiomeRules。`evaluation_interval_days`、`processing_interval_ticks` 移至 `EcofluxServerConfig` 全局配置。
+**重要变更 (2026-06-14):** `plants[]` 移除，植物生态配置移至 `biome_rules/`。`chunk_rules` 简化为仅含步长。`consuming`、`max_plant_count`、`queue_fill_factor` 移至 BiomeRules。`evaluation_interval_days` 已移除，评估间隔现在由 `EcofluxServerConfig.evaluationIntervalTicks()` 全局控制。
 
 ### 顶层字段
 
@@ -94,7 +96,7 @@ src/main/resources/data/ecoflux/
 | `positive_progress_step` | double | 正向演替每步进度增量（默认 0.5） |
 | `negative_progress_step` | double | 负向退化每步进度减量（默认 0.25） |
 
-## BiomeRules JSON Schema (v1, 新增 2026-06-14)
+## BiomeRules JSON Schema (v1)
 
 ```json
 {
@@ -135,14 +137,16 @@ src/main/resources/data/ecoflux/
 
 这模拟了原版世界生成中每个区块植物数量不恒定的特性。采样值存储在 `SuccessionChunkData.maxPlantCount` 中，决定该区块允许的最大植物数。
 
-### 植物采样器 (`/ecoflux sample [radius]`)
+### 植物采样器 (`/ecoflux sample`)
 
 用于采集原版世界生成数据来校准 BiomeRules 配置：
 
 1. 以玩家所在区块为中心，BFS 搜索半径内相同群系的相连区块
 2. 强制加载未加载的区块
-3. 扫描每个区块内所有匹配 `VegetationTypeAdapter` 的植物方块（树木以连通组件计数）
-4. 输出报告：采样区块数、每区块植物数最低/最高/平均、每种植物方块的总数和百分比、每区块植物数直方图
+3. 扫描每个区块内所有匹配 `VegetationTypeAdapter` 的植物方块
+4. 输出报告：采样区块数、每区块植物数分布、每种植物方块的总数和百分比
+5. `/ecoflux sample <radius> apply` — 自动生成 `BiomeRules` JSON 到 `{server}/ecoflux/sampled_rules/`
+6. `/ecoflux sample batchall [radius]` — 遍历所有 `minecraft:` 群系，批量生成采样数据
 
 用法：`/ecoflux sample`（默认半径 5）或 `/ecoflux sample <radius>`（1-20）
 
@@ -251,14 +255,18 @@ Chunk 加载
 ### EcofluxServerConfig
 服务端 TOML 配置（`ecoflux-server.toml`），包含：
 - 渐进式树木/植物生长开关（`gradual_tree_growth`、`gradual_plant_growth`）
+- 植物生成开关（`disable_plant_spawning`）
 - 全局评估间隔 `evaluation_interval_ticks`（默认 24000 = 1 游戏日）
-- 全局处理间隔 `processing_interval_ticks`（默认 100 tick）
-- 生成间隔范围 `spawn_interval_min_ticks` / `spawn_interval_max_ticks`
-- 性能清理/观察间隔 `prune_interval_ticks` / `observe_interval_ticks`
-- 视觉系统开关 `enable_visual_system`
+- 生成间隔范围 `spawn_interval_min_ticks` / `spawn_interval_max_ticks`（默认 600 / 1800）
+- 性能清理间隔 `prune_interval_ticks`（默认 120 tick）
+- 性能观察间隔 `observe_interval_ticks`（默认 120 tick）
+- 视觉系统开关 `enable_visual_system`（默认 false）
 
 ### VisualLifecycleClientConfig
 客户端 TOML 配置（`ecoflux-client.toml`），控制视觉生命周期渲染开关和参数。
+
+### SuccessionSpeedConfig
+全局速度倍率配置，供调试/原型模式使用。
 
 ## 已知限制
 
@@ -280,7 +288,8 @@ Chunk 加载
 2. 填写必需字段：`schema_version: 1`、`biome_id`、`max_plant_count`、`consuming`、`queue_fill_factor`、`plants[]`
 3. 确保 `plants[]` 中引用的 `plant_id` 在 `plant_definitions/plants.json` 中有对应定义
 4. 如果该群系有对应的演替路径，无需修改路径文件——路径会通过 `source_biomes` 自动匹配
-5. 运行 `/reload` 或重启游戏
+5. 或使用 `/ecoflux sample <radius> apply` 自动生成采样数据
+6. 运行 `/reload` 或重启游戏
 
 ## 如何添加新植物
 

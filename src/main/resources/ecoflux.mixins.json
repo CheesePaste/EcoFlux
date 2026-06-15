@@ -20,7 +20,8 @@
     "worldgen.ChunkGeneratorMixin"
   ],
   "client": [
-    "client.BlockRenderDispatcherMixin"
+    "client.BlockRenderDispatcherMixin",
+    "client.SodiumBlockRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

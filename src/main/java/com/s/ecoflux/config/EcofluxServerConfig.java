@@ -19,6 +19,7 @@ public final class EcofluxServerConfig {
     private static final ModConfigSpec.BooleanValue GRADUAL_TREE_GROWTH;
     private static final ModConfigSpec.BooleanValue GRADUAL_PLANT_GROWTH;
     private static final ModConfigSpec.IntValue PRUNE_INTERVAL_TICKS;
+    private static final ModConfigSpec.BooleanValue DISABLE_PLANT_SPAWNING;
     private static final ModConfigSpec.BooleanValue ENABLE_VISUAL_SYSTEM;
     private static final ModConfigSpec.IntValue OBSERVE_INTERVAL_TICKS;
     private static final ModConfigSpec.IntValue SPAWN_INTERVAL_MIN_TICKS;
@@ -44,6 +45,9 @@ public final class EcofluxServerConfig {
         SPAWN_INTERVAL_MAX_TICKS = builder
                 .comment("植物生成间隔的最大 tick 数。实际间隔在 min 和 max 之间随机均匀分布。")
                 .defineInRange("spawn_interval_max_ticks", 1800, 40, 72000);
+        DISABLE_PLANT_SPAWNING = builder
+                .comment("为 true 时完全禁止自然生成植物。已有植物仍然会被清理、观察、评估和转换。用于演示植物生命周期而不被新植物干扰。")
+                .define("disable_plant_spawning", false);
         builder.pop();
         builder.push("succession");
         EVALUATION_INTERVAL_TICKS = builder
@@ -71,6 +75,10 @@ public final class EcofluxServerConfig {
 
     public static boolean gradualTreeGrowth() {
         return GRADUAL_TREE_GROWTH.get();
+    }
+
+    public static boolean disablePlantSpawning() {
+        return DISABLE_PLANT_SPAWNING.get();
     }
 
     public static boolean enableVisualSystem() {

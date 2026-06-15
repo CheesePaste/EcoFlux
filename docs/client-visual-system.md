@@ -1,6 +1,6 @@
 # 客户端视觉系统
 
-客户端视觉系统负责将服务端的植被生命周期状态渲染为可视效果（缩放、着色），以及 BlockDisplay 生长动画的客户端接收。
+客户端视觉系统负责将服务端的植被生命周期状态渲染为可视效果（缩放、着色），以及生长动画的客户端接收。
 
 ## 定位
 
@@ -83,6 +83,7 @@
 1. 对 `scale != 1` 的 tracked block，`BlockRenderDispatcherMixin` 跳过原版基础渲染
 2. `VisualLifecycleWorldRenderer` 在 `AFTER_BLOCK_ENTITIES` 阶段按 tracked 列表重新绘制缩放后的 block model
 3. 使用 `renderBatched(...)` 保留 world + pos 语义，确保 tint 跟世界渲染路径一致
+4. `SodiumBlockRendererMixin` 为钠 (Sodium) 模组提供兼容渲染路径
 
 ## 当前适配器
 
@@ -112,6 +113,8 @@
 
 - `born_scale`, `growing_start_scale`, `mature_scale`, `aging_scale`
 - `debugUniformScaleOverride`（运行时调试覆盖）
+
+视觉系统可在服务端通过 `EcofluxServerConfig.enableVisualSystem()` 全局关闭（默认 false），关闭后客户端使用原版渲染，无性能开销。
 
 ## 数据流
 
@@ -146,11 +149,13 @@ client/visual/
 └── GenericVisualLifecycleAdapter.java
 
 mixin/client/
-└── BlockRenderDispatcherMixin.java
+├── BlockRenderDispatcherMixin.java
+└── SodiumBlockRendererMixin.java
 
 config/
 └── VisualLifecycleClientConfig.java
 
 network/
-└── VegetationVisualChunkSyncPayload.java
+├── VegetationVisualChunkSyncPayload.java
+└── VegetationVisualSyncEntry.java
 ```

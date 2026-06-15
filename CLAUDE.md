@@ -53,7 +53,7 @@ The codebase is in `src/main/java/com/s/ecoflux/`. Key architectural layers:
 - `PlantRegistry` — Singleton central plant registry. `getDefinition(plantId)` returns the canonical `PlantDefinition`. Loaded from `data/ecoflux/plant_definitions/*.json`
 - `PlantRegistryLoader` — `SimpleJsonResourceReloadListener` watching `plant_definitions/` directory, populates `PlantRegistry` on startup and `/reload`
 - `ChunkRules` — **Removed** (2026-06-14). Contents split into `BiomeRules` (maxPlantCount, consuming, queueFillFactor, plants) and `SuccessionPathDefinition` (step sizes). Evaluation/processing intervals moved to `EcofluxServerConfig` as global config
-- `EcofluxServerConfig` — Server-side NeoForge config. Now includes global `evaluation_interval_ticks` and `processing_interval_ticks` (moved from per-path ChunkRules)
+- `EcofluxServerConfig` — Server-side NeoForge config. Now includes global `evaluation_interval_ticks`, `prune_interval_ticks`, `observe_interval_ticks`, `spawn_interval_min/max_ticks` (moved from per-path ChunkRules)
 - JSON path files: `src/main/resources/data/ecoflux/succession_paths/*.json`
 - Biome rules: `src/main/resources/data/ecoflux/biome_rules/<namespace>/<biome>.json`
 - Plant registry: `src/main/resources/data/ecoflux/plant_definitions/*.json`
@@ -139,7 +139,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Key Design Decisions
 
-1. **Data-driven paths + biome rules**: Succession paths define source→target biome transitions with priority, climate matching, and step sizes. Biome-level plant ecosystem config (plant list, weights, max density, consumption threshold, queue fill factor) lives in separate `biome_rules/` JSON files. Evaluation/processing intervals are global in `EcofluxServerConfig`.
+1. **Data-driven paths + biome rules**: Succession paths define source→target biome transitions with priority, climate matching, and step sizes. Biome-level plant ecosystem config (plant list, weights, max density, consumption threshold, queue fill factor) lives in separate `biome_rules/` JSON files. Evaluation interval is global in `EcofluxServerConfig`.
 
 2. **Per-chunk state via Data Attachments**: Chunk state persists across chunk reloads via NBT serialization. Access pattern: `chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA)`.
 
@@ -153,7 +153,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ## Current Development State
 
-- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring — 2026-06-12; Tree profile refactoring (11 boilerplate → 2 parameterized) — 2026-06-12; Space Colonization tree algorithm (9 species, 1x1 + 2x2, endpoint leaf clusters, instant test commands) — 2026-06-13/14; Old morphology system removed — 2026-06-14; World-gen vegetation scanning (WorldGenVegetationScanner) — 2026-06-14; Biome rules refactoring + world-gen density capping — 2026-06-14; World-gen custom tree replacement + random plant ages — 2026-06-14; BiomeModifier-based tree replacement (CancelVanillaTrees + EcofluxTreeFeature) — 2026-06-14
+- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring — 2026-06-12; Tree profile refactoring (11 boilerplate → 2 parameterized) — 2026-06-12; Space Colonization tree algorithm (9 species, 1x1 + 2x2) — 2026-06-13/14; Old morphology system removed — 2026-06-14; WorldGenVegetationScanner + world-gen density capping — 2026-06-14; BiomeModifier tree replacement (CancelVanillaTrees + EcofluxTreeFeature) — 2026-06-14; BiomeRules refactoring (64 biome configs) — 2026-06-14; Sodium compatibility mixin; Docs updated — 2026-06-15
 - **In progress**: Succession integration, Dynamic Trees compatibility, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 
@@ -165,15 +165,12 @@ All design docs are in `docs/`, written in Chinese:
 - `config-system.md` — Configuration system: JSON format spec, loader, registry, path matching
 - `succession-system.md` — Succession core: service orchestration, evaluation, biome transition, prototype
 - `plant-lifecycle-system.md` — Plant lifecycle: adapter pattern, VegetationTracker, PlantSpawner, lifecycle stages
-- `tree-growth-system.md` — Tree growth: handler, sessions, profiles, morphology system, BlockDisplay animations
+- `tree-growth-system.md` — Tree growth: handler, sessions, space colonization algorithm, worldgen integration
 - `client-visual-system.md` — Client visual: VisualLifecycle rendering, tint/scale, growth animation client
 - `networking-and-data.md` — Network sync & data: packets, chunk attachments, NBT serialization
 - `succession-editor.md` — Succession editor: React web tool for visual succession path design
 - `todolist.md` — Priority-ordered TODO list and JSON config coverage analysis
 - `plant-death-system.md` — Plant death/decay system design and implementation (completed 2026-06-11)
-- `plant-registry-refactor.md` — Central plant registry refactoring design doc (completed 2026-06-12)
-- `biome-rules-refactor.md` — Biome rules system: separating plant ecosystem config from succession paths (completed 2026-06-14)
-- `tree-profile-refactor.md` — Tree profile refactoring design: replacing 11 boilerplate profile classes with 2 parameterized classes
 
 ## Important Conventions
 
