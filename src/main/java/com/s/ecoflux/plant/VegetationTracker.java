@@ -10,9 +10,9 @@ import com.s.ecoflux.config.SuccessionSpeedConfig;
 import com.s.ecoflux.network.ModNetworking;
 import com.s.ecoflux.network.VegetationVisualSyncEntry;
 import com.s.ecoflux.util.TickProfiler;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+
+import java.util.*;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -216,6 +216,18 @@ public final class VegetationTracker {
         }
 
         VegetationObservation observation = adapter.get().observe(level, record, state, level.getGameTime());
+
+        // Lazily rebuild TreeStructure for tree records loaded from NBT (no longer persisted).
+        // Only rebuild when the tree is dying/dead — healthy trees don't need the structure.
+        boolean isTreeRecord = record.adapterType().equals(TreeStructureAdapter.TYPE_ID);
+        boolean needsTreeStructure = isTreeRecord
+                && (record.treeStructure() == null || record.treeStructure().isEmpty());
+        if (needsTreeStructure && (!observation.present() || observation.stage() == VegetationLifecycleStage.DEAD)) {
+            TreeStructure rebuilt = rebuildTreeStructure(level, pos);
+            record = record.withTreeStructure(rebuilt);
+            chunkData.trackVegetation(record);
+        }
+
         if (!observation.present()) {
             if (record.treeStructure() != null && !record.treeStructure().isEmpty()) {
                 removeAllTreeBlocks(level, chunkData, pos, record.treeStructure());
@@ -301,6 +313,58 @@ public final class VegetationTracker {
         return removed == null
                 ? "位置 " + pos + " 跳过取消追踪：没有已追踪植被记录。"
                 : "已取消追踪位置 " + pos + " 的植被。";
+    }
+
+    /**
+     * Rebuilds a TreeStructure from world blocks via BFS from the root position.
+     * Used when TreeStructure was not persisted to NBT (on chunk reload).
+     * Traverses only LOGS and LEAVES blocks, bounded to prevent runaway in dense forests.
+     */
+    private static final int REBUILD_BFS_MAX = 3000;
+
+    private TreeStructure rebuildTreeStructure(ServerLevel level, BlockPos rootPos) {
+        Set<BlockPos> logs = new LinkedHashSet<>();
+        Set<BlockPos> leaves = new LinkedHashSet<>();
+        java.util.Queue<BlockPos> queue = new java.util.ArrayDeque<>();
+        Set<BlockPos> visited = new HashSet<>();
+
+        queue.add(rootPos);
+        visited.add(rootPos);
+
+        while (!queue.isEmpty() && visited.size() < REBUILD_BFS_MAX) {
+            BlockPos pos = queue.poll();
+            BlockState state = level.getBlockState(pos);
+
+            boolean isLog = state.is(BlockTags.LOGS);
+            boolean isLeaf = state.is(BlockTags.LEAVES);
+
+            if (isLog) {
+                logs.add(pos);
+            } else if (isLeaf) {
+                leaves.add(pos);
+            } else if (!pos.equals(rootPos)) {
+                continue;
+            }
+
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        if (dx == 0 && dy == 0 && dz == 0) continue;
+                        BlockPos neighbor = pos.offset(dx, dy, dz);
+                        if (visited.add(neighbor)) {
+                            queue.add(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (logs.isEmpty() && leaves.isEmpty()) {
+            return new TreeStructure(new long[0], new long[0]);
+        }
+        return new TreeStructure(
+                logs.stream().mapToLong(BlockPos::asLong).toArray(),
+                leaves.stream().mapToLong(BlockPos::asLong).toArray());
     }
 
     private TreeStructure processTreeDeath(ServerLevel level, TreeStructure ts) {

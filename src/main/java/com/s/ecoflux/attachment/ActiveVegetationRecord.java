@@ -50,9 +50,9 @@ public record ActiveVegetationRecord(
         if (sourcePathId != null) {
             tag.putString(SOURCE_PATH_ID, sourcePathId.toString());
         }
-        if (treeStructure != null && !treeStructure.isEmpty()) {
-            tag.put(TREE_STRUCTURE, treeStructure.toTag());
-        }
+        // TreeStructure is NOT persisted to NBT. It is rebuilt on-demand via BFS
+        // from the root position when needed for death processing. This avoids
+        // massive NBT bloat (hundreds of KB per chunk in dense forests).
         return tag;
     }
 
@@ -89,10 +89,7 @@ public record ActiveVegetationRecord(
     public static ActiveVegetationRecord fromTag(CompoundTag tag) {
         String sourceBiome = tag.getString(SOURCE_BIOME_ID);
         String sourcePath = tag.getString(SOURCE_PATH_ID);
-        TreeStructure ts = null;
-        if (tag.contains(TREE_STRUCTURE)) {
-            ts = TreeStructure.fromTag(tag.getCompound(TREE_STRUCTURE));
-        }
+        // TreeStructure is no longer persisted — rebuilt on demand via BFS from root
         return new ActiveVegetationRecord(
                 ResourceLocation.parse(tag.getString(VEGETATION_ID)),
                 ResourceLocation.parse(tag.getString(ADAPTER_TYPE)),
@@ -105,6 +102,6 @@ public record ActiveVegetationRecord(
                 tag.getInt(CURRENT_POINT_VALUE),
                 sourceBiome.isEmpty() ? null : ResourceLocation.parse(sourceBiome),
                 sourcePath.isEmpty() ? null : ResourceLocation.parse(sourcePath),
-                ts);
+                null);
     }
 }

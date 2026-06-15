@@ -1,4 +1,4 @@
-package com.s.ecoflux.worldGen;
+package com.s.ecoflux.worldgen;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
@@ -10,7 +10,7 @@ import com.s.ecoflux.config.plant.PlantDefinition;
 import com.s.ecoflux.config.plant.PlantRegistry;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.network.ModNetworking;
-import com.s.ecoflux.worldGen.feature.EcofluxTreeFeature;
+import com.s.ecoflux.worldgen.feature.EcofluxTreeFeature;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,6 +33,7 @@ import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
  * Scans newly-loaded chunks for world-generation vegetation and registers it
@@ -71,85 +72,76 @@ public final class WorldGenVegetationScanner {
         // Phase 1: Consume SC trees placed by EcofluxTreeFeature during decoration
         scTreeCount += processDecorationTrees(level, chunk, gameTime, chunkSeed, chunkData);
 
-        // Phase 1b: Detect huge mushrooms (stem + cap blocks)
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                for (int y = minY; y < maxY; y++) {
-                    BlockPos pos = new BlockPos(chunkX + x, y, chunkZ + z);
-                    if (trackedPositions.contains(pos) || treeProcessed.contains(pos)) {
-                        continue;
-                    }
-
-                    BlockState state = level.getBlockState(pos);
-                    if (!state.is(Blocks.MUSHROOM_STEM)) {
-                        continue;
-                    }
-
-                    TreeComponent mushroom = extractMushroomComponent(level, pos, chunk);
-                    if (mushroom == null || mushroom.leaves.isEmpty()) {
-                        treeProcessed.addAll(mushroom != null ? mushroom.logs : Set.of(pos));
-                        continue;
-                    }
-
-                    treeProcessed.addAll(mushroom.logs);
-                    treeProcessed.addAll(mushroom.leaves);
-
-                    BlockPos root = findLowest(mushroom.logs);
-                    ResourceLocation mushroomType = inferMushroomCapType(level, mushroom.leaves);
-                    Optional<PlantDefinition> plantDef = mushroomType != null
-                            ? PlantRegistry.INSTANCE.getDefinition(mushroomType)
-                            : Optional.empty();
-
-                    if (plantDef.isEmpty()) {
-                        continue;
-                    }
-
-                    long maxAgeTicks = plantDef.get().maxAgeTicks();
-                    Random ageRandom = new Random(root.asLong() ^ chunkSeed);
-                    double lifespanVariation = 0.8 + ageRandom.nextDouble() * 0.4;
-                    long variedMaxAge = (long) (maxAgeTicks * lifespanVariation);
-                    long randomAge = ageRandom.nextLong(Math.max(1, variedMaxAge * 17 / 20));
-                    long birthTime = gameTime - randomAge;
-                    long expireTime = birthTime + variedMaxAge;
-
-                    long[] stemArray = mushroom.logs.stream().mapToLong(BlockPos::asLong).toArray();
-                    long[] capArray = mushroom.leaves.stream().mapToLong(BlockPos::asLong).toArray();
-                    TreeStructure mushroomStructure = new TreeStructure(stemArray, capArray);
-
-                    ActiveVegetationRecord record = new ActiveVegetationRecord(
-                            mushroomType,
-                            TreeStructureAdapter.TYPE_ID,
-                            root.immutable(),
-                            VegetationLifecycleStage.MATURE,
-                            birthTime,
-                            gameTime,
-                            expireTime,
-                            plantDef.get().pointValue(),
-                            plantDef.get().pointValue() + 1,
-                            chunkData.getCurrentBiome().map(key -> key.location()).orElse(null),
-                            chunkData.getActivePathId().orElse(null),
-                            mushroomStructure);
-
-                    chunkData.trackVegetation(record);
-                    scTreeCount++;
-                }
-            }
-        }
-
-        // Phase 2: Detect simple plants and saplings
+        // Phase 1b + Phase 2 merged: heightmap-bounded single pass.
+        // Only scan near the surface — vegetation does not exist deep underground.
         Optional<ResourceLocation> sourceBiomeId = chunkData.getCurrentBiome()
                 .map(key -> key.location());
         Optional<ResourceLocation> sourcePathId = chunkData.getActivePathId();
 
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
-                for (int y = minY; y < maxY; y++) {
+                int surfaceY = chunk.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
+                int scanMin = Math.max(minY, surfaceY - 5);
+                int scanMax = Math.min(maxY - 1, surfaceY + 40);
+
+                for (int y = scanMin; y <= scanMax; y++) {
                     BlockPos pos = new BlockPos(chunkX + x, y, chunkZ + z);
                     if (trackedPositions.contains(pos) || treeProcessed.contains(pos)) {
                         continue;
                     }
 
                     BlockState state = level.getBlockState(pos);
+
+                    // ── Mushroom stem detection (Phase 1b) ──
+                    if (state.is(Blocks.MUSHROOM_STEM)) {
+                        TreeComponent mushroom = extractMushroomComponent(level, pos, chunk);
+                        if (mushroom != null && !mushroom.leaves.isEmpty()) {
+                            treeProcessed.addAll(mushroom.logs);
+                            treeProcessed.addAll(mushroom.leaves);
+
+                            BlockPos root = findLowest(mushroom.logs);
+                            ResourceLocation mushroomType = inferMushroomCapType(level, mushroom.leaves);
+                            Optional<PlantDefinition> plantDef = mushroomType != null
+                                    ? PlantRegistry.INSTANCE.getDefinition(mushroomType)
+                                    : Optional.empty();
+
+                            if (plantDef.isPresent()) {
+                                long maxAgeTicks = plantDef.get().maxAgeTicks();
+                                Random ageRandom = new Random(root.asLong() ^ chunkSeed);
+                                double lifespanVariation = 0.8 + ageRandom.nextDouble() * 0.4;
+                                long variedMaxAge = (long) (maxAgeTicks * lifespanVariation);
+                                long randomAge = ageRandom.nextLong(Math.max(1, variedMaxAge * 17 / 20));
+                                long birthTime = gameTime - randomAge;
+                                long expireTime = birthTime + variedMaxAge;
+
+                                long[] stemArray = mushroom.logs.stream().mapToLong(BlockPos::asLong).toArray();
+                                long[] capArray = mushroom.leaves.stream().mapToLong(BlockPos::asLong).toArray();
+                                TreeStructure mushroomStructure = new TreeStructure(stemArray, capArray);
+
+                                ActiveVegetationRecord record = new ActiveVegetationRecord(
+                                        mushroomType,
+                                        TreeStructureAdapter.TYPE_ID,
+                                        root.immutable(),
+                                        VegetationLifecycleStage.MATURE,
+                                        birthTime,
+                                        gameTime,
+                                        expireTime,
+                                        plantDef.get().pointValue(),
+                                        plantDef.get().pointValue() + 1,
+                                        chunkData.getCurrentBiome().map(key -> key.location()).orElse(null),
+                                        chunkData.getActivePathId().orElse(null),
+                                        mushroomStructure);
+
+                                chunkData.trackVegetation(record);
+                                scTreeCount++;
+                            }
+                        } else {
+                            treeProcessed.addAll(mushroom != null ? mushroom.logs : Set.of(pos));
+                        }
+                        continue;
+                    }
+
+                    // ── Simple plant / sapling detection (Phase 2) ──
                     Optional<VegetationTypeAdapter> adapter = VegetationTracker.INSTANCE.findAdapter(state);
                     if (adapter.isEmpty()) {
                         continue;
