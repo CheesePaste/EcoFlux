@@ -53,7 +53,7 @@ public final class EcofluxServerConfig {
         builder.push("visual");
         ENABLE_VISUAL_SYSTEM = builder
                 .comment("为 true 时启用视觉系统（缩放动画 + 颜色渐变 + 网络同步），客户端会收到植物视觉数据并进行自定义渲染。为 false 时完全关闭视觉系统，所有植物使用原版渲染，可大幅提升客户端性能。")
-                .define("enable_visual_system", true);
+                .define("enable_visual_system", false);
         builder.pop();
         builder.push("performance");
         PRUNE_INTERVAL_TICKS = builder

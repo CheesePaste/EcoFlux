@@ -1,4 +1,4 @@
-package com.s.ecoflux.worldgen.biomemodifier;
+package com.s.ecoflux.worldGen.biomemodifier;
 
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.Holder;

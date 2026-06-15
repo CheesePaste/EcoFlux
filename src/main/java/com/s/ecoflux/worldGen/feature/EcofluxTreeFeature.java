@@ -1,4 +1,4 @@
-package com.s.ecoflux.worldgen.feature;
+package com.s.ecoflux.worldGen.feature;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.config.biome.BiomeRules;
@@ -7,7 +7,6 @@ import com.s.ecoflux.config.plant.PathPlantEntry;
 import com.s.ecoflux.plant.TreeStructure;
 import com.s.ecoflux.plant.tree.TreeGrowthHandler;
 import com.s.ecoflux.plant.tree.TreeGrowthProfile;
-import com.s.ecoflux.plant.tree.TreeShapeUtils;
 import com.s.ecoflux.plant.tree.spacecolonization.SpaceColonizationGenerator;
 import com.s.ecoflux.plant.tree.spacecolonization.SpaceColonizationProfile;
 import java.util.ArrayList;
