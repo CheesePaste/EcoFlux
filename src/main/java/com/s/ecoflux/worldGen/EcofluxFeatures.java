@@ -1,7 +1,7 @@
-package com.s.ecoflux.worldgen;
+package com.s.ecoflux.worldGen;
 
 import com.s.ecoflux.EcofluxConstants;
-import com.s.ecoflux.worldgen.feature.EcofluxTreeFeature;
+import com.s.ecoflux.worldGen.feature.EcofluxTreeFeature;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.levelgen.feature.Feature;

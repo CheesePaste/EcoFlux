@@ -1,4 +1,4 @@
-package com.s.ecoflux.worldgen.feature;
+package com.s.ecoflux.worldGen.feature;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.config.biome.BiomeRules;

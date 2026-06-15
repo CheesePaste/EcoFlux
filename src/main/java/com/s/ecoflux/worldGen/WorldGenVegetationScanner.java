@@ -1,4 +1,4 @@
-package com.s.ecoflux.worldgen;
+package com.s.ecoflux.worldGen;
 
 import com.s.ecoflux.EcofluxConstants;
 import com.s.ecoflux.attachment.ActiveVegetationRecord;
@@ -10,7 +10,7 @@ import com.s.ecoflux.config.plant.PlantDefinition;
 import com.s.ecoflux.config.plant.PlantRegistry;
 import com.s.ecoflux.init.ModAttachments;
 import com.s.ecoflux.network.ModNetworking;
-import com.s.ecoflux.worldgen.feature.EcofluxTreeFeature;
+import com.s.ecoflux.worldGen.feature.EcofluxTreeFeature;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
