@@ -57,11 +57,13 @@ public final class VisualLifecycleWorldRenderer {
             BlockPos pos = instance.pos();
             BlockState state = minecraft.level.getBlockState(pos);
 
-            // Skip upper half of double plants — rendered by the lower half below
+            // Skip upper half of double plants only when the lower half will render
+            // it (i.e. lower is tracked and has non-identity scale). Otherwise the
+            // upper half renders itself with its own centered scaling.
             if (state.hasProperty(DoublePlantBlock.HALF) && state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.UPPER) {
                 VisualLifecycleRenderState lowerRS = VisualLifecycleClientRuntime.INSTANCE.getRenderState(
                         pos.below(), minecraft.level.getBlockState(pos.below()));
-                if (lowerRS != null) {
+                if (lowerRS != null && Math.abs(lowerRS.scale() - 1.0F) >= 0.0001F) {
                     continue;
                 }
             }
@@ -71,13 +73,21 @@ public final class VisualLifecycleWorldRenderer {
                 continue;
             }
 
+            float s = renderState.scale();
+            boolean isLower = state.hasProperty(DoublePlantBlock.HALF)
+                    && state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER;
+
+            // For double plants, both halves scale from the same pivot: the lower
+            // block's bottom center (ground level). This keeps them connected.
+            // The lower half uses its bottom face (y=0); the upper half is offset
+            // so its bottom edge stays glued to the lower half's top at y=s.
             poseStack.pushPose();
             poseStack.translate(
                     pos.getX() - cameraPosition.x(),
                     pos.getY() - cameraPosition.y(),
                     pos.getZ() - cameraPosition.z());
             poseStack.translate(0.5F, 0.0F, 0.5F);
-            poseStack.scale(renderState.scale(), renderState.scale(), renderState.scale());
+            poseStack.scale(s, s, s);
             poseStack.translate(-0.5F, 0.0F, -0.5F);
 
             VisualLifecycleClientRuntime.INSTANCE.beginManualWorldRenderPass();
@@ -91,17 +101,32 @@ public final class VisualLifecycleWorldRenderer {
                         bufferSource.getBuffer(ItemBlockRenderTypes.getChunkRenderType(state)),
                         false,
                         random);
+            } finally {
+                VisualLifecycleClientRuntime.INSTANCE.endManualWorldRenderPass();
+            }
+            poseStack.popPose();
 
-                // Render upper half of double plants from the same pivot so both
-                // halves scale together without a gap. translate(0,1,0) is applied
-                // after scale, so the upper half model sits exactly on top of the
-                // scaled lower half.
-                if (state.hasProperty(DoublePlantBlock.HALF) && state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER) {
-                    BlockPos upperPos = pos.above();
-                    BlockState upperState = minecraft.level.getBlockState(upperPos);
-                    VisualLifecycleRenderState upperRS = VisualLifecycleClientRuntime.INSTANCE.getRenderState(upperPos, upperState);
-                    if (upperRS != null && Math.abs(upperRS.scale() - 1.0F) >= 0.0001F) {
-                        poseStack.translate(0.0F, 1.0F, 0.0F);
+            // Render upper half sharing the same bottom-center pivot as the lower half.
+            // Transform: T(upperPos) · T(0.5*(1-s), -(1-s), 0.5*(1-s)) · S(s)
+            // This glues the upper bottom edge to the lower top edge at y=lower.y+s.
+            if (isLower) {
+                BlockPos upperPos = pos.above();
+                BlockState upperState = minecraft.level.getBlockState(upperPos);
+                VisualLifecycleRenderState upperRS = VisualLifecycleClientRuntime.INSTANCE.getRenderState(upperPos, upperState);
+                if (upperRS != null && Math.abs(upperRS.scale() - 1.0F) >= 0.0001F) {
+                    float us = upperRS.scale();
+                    float offset = 1.0F - us; // (1-s) for y
+
+                    poseStack.pushPose();
+                    poseStack.translate(
+                            upperPos.getX() - cameraPosition.x(),
+                            upperPos.getY() - cameraPosition.y(),
+                            upperPos.getZ() - cameraPosition.z());
+                    poseStack.translate(0.5F * offset, -offset, 0.5F * offset);
+                    poseStack.scale(us, us, us);
+
+                    VisualLifecycleClientRuntime.INSTANCE.beginManualWorldRenderPass();
+                    try {
                         RandomSource upperRandom = RandomSource.create(upperState.getSeed(upperPos));
                         minecraft.getBlockRenderer().renderBatched(
                                 upperState,
@@ -111,12 +136,12 @@ public final class VisualLifecycleWorldRenderer {
                                 bufferSource.getBuffer(ItemBlockRenderTypes.getChunkRenderType(upperState)),
                                 false,
                                 upperRandom);
+                    } finally {
+                        VisualLifecycleClientRuntime.INSTANCE.endManualWorldRenderPass();
                     }
+                    poseStack.popPose();
                 }
-            } finally {
-                VisualLifecycleClientRuntime.INSTANCE.endManualWorldRenderPass();
             }
-            poseStack.popPose();
         }
 
         bufferSource.endBatch();
