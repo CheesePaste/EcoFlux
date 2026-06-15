@@ -39,7 +39,7 @@ On Windows, use `.\gradlew.bat` instead of `./gradlew`.
 
 ## Architecture
 
-The codebase is in `src/main/java/com/s/ecoflux/`. Key architectural layers:
+The codebase is in `src/main/java/com/cp/ecoflux/`. Key architectural layers:
 
 ### Configuration layer (`config/`)
 - `SuccessionConfigLoader` — Gson-based JSON loader, extends `SimpleJsonResourceReloadListener` for hot-reload on `/reload`

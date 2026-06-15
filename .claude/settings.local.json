@@ -97,7 +97,8 @@
       "Bash(gh auth *)",
       "Bash(gh release *)",
       "Bash(./gradlew --stop)",
-      "Bash(./gradlew cleanIdea idea)"
+      "Bash(./gradlew cleanIdea idea)",
+      "Bash(xargs grep *)"
     ]
   }
 }

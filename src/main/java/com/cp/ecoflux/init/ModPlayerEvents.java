@@ -23,8 +23,14 @@ import net.minecraft.world.item.BoneMealItem;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
@@ -37,6 +43,50 @@ public final class ModPlayerEvents {
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onBlockBroken);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onClockRightClick);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onBoneMealLog);
+        NeoForge.EVENT_BUS.addListener(EventPriority.LOW, ModPlayerEvents::onPlayerLoggedIn);
+    }
+
+    private static final Component WELCOME_MESSAGE = Component.empty()
+            .append(Component.literal("🌿 Ecoflux 生态演替模组已加载").setStyle(Style.EMPTY
+                    .withColor(TextColor.fromRgb(0x00AA00)).withBold(true)))
+            .append(Component.literal("\n"))
+            .append(Component.literal("  /ecoflux auto on  ").setStyle(Style.EMPTY
+                    .withColor(TextColor.fromRgb(0x55FF55))
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/ecoflux auto on"))
+                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                            Component.literal("点击填入命令")))))
+            .append(Component.literal("开启全局自动演替 (必须)").setStyle(Style.EMPTY
+                    .withColor(TextColor.fromRgb(0xAAAAAA))))
+            .append(Component.literal("\n"))
+            .append(Component.literal("  /ecoflux speed <倍率>  ").setStyle(Style.EMPTY
+                    .withColor(TextColor.fromRgb(0x55FFFF))
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/ecoflux speed "))
+                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                            Component.literal("点击填入命令")))))
+            .append(Component.literal("调整演替速度 (默认 1.0)").setStyle(Style.EMPTY
+                    .withColor(TextColor.fromRgb(0xAAAAAA))))
+            .append(Component.literal("\n"))
+            .append(Component.literal("  /ecoflux auto status  ").setStyle(Style.EMPTY
+                    .withColor(TextColor.fromRgb(0x55FF55))
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/ecoflux auto status"))
+                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                            Component.literal("点击填入命令")))))
+            .append(Component.literal("查看当前状态").setStyle(Style.EMPTY
+                    .withColor(TextColor.fromRgb(0xAAAAAA))))
+            .append(Component.literal("\n"))
+            .append(Component.literal("  /ecoflux lifecycle chunk  ").setStyle(Style.EMPTY
+                    .withColor(TextColor.fromRgb(0x55FFFF))
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/ecoflux lifecycle chunk"))
+                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                            Component.literal("点击填入命令")))))
+            .append(Component.literal("查看区块植物信息").setStyle(Style.EMPTY
+                    .withColor(TextColor.fromRgb(0xAAAAAA))));
+
+    private static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity().level().isClientSide()) {
+            return;
+        }
+        event.getEntity().displayClientMessage(WELCOME_MESSAGE, false);
     }
 
     private static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
