@@ -1,7 +1,7 @@
 package com.cp.ecoflux.compat.dynamictrees;
 
 import com.cp.ecoflux.EcofluxConstants;
-import com.cp.ecoflux.plant.SaplingGrowthInterceptor;
+import com.cp.ecoflux.api.adapter.SaplingGrowthInterceptor;
 import com.dtteam.dynamictrees.block.sapling.DynamicSaplingBlock;
 import com.dtteam.dynamictrees.config.DTConfigs;
 import com.dtteam.dynamictrees.tree.species.Species;

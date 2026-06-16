@@ -1,6 +1,4 @@
-package com.cp.ecoflux.config.math;
-
-import com.cp.ecoflux.config.succession.SuccessionPathDefinition;
+package com.cp.ecoflux.api.config;
 
 /**
  * Climate matching condition for succession path selection.

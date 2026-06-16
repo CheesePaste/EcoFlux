@@ -1,4 +1,4 @@
-package com.cp.ecoflux.config.plant;
+package com.cp.ecoflux.api.config;
 
 /**
  * Spawning constraints for a plant species in a succession path.

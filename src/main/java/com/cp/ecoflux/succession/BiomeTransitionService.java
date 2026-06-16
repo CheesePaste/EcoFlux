@@ -18,8 +18,9 @@ package com.cp.ecoflux.succession;
  */
 
 import com.cp.ecoflux.EcofluxConstants;
+import com.cp.ecoflux.api.event.SuccessionEvent;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
-import com.cp.ecoflux.config.succession.SuccessionPathDefinition;
+import com.cp.ecoflux.api.config.SuccessionPathDefinition;
 import com.cp.ecoflux.network.ModNetworking;
 import java.util.List;
 import net.minecraft.core.Holder;
@@ -30,6 +31,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.neoforged.neoforge.common.NeoForge;
 
 public final class BiomeTransitionService {
     private BiomeTransitionService() {
@@ -48,6 +50,14 @@ public final class BiomeTransitionService {
 
         if (fallbackKey == null) {
             return "区块 " + chunk.getPos() + " 跳过群系回退：没有回退目标群系。";
+        }
+
+        ResourceLocation fromBiomeLoc = chunkData.getCurrentBiome().map(key -> key.location()).orElse(null);
+        SuccessionEvent.PreRegression preEvent = new SuccessionEvent.PreRegression(
+                level, chunk, fromBiomeLoc, fallbackKey.location());
+        NeoForge.EVENT_BUS.post(preEvent);
+        if (preEvent.isCanceled()) {
+            return "区块 " + chunk.getPos() + " 跳过群系回退：已被外部事件取消。";
         }
 
         Holder<Biome> biomeHolder = level.registryAccess()
@@ -70,6 +80,8 @@ public final class BiomeTransitionService {
         chunkData.setLastEvaluationGameTime(level.getGameTime());
         SuccessionTargetResolver.resolveTarget(chunk);
         ModNetworking.syncChunkToTracking(level, chunk);
+        NeoForge.EVENT_BUS.post(new SuccessionEvent.PostTransition(
+                level, chunk, fromBiomeLoc, fallbackKey.location()));
 
         EcofluxConstants.LOGGER.info(
                 "区块 {} 演替回退：{} -> {}",
@@ -86,6 +98,14 @@ public final class BiomeTransitionService {
         java.util.Optional<ResourceKey<Biome>> targetBiome = data.getTargetBiome();
         if (targetBiome.isEmpty()) {
             return "区块 " + chunk.getPos() + " 跳过群系转化：没有目标群系。";
+        }
+
+        ResourceLocation fromBiomeLoc = chunkData.getCurrentBiome().map(key -> key.location()).orElse(null);
+        SuccessionEvent.PreTransition preEvent = new SuccessionEvent.PreTransition(
+                level, chunk, fromBiomeLoc, targetBiome.get().location());
+        NeoForge.EVENT_BUS.post(preEvent);
+        if (preEvent.isCanceled()) {
+            return "区块 " + chunk.getPos() + " 跳过群系转化：已被外部事件取消。";
         }
 
         Holder<Biome> biomeHolder = level.registryAccess()
@@ -107,6 +127,8 @@ public final class BiomeTransitionService {
         data.setLastEvaluationGameTime(level.getGameTime());
         SuccessionTargetResolver.resolveTarget(chunk);
         ModNetworking.syncChunkToTracking(level, chunk);
+        NeoForge.EVENT_BUS.post(new SuccessionEvent.PostTransition(
+                level, chunk, fromBiomeLoc, targetBiome.get().location()));
 
         EcofluxConstants.LOGGER.info(
                 "区块 {} 演替完成：{} -> {}",

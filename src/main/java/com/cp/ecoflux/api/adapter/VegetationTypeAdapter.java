@@ -1,12 +1,14 @@
-package com.cp.ecoflux.plant.adapters;
+package com.cp.ecoflux.api.adapter;
 
-import com.cp.ecoflux.attachment.ActiveVegetationRecord;
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.VegetationAdapterCapability;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import java.util.Optional;
+import java.util.Set;
 
-import com.cp.ecoflux.plant.VegetationObservation;
-import com.cp.ecoflux.plant.VegetationTransformation;
-import com.cp.ecoflux.plant.VegetationVisualState;
+import com.cp.ecoflux.api.data.VegetationObservation;
+import com.cp.ecoflux.api.data.VegetationTransformation;
+import com.cp.ecoflux.api.data.VegetationVisualState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -14,6 +16,11 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public interface VegetationTypeAdapter {
     ResourceLocation typeId();
+
+    /** Capabilities this adapter declares. Override to participate in core pipeline branches. */
+    default Set<VegetationAdapterCapability> capabilities() {
+        return Set.of();
+    }
 
     boolean matches(BlockState state);
 

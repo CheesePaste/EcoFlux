@@ -1,17 +1,17 @@
 package com.cp.ecoflux.worldgen;
 
 import com.cp.ecoflux.EcofluxConstants;
-import com.cp.ecoflux.attachment.ActiveVegetationRecord;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.config.plant.PlantRegistry;
 import com.cp.ecoflux.init.ModAttachments;
 import com.cp.ecoflux.network.ModNetworking;
 import com.cp.ecoflux.plant.TreeStructure;
-import com.cp.ecoflux.plant.VegetationLifecycleStage;
+import com.cp.ecoflux.api.data.VegetationLifecycleStage;
 import com.cp.ecoflux.plant.VegetationTracker;
 import com.cp.ecoflux.plant.adapters.TreeStructureAdapter;
-import com.cp.ecoflux.plant.adapters.VegetationTypeAdapter;
+import com.cp.ecoflux.api.adapter.VegetationTypeAdapter;
 import com.cp.ecoflux.worldgen.feature.EcofluxTreeFeature;
 import java.util.HashSet;
 import java.util.List;

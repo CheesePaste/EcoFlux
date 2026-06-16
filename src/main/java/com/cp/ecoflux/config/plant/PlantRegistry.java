@@ -1,6 +1,7 @@
 package com.cp.ecoflux.config.plant;
 
 import com.cp.ecoflux.EcofluxConstants;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.config.AbstractConfigRegistry;
 import java.util.Collection;
 import java.util.Optional;

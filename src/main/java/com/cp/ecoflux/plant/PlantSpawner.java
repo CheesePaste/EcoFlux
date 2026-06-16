@@ -5,7 +5,7 @@ import com.cp.ecoflux.attachment.PlantQueueEntry;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.biome.BiomeRules;
 import com.cp.ecoflux.config.plant.PathPlantEntry;
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.config.plant.PlantRegistry;
 import com.cp.ecoflux.world.ChunkSamplingHelper;
 import java.util.ArrayList;

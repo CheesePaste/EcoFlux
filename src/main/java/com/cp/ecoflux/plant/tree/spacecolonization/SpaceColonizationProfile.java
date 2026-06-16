@@ -1,7 +1,7 @@
 package com.cp.ecoflux.plant.tree.spacecolonization;
 
 import com.cp.ecoflux.plant.tree.TreeGrowthHandler;
-import com.cp.ecoflux.plant.tree.TreeGrowthProfile;
+import com.cp.ecoflux.api.adapter.TreeGrowthProfile;
 import com.cp.ecoflux.plant.tree.TreeGrowthSession;
 import com.cp.ecoflux.plant.tree.TreeShapeUtils;
 import java.util.List;

@@ -1,5 +1,6 @@
 package com.cp.ecoflux.config.succession;
 
+import com.cp.ecoflux.api.config.SuccessionPathDefinition;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -12,8 +13,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.cp.ecoflux.config.AbstractJsonConfigLoader;
-import com.cp.ecoflux.config.math.ClimateCondition;
-import com.cp.ecoflux.config.math.FloatRange;
+import com.cp.ecoflux.api.config.ClimateCondition;
+import com.cp.ecoflux.api.config.FloatRange;
 import com.cp.ecoflux.EcofluxConstants;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;

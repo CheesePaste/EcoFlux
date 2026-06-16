@@ -1,6 +1,6 @@
 package com.cp.ecoflux.worldgen;
 
-import com.cp.ecoflux.attachment.ActiveVegetationRecord;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.biome.BiomeRules;
 import com.cp.ecoflux.config.biome.BiomeRulesRegistry;

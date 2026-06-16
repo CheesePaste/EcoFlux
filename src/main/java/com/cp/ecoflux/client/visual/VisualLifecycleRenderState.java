@@ -1,5 +1,7 @@
 package com.cp.ecoflux.client.visual;
 
+import com.cp.ecoflux.api.client.VisualLifecycleAdapter;
+
 /**
  * Pre-computed per-frame render state for a tracked plant.
  *

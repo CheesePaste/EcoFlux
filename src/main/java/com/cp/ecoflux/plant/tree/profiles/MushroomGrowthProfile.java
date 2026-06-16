@@ -1,6 +1,6 @@
 package com.cp.ecoflux.plant.tree.profiles;
 
-import com.cp.ecoflux.plant.tree.TreeGrowthProfile;
+import com.cp.ecoflux.api.adapter.TreeGrowthProfile;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;

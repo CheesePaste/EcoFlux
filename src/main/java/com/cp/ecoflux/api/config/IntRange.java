@@ -1,22 +1,22 @@
-package com.cp.ecoflux.config.math;
+package com.cp.ecoflux.api.config;
 
 /**
- * Immutable inclusive range of float (double) values.
+ * Immutable inclusive range of integer values.
  *
  * <p>Structure: a record with {@code min} and {@code max} bounds. The {@link #contains}
  * method checks inclusive membership. Construction validates that max >= min.
- * <p>Role in Ecoflux: used by {@link ClimateCondition} to define temperature and
- * downfall range constraints for succession path matching.
+ * <p>Role in Ecoflux: generic integer range utility type.
+ * and other integer range constraints in configuration.
  */
 
-public record FloatRange(double min, double max) {
-    public FloatRange {
+public record IntRange(int min, int max) {
+    public IntRange {
         if (max < min) {
             throw new IllegalArgumentException("Range max must be greater than or equal to min");
         }
     }
 
-    public boolean contains(double value) {
+    public boolean contains(int value) {
         return value >= min && value <= max;
     }
 }

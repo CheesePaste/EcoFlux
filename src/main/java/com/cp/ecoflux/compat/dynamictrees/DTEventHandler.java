@@ -1,12 +1,12 @@
 package com.cp.ecoflux.compat.dynamictrees;
 
 import com.cp.ecoflux.EcofluxConstants;
-import com.cp.ecoflux.attachment.ActiveVegetationRecord;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.init.ModAttachments;
 import com.cp.ecoflux.network.ModNetworking;
-import com.cp.ecoflux.plant.VegetationLifecycleStage;
+import com.cp.ecoflux.api.data.VegetationLifecycleStage;
 import com.cp.ecoflux.plant.adapters.SaplingAdapter;
 import com.cp.ecoflux.plant.adapters.dynamictrees.DTTreeAdapter;
 import com.dtteam.dynamictrees.event.SeedVoluntaryPlantEvent;

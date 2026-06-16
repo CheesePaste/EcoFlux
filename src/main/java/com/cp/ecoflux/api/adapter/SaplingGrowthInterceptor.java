@@ -1,4 +1,4 @@
-package com.cp.ecoflux.plant;
+package com.cp.ecoflux.api.adapter;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;

@@ -9,7 +9,7 @@ package com.cp.ecoflux.mixin;
  * {@code TreeGrowthHandler} for tracked saplings.
  */
 
-import com.cp.ecoflux.attachment.ActiveVegetationRecord;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.EcofluxServerConfig;
 import com.cp.ecoflux.init.ModAttachments;

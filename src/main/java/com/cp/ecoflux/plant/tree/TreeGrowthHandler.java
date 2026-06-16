@@ -16,21 +16,22 @@ package com.cp.ecoflux.plant.tree;
  */
 
 import com.cp.ecoflux.EcofluxConstants;
-import com.cp.ecoflux.attachment.ActiveVegetationRecord;
+import com.cp.ecoflux.api.adapter.TreeGrowthProfile;
+import com.cp.ecoflux.api.event.TreeGrowthEvent;
+import com.cp.ecoflux.api.registry.TreeGrowthProfileRegistry;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.config.plant.PlantRegistry;
-import com.cp.ecoflux.config.plant.PlantSpawnRules;
+import com.cp.ecoflux.api.config.PlantSpawnRules;
 import com.cp.ecoflux.init.ModAttachments;
 import com.cp.ecoflux.init.ModChunkEvents;
 import com.cp.ecoflux.plant.TreeStructure;
 import com.cp.ecoflux.plant.adapters.TreeStructureAdapter;
-import com.cp.ecoflux.plant.tree.spacecolonization.SpaceColonizationParams;
 import com.cp.ecoflux.plant.tree.spacecolonization.SpaceColonizationProfile;
-import com.cp.ecoflux.plant.tree.profiles.MushroomGrowthProfile;
+import net.neoforged.neoforge.common.NeoForge;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.jetbrains.annotations.Nullable;
@@ -49,51 +49,8 @@ import org.jetbrains.annotations.Nullable;
 public final class TreeGrowthHandler {
     public static final TreeGrowthHandler INSTANCE = new TreeGrowthHandler();
 
-    private static final Map<ResourceLocation, TreeGrowthProfile> PROFILES = new HashMap<>();
-
     static {
-        reg(new SpaceColonizationProfile(id("oak"), 1200, Blocks.OAK_LOG, Blocks.OAK_LEAVES, false,
-                SpaceColonizationParams.oak(), null));
-        reg(new SpaceColonizationProfile(id("birch"), 800, Blocks.BIRCH_LOG, Blocks.BIRCH_LEAVES, false,
-                SpaceColonizationParams.birch(), null));
-        reg(new SpaceColonizationProfile(id("spruce_1x1"), 1400, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, false,
-                SpaceColonizationParams.spruce(), null));
-        reg(new SpaceColonizationProfile(id("cherry"), 1200, Blocks.CHERRY_LOG, Blocks.CHERRY_LEAVES, false,
-                SpaceColonizationParams.cherry(), null));
-        reg(new SpaceColonizationProfile(id("jungle_1x1"), 1400, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, false,
-                SpaceColonizationParams.jungle(), null));
-        reg(new SpaceColonizationProfile(id("acacia"), 1200, Blocks.ACACIA_LOG, Blocks.ACACIA_LEAVES, false,
-                SpaceColonizationParams.acacia(), null));
-        reg(new SpaceColonizationProfile(id("mangrove"), 1067, Blocks.MANGROVE_LOG, Blocks.MANGROVE_LEAVES, false,
-                SpaceColonizationParams.mangrove(), SpaceColonizationProfile::placePropRoots));
-
-        reg(new SpaceColonizationProfile(id("jungle"), 1600, Blocks.JUNGLE_LOG, Blocks.JUNGLE_LEAVES, true,
-                SpaceColonizationParams.jungle(), null));
-        reg(new SpaceColonizationProfile(id("dark_oak"), 1200, Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_LEAVES, true,
-                SpaceColonizationParams.darkOak(), null));
-        reg(new SpaceColonizationProfile(id("spruce"), 2000, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, true,
-                SpaceColonizationParams.spruce(), null));
-
-        reg(new MushroomGrowthProfile(id("brown_mushroom"), 4, 7, 800,
-                Blocks.BROWN_MUSHROOM_BLOCK, MushroomGrowthProfile.MushroomCapStyle.FLAT));
-        reg(new MushroomGrowthProfile(id("red_mushroom"), 3, 7, 800,
-                Blocks.RED_MUSHROOM_BLOCK, MushroomGrowthProfile.MushroomCapStyle.DOMED));
-
-        // Mangrove propagule is a distinct block from mangrove sapling
-        PROFILES.put(id("mangrove_propagule"), PROFILES.get(id("mangrove")));
-    }
-
-    private static void reg(TreeGrowthProfile profile) {
-        ResourceLocation type = profile.treeType();
-        PROFILES.put(type, profile);
-        String path = type.getPath();
-        if (!path.endsWith("_sapling")) {
-            PROFILES.put(id(path + "_sapling"), profile);
-        }
-    }
-
-    private static ResourceLocation id(String path) {
-        return ResourceLocation.withDefaultNamespace(path);
+        TreeGrowthProfileRegistry.initBuiltin();
     }
 
     private final Set<Long> chunksWithSessions = new LinkedHashSet<>();
@@ -155,6 +112,7 @@ public final class TreeGrowthHandler {
 
         chunkData.addTreeGrowthSession(sessionPos, session);
         chunksWithSessions.add(chunk.getPos().toLong());
+        NeoForge.EVENT_BUS.post(new TreeGrowthEvent.Start(level, sessionPos, session, profile.treeType()));
 
         EcofluxConstants.LOGGER.info(
                 "[Ecoflux] Intercepted tree growth at {} (type={}), height={}, totalStages={}",
@@ -183,6 +141,7 @@ public final class TreeGrowthHandler {
 
         chunkData.addTreeGrowthSession(sessionPos, session);
         chunksWithSessions.add(chunk.getPos().toLong());
+        NeoForge.EVENT_BUS.post(new TreeGrowthEvent.Start(level, sessionPos, session, mushroomId));
 
         EcofluxConstants.LOGGER.info(
                 "[Ecoflux] Intercepted mushroom growth at {} (type={}), height={}, totalStages={}",
@@ -281,6 +240,8 @@ public final class TreeGrowthHandler {
                             session.totalStages(), session.resolvedHeight(), treeRandom);
                 }
                 session.advanceStage(gameTime);
+                NeoForge.EVENT_BUS.post(new TreeGrowthEvent.Stage(
+                        level, pos, session, session.currentStage(), session.totalStages()));
 
                 if (session.isComplete()) {
                     completed.add(pos);
@@ -397,6 +358,7 @@ public final class TreeGrowthHandler {
                 chunkData.getActivePathId(),
                 treeDef);
         chunkData.trackVegetation(treeRecord.withTreeStructure(treeStructure));
+        NeoForge.EVENT_BUS.post(new TreeGrowthEvent.Complete(level, basePos, session, treeStructure));
 
         ModChunkEvents.markChunkHasTreeStructure(level, chunk.getPos().toLong());
 
@@ -406,29 +368,11 @@ public final class TreeGrowthHandler {
 
     @Nullable
     public static TreeGrowthProfile resolveProfile(ResourceLocation saplingId) {
-        TreeGrowthProfile profile = PROFILES.get(saplingId);
-        if (profile != null) return profile;
-
-        String path = saplingId.getPath();
-        if (path.endsWith("_sapling")) {
-            String treeName = path.substring(0, path.length() - "_sapling".length());
-            return PROFILES.get(ResourceLocation.fromNamespaceAndPath(saplingId.getNamespace(), treeName));
-        }
-        return null;
+        return TreeGrowthProfileRegistry.resolveFromSapling(saplingId);
     }
 
     @Nullable
     public static TreeGrowthProfile resolveProfileFromLog(ResourceLocation logId) {
-        String path = logId.getPath();
-        if (path.startsWith("stripped_")) {
-            path = path.substring("stripped_".length());
-        }
-        for (String suffix : new String[]{"_log", "_wood", "_stem"}) {
-            if (path.endsWith(suffix)) {
-                path = path.substring(0, path.length() - suffix.length());
-                break;
-            }
-        }
-        return PROFILES.get(ResourceLocation.fromNamespaceAndPath(logId.getNamespace(), path));
+        return TreeGrowthProfileRegistry.resolveFromLog(logId);
     }
 }

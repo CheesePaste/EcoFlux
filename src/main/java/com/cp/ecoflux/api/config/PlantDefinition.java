@@ -1,4 +1,4 @@
-package com.cp.ecoflux.config.plant;
+package com.cp.ecoflux.api.config;
 
 import net.minecraft.resources.ResourceLocation;
 

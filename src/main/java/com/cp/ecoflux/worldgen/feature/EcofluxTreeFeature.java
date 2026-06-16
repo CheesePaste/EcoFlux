@@ -6,7 +6,7 @@ import com.cp.ecoflux.config.biome.BiomeRulesRegistry;
 import com.cp.ecoflux.config.plant.PathPlantEntry;
 import com.cp.ecoflux.plant.TreeStructure;
 import com.cp.ecoflux.plant.tree.TreeGrowthHandler;
-import com.cp.ecoflux.plant.tree.TreeGrowthProfile;
+import com.cp.ecoflux.api.adapter.TreeGrowthProfile;
 import com.cp.ecoflux.plant.tree.spacecolonization.SpaceColonizationGenerator;
 import com.cp.ecoflux.plant.tree.spacecolonization.SpaceColonizationProfile;
 import java.util.ArrayList;
