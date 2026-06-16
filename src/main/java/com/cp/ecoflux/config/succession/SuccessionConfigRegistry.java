@@ -62,7 +62,7 @@ public final class SuccessionConfigRegistry {
     }
 
     public static Optional<SuccessionPathDefinition> getPath(ResourceLocation pathId) {
-        return Optional.ofNullable(pathsById.get(pathId));
+        return Optional.ofNullable(pathId).map(pathsById::get);
     }
 
     public static List<SuccessionPathDefinition> findMatches(ResourceLocation biomeId, double temperature, double downfall) {

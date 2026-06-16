@@ -29,21 +29,24 @@
 
 ## 注册的所有 Profile
 
-`TreeGrowthHandler` 静态初始化块注册 11 个 profile：
+`TreeGrowthHandler` 静态初始化块注册 12 个 profile：
 
 | 树种 | Profile 类型 | ticksPerStage | is2x2 | 其他 |
 |------|-------------|---------------|-------|------|
 | oak | SpaceColonizationProfile | 1200 | no | — |
 | birch | SpaceColonizationProfile | 800 | no | — |
-| spruce | SpaceColonizationProfile | 1600 | no | — |
+| spruce_1x1 | SpaceColonizationProfile | 1400 | no | — |
 | cherry | SpaceColonizationProfile | 1200 | no | — |
 | jungle_1x1 | SpaceColonizationProfile | 1400 | no | — |
 | acacia | SpaceColonizationProfile | 1200 | no | — |
 | mangrove | SpaceColonizationProfile | 1067 | no | PostGrowHook: placePropRoots |
 | jungle (2x2) | SpaceColonizationProfile | 1600 | yes | — |
 | dark_oak (2x2) | SpaceColonizationProfile | 1200 | yes | — |
+| spruce (2x2) | SpaceColonizationProfile | 2000 | yes | — |
 | brown_mushroom | MushroomGrowthProfile | 800 | no | CapStyle: FLAT |
 | red_mushroom | MushroomGrowthProfile | 800 | no | CapStyle: DOMED |
+
+2x2→1x1 回退逻辑：`interceptGrowth()` 中若 `is2x2=true` 的 profile 检测 2x2 失败，自动查找 `<treeName>_1x1` 变体（如 `spruce` → `spruce_1x1`、`jungle` → `jungle_1x1`）。
 
 ## 生长管线
 
@@ -124,10 +127,11 @@ SaplingBlock.advanceTree() / MushroomBlock.growMushroom() — 原版生长调用
 
 ### 树叶生成 (generateLeaves)
 
-两阶段策略：
+三阶段策略：
 
 1. **Phase 1 — 末端叶片簇**: 检测末端位置 (≤2 Chebyshev 邻居)，以 `max(2, leafRadius)` 半径放置 `leafDensity` 概率叶片
 2. **Phase 2 — 包络体填充**: 对非末端原木，使用包络体密度衰减 (阈值 0.01)，填充剩余树冠
+3. **Phase 3 — 2x2 树顶盖**: 2x2 树干（深色橡木、丛林、云杉、红树）的解析高度可能超出包络体顶部（丛林 +2.5 格、云杉 +4.5 格），导致树干顶部平台裸露。Phase 3 两遍传递：第一遍在最高原木层上方 dy=0..1 贴原木放置树叶；第二遍 dy=2..capR 使用**实时 leafSet**（非静态快照）作为锚点向上延伸，确保每层树叶可作为上一层的锚点。capR = leafRadius+2（最小 5），Phase 2 同步在树干顶部 3 层绕过包络体密度检测
 
 ### 包络体类型
 
