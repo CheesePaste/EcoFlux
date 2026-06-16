@@ -28,6 +28,8 @@
 | `PlantSpawnRules` | Record: 生成规则 (requireSky, maxLocalDensity, allowedBaseBlocks) |
 | `FloatRange` / `IntRange` | Record: 范围工具类型（min/max） |
 | `EcofluxServerConfig` | 服务端 NeoForge 配置，包含全局 `evaluation_interval_ticks`、生成间隔、性能间隔等 |
+
+以下 record 同时存在于 `com.cp.ecoflux.api.config` 包，供外部 mod 引用（`SuccessionPathDefinition`、`PlantDefinition`、`PlantSpawnRules`、`ClimateCondition`、`FloatRange`、`IntRange`）。
 | ~~`ChunkRules`~~ | **已删除 (2026-06-14)**。内容拆分到 `BiomeRules`、`SuccessionPathDefinition` 和 `EcofluxServerConfig` |
 
 ## JSON 文件位置

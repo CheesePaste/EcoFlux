@@ -51,11 +51,15 @@ Inner classes are extracted from their parent file (they share the same `.java` 
 ## How it works
 
 1. Walks up from CWD to find the mod project root (`gradle.properties`)
-2. Detects Fabric vs NeoForge and locates the correct sources jar
-3. Converts the class name to a file path (`net/minecraft/world/item/ItemStack.java`)
-4. Extracts and prints the file with `unzip -p`
+2. Detects Fabric vs NeoForge and locates the correct sources jar(s)
+3. **NeoForge**: searches a hierarchy of source jars:
+   - `build/moddev/artifacts/neoforge-*-sources.jar` — vanilla MC (Mojang)
+   - `build/moddev/artifacts/neoforge-*-merged.jar` — MC + NeoForge patches
+   - `~/.gradle/caches/.../net.neoforged/**/*-sources.jar` — NeoForge library sources (event bus, registries, capabilities, coremods, etc.)
+4. Converts the class name to a file path (`net/minecraft/world/item/ItemStack.java`)
+5. Extracts and prints the file with `unzip -p`
 
-No Gradle execution, no network calls. The sources jar is already in the project.
+No Gradle execution, no network calls. All source jars are already in the project or Gradle cache.
 
 ## Fabric backend
 
@@ -65,11 +69,17 @@ No Gradle execution, no network calls. The sources jar is already in the project
 
 ## NeoForge backend
 
-- **Jar**: `build/moddev/artifacts/neoforge-{version}-sources.jar` (vanilla MC)
-- **Fallback**: `build/moddev/artifacts/neoforge-{version}-merged.jar` (vanilla + NeoForge patches)
+- **Primary jars** (`build/moddev/artifacts/`):
+  - `neoforge-{version}-sources.jar` — vanilla MC (Mojang official names)
+  - `neoforge-{version}-merged.jar` — vanilla + NeoForge patches merged
+- **Gradle cache jars** (`~/.gradle/caches/.../net.neoforged/`):
+  - `neoforge-{version}-sources.jar` — NeoForge SDK (registries, capabilities, events)
+  - `bus-{version}-sources.jar` — NeoForge Event Bus (Event, SubscribeEvent, IEventBus)
+  - `coremods-{version}-sources.jar` — coremod infrastructure
+  - Other NeoForge sub-library sources
+- **Resolution**: `net.neoforged.*` classes search Gradle cache jars first (best source quality), then MDG merged jar, then MDG sources jar. Vanilla MC classes prefer the MDG sources jar.
 - **Mappings**: Mojang official
-- **Prerequisite**: MDG places jars during project setup — no extra step needed
-- **Auto-switch**: `net.neoforged.*` classes automatically use the merged jar
+- **Prerequisite**: MDG places jars during project setup — no extra step needed for primary jars. Gradle cache jars are populated when dependencies are resolved (`./gradlew build`).
 
 ## What you get
 

@@ -109,6 +109,23 @@ public interface VegetationTypeAdapter {
 
 注意：`category()` 方法已移除。点数、寿命等参数从 `PlantDefinition` 获取。
 
+`capabilities()` 方法（默认返回空 Set）声明适配器能力标记，核心追踪流程通过检查能力而非 type ID 做分支：
+
+```java
+default Set<VegetationAdapterCapability> capabilities() {
+    return Set.of();
+}
+```
+
+| 能力标记 | 声明者 | 效果 |
+|---------|--------|------|
+| `IS_SAPLING` | SaplingAdapter | 走树苗成熟→触发生长的分支 |
+| `HAS_STRUCTURE` | TreeStructureAdapter, DTTreeAdapter | 死亡时 BFS 重建 + 渐进腐烂 |
+| `IS_SIMPLE_PLANT` | SimplePlantAdapter | 简单出生→衰老→死亡，无结构 |
+| `LONG_LIFECYCLE` | TreeStructureAdapter, DTTreeAdapter | advanceStage 成熟阈值 96000（而非 48000） |
+
+外部 mod 适配器只需声明对应 capability 即可参与核心管线，无需修改 EcoFlux 源码。
+
 ### VegetationTracker
 
 统一追踪器（单例），不关心具体植物种类：
@@ -122,6 +139,19 @@ public interface VegetationTypeAdapter {
 | `syncChunkToTracking(level, chunkPos)` | 构建视觉快照同步给客户端 |
 
 树结构相关的 BFS 重建、渐进死亡和批量移除逻辑已提取到 `TreeStructureManager`。
+
+### API 事件
+
+核心追踪流程在关键节点通过 NeoForge 事件总线发射 `VegetationLifecycleEvent`，外部 mod 可直接订阅：
+
+| 事件 | 发射位置 | 时机 |
+|------|---------|------|
+| `Born` | `VegetationTracker.trackAt()` | trackVegetation 成功后 |
+| `StageChange` | `VegetationTracker.observeTrackedInternal()` | observation.stage() != record.lifeStage() |
+| `Death` | `VegetationTracker.observeTrackedInternal()` | !observation.present() 时 |
+| `Transformed` | `VegetationTracker.observeTrackedInternal()` | observation.transformation().isPresent() 时 |
+
+事件类位于 `com.cp.ecoflux.api.event.VegetationLifecycleEvent`，包含四个静态内部类。所有事件携带 `ServerLevel` 和 `ActiveVegetationRecord`。
 
 ### VegetationObservation
 
@@ -217,33 +247,38 @@ AGING → DEAD → 树叶先腐烂 → 原木后消失
 ## 当前相关文件
 
 ```
+api/
+├── adapter/VegetationTypeAdapter.java     # 核心接口（API 包）
+├── data/ActiveVegetationRecord.java       # 追踪记录 record（API 包）
+├── data/VegetationObservation.java        # 观察结果 record（API 包）
+├── data/VegetationTransformation.java     # 转换描述 record（API 包）
+├── data/VegetationVisualState.java        # 视觉快照 record（API 包）
+├── data/VegetationLifecycleStage.java     # 生命周期阶段枚举（API 包）
+├── VegetationAdapterCapability.java       # 适配器能力枚举（API 包）
+└── event/VegetationLifecycleEvent.java    # 植被生命周期事件（API 包）
+
 plant/
-├── VegetationTypeAdapter.java        # 核心接口
-├── VegetationTracker.java            # 统一追踪器（单例）
-├── TreeStructureManager.java         # 树 BFS 重建 + 渐进死亡 + 批量移除
-├── PlantSpawner.java                 # 植物生成与修剪
-├── VegetationObservation.java        # 观察结果 record
-├── VegetationTransformation.java     # 转换描述 record
-├── VegetationVisualState.java        # 视觉快照 record
-├── VegetationLifecycleStage.java     # 生命周期阶段枚举
-├── TreeStructure.java                # 树的多块结构数据 record
-├── SimplePlantAdapter.java           # 小型植物适配器
-├── SaplingAdapter.java               # 树苗适配器
-└── TreeStructureAdapter.java         # 成熟树适配器
+├── VegetationTracker.java                 # 统一追踪器（单例）
+├── TreeStructureManager.java              # 树 BFS 重建 + 渐进死亡 + 批量移除
+├── PlantSpawner.java                      # 植物生成与修剪
+├── TreeStructure.java                     # 树的多块结构数据 record
+├── SimplePlantAdapter.java                # 小型植物适配器
+├── SaplingAdapter.java                    # 树苗适配器
+└── TreeStructureAdapter.java              # 成熟树适配器
 
 worldgen/
-├── WorldGenVegetationScanner.java    # 世界生成植被扫描器
-├── MushroomScanner.java              # 巨型蘑菇 BFS 检测
-└── DensityCapper.java                # 密度上限裁剪
+├── WorldGenVegetationScanner.java         # 世界生成植被扫描器
+├── MushroomScanner.java                   # 巨型蘑菇 BFS 检测
+└── DensityCapper.java                     # 密度上限裁剪
 
 init/
-├── ModPlayerEvents.java              # 玩家放置/破坏 → VegetationTracker
-└── ModChunkEvents.java               # Chunk tick → observeChunk + prune + WorldGenScanner
+├── ModPlayerEvents.java                   # 玩家放置/破坏 → VegetationTracker
+└── ModChunkEvents.java                    # Chunk tick → observeChunk + prune + WorldGenScanner
 
 config/
-├── plant/PlantRegistry.java          # 中心植物注册表（继承 AbstractConfigRegistry）
-├── plant/PlantRegistryLoader.java    # 植物定义加载器（继承 AbstractJsonConfigLoader）
-└── biome/BiomeRulesRegistry.java     # 群系规则注册表（继承 AbstractConfigRegistry）
+├── plant/PlantRegistry.java               # 中心植物注册表（继承 AbstractConfigRegistry）
+├── plant/PlantRegistryLoader.java         # 植物定义加载器（继承 AbstractJsonConfigLoader）
+└── biome/BiomeRulesRegistry.java          # 群系规则注册表（继承 AbstractConfigRegistry）
 ```
 
 ## 当前决议

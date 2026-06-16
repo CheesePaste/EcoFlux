@@ -13,6 +13,40 @@ com.cp.ecoflux/
 ├── EcofluxMod.java              # @Mod 入口，组装所有子系统
 ├── EcofluxConstants.java        # MOD_ID, LOGGER, ResourceLocation 工厂
 │
+├── api/                         # 公共 API（外部 mod 扩展点）
+│   ├── VegetationAdapterCapability.java  # 适配器能力枚举 (IS_SAPLING/HAS_STRUCTURE/...)
+│   │
+│   ├── adapter/                 # 核心扩展接口
+│   │   ├── VegetationTypeAdapter.java    # 植被类型适配器接口 (capabilities/matches/captureBirth/observe)
+│   │   ├── SaplingGrowthInterceptor.java # 树苗生长拦截扩展点
+│   │   └── TreeGrowthProfile.java        # 树种生长配置接口
+│   │
+│   ├── data/                    # 数据 record/enum
+│   │   ├── ActiveVegetationRecord.java   # 活跃植被追踪记录
+│   │   ├── VegetationObservation.java    # 观察结果 record
+│   │   ├── VegetationTransformation.java # 转换描述 record
+│   │   ├── VegetationVisualState.java    # 视觉快照 record
+│   │   └── VegetationLifecycleStage.java # 生命周期阶段枚举
+│   │
+│   ├── config/                  # 配置 record
+│   │   ├── PlantDefinition.java          # 植物定义 record
+│   │   ├── PlantSpawnRules.java          # 生成规则 record
+│   │   ├── SuccessionPathDefinition.java # 演替路径 record
+│   │   ├── ClimateCondition.java         # 气候条件 record
+│   │   ├── FloatRange.java              # 浮点范围 record
+│   │   └── IntRange.java                # 整数范围 record
+│   │
+│   ├── event/                   # NeoForge 事件（外部订阅）
+│   │   ├── VegetationLifecycleEvent.java  # 植被生命周期事件 (Born/StageChange/Death/Transformed)
+│   │   ├── SuccessionEvent.java          # 演替事件 (Evaluate/PreTransition/PreRegression/PostTransition)
+│   │   └── TreeGrowthEvent.java          # 树木生长事件 (Start/Stage/Complete)
+│   │
+│   ├── registry/                # 公开注册表
+│   │   └── TreeGrowthProfileRegistry.java # 树种注册入口 (register/find/resolveFromSapling)
+│   │
+│   └── client/                  # 客户端 API
+│       └── VisualLifecycleAdapter.java   # 客户端视觉适配器接口
+│
 ├── config/                      # 配置系统
 │   ├── AbstractConfigRegistry       # 基类：线程安全 replaceAll/get/getAll（ConcurrentHashMap + volatile）
 │   ├── AbstractJsonConfigLoader     # 基类：统一 GSON、apply() 骨架、schema_version 校验
@@ -264,6 +298,13 @@ Chunk Tick (按 prune_interval_ticks 间隔，默认 120 tick)
 
 ### 8. 渐进生长替代瞬间生长
 `SaplingBlockMixin` 和 `MushroomBlockMixin` 拦截原版瞬间生长，转由 `TreeGrowthHandler` 管理多阶段渐进生长。每个生长阶段（`ticksPerStage`）放置一部分方块，整个生长过程持续数十分钟。
+
+### 9. 公共 API 与事件系统
+所有对外稳定的接口、record、enum 位于 `com.cp.ecoflux.api` 包。外部 mod 通过以下方式集成：
+- **NeoForge 事件订阅**：`VegetationLifecycleEvent`（Born/StageChange/Death/Transformed）、`SuccessionEvent`（Evaluate/PreTransition/PreRegression/PostTransition）、`TreeGrowthEvent`（Start/Stage/Complete）
+- **TreeGrowthProfileRegistry.register()**：注册自定义树种
+- **VegetationTypeAdapter.capabilities()**：声明适配器能力（IS_SAPLING/HAS_STRUCTURE/IS_SIMPLE_PLANT/LONG_LIFECYCLE），核心代码检查能力而非检查身份
+- 核心实现类（VegetationTracker/SuccessionService/TreeGrowthHandler）不暴露给外部，外部通过事件和注册表交互
 
 ## 启动流程
 

@@ -24,7 +24,8 @@
 
 | 类 | 职责 |
 |----|------|
-| `TreeGrowthHandler` | 全局单例，管理生长会话 (NBT 持久化)，注册 11 个 profile (9 SC 树 + 2 蘑菇)，分发到 SC 或蘑菇管线 |
+| `TreeGrowthHandler` | 全局单例，管理生长会话 (NBT 持久化)，从 `TreeGrowthProfileRegistry` 解析 profile，分发到 SC 或蘑菇管线，发射 `TreeGrowthEvent` |
+| `TreeGrowthProfileRegistry` | 公开 API 注册表，管理所有 `TreeGrowthProfile`，内置 12 个原版 profile，外部 mod 可 `register()` 自定义树种 |
 | `TreeGrowthSession` | 每棵树生长状态（位置、树种、阶段、高度），NBT 可序列化，含 transient SC 数据 (scParams/stageLogs/stageLeaves) |
 | `TreeGrowthProfile` | 接口：树种标识、方块类型、is2x2、canGrowStage、growStage |
 | `SpaceColonizationProfile` | record 实现 `TreeGrowthProfile`，is2x2 标志 + 可选 PostGrowHook（红树支柱根） |
@@ -35,7 +36,7 @@
 
 ## 注册的所有 Profile
 
-`TreeGrowthHandler` 静态初始化块注册 12 个 profile：
+`TreeGrowthProfileRegistry.initBuiltin()` 注册 12 个内置 profile（由 `TreeGrowthHandler` 静态初始化块调用）：
 
 | 树种 | Profile 类型 | ticksPerStage | is2x2 | 其他 |
 |------|-------------|---------------|-------|------|
@@ -224,10 +225,24 @@ Phase.ADD: AddEcofluxTreesBiomeModifier
 | `SodiumBlockRendererMixin` | 钠模组渲染 | 钠模组兼容性 |
 | `ApplyBiomeDecorationMixin` | 世界装饰 | 装饰阶段集成 |
 
+## API 事件
+
+`TreeGrowthHandler` 在关键节点通过 NeoForge 事件总线发射 `TreeGrowthEvent`：
+
+| 事件 | 发射位置 | 时机 |
+|------|---------|------|
+| `Start` | `TreeGrowthHandler.interceptGrowth()` | session 创建后 |
+| `Stage` | `TreeGrowthHandler.tickAll()` | 每个生长阶段完成后 |
+| `Complete` | `TreeGrowthHandler.onGrowthComplete()` | 树结构记录到 chunk 数据后 |
+
+事件类位于 `com.cp.ecoflux.api.event.TreeGrowthEvent`，携带 `ServerLevel`、`BlockPos`（树苗位置）和 `TreeGrowthSession`。
+
 ## 如何添加新树种
 
+### 内置树种（修改 EcoFlux 源码）
+
 1. 在 `SpaceColonizationParams` 中添加 `xxx()` 静态工厂方法，配置 12 个参数
-2. 在 `TreeGrowthHandler` 静态初始化中用 `reg()` 注册：
+2. 在 `TreeGrowthProfileRegistry.initBuiltin()` 中用 `reg()` 注册：
    ```java
    reg(new SpaceColonizationProfile(id("xxx"), ticksPerStage, LOG, LEAVES, is2x2,
        SpaceColonizationParams.xxx(), null));  // 可选的 PostGrowHook
@@ -235,3 +250,22 @@ Phase.ADD: AddEcofluxTreesBiomeModifier
 3. 如需自定义后处理（如红树支柱根），传入 `PostGrowHook` lambda
 4. 用 `/ecoflux tree instant xxx` 反复调参测试
 5. 确保在 `plant_definitions/plants.json` 中有对应的树苗和原木条目
+
+### 外部 mod 注册（不修改 EcoFlux 源码）
+
+外部 mod 通过 `TreeGrowthProfileRegistry` 注册自定义树种：
+
+```java
+// 在 mod 初始化阶段调用（ModInit，先于 world load）
+TreeGrowthProfileRegistry.register(myCustomProfile);
+```
+
+`TreeGrowthProfileRegistry` 提供以下公开方法：
+
+| 方法 | 说明 |
+|------|------|
+| `register(TreeGrowthProfile)` | 注册新树种 profile |
+| `registerAlias(ResourceLocation alias, ResourceLocation target)` | 为已注册树种添加别名 |
+| `find(ResourceLocation key)` | 按树种 ID 查找 profile（含 minecraft 命名空间回退） |
+| `resolveFromSapling(ResourceLocation saplingId)` | 从树苗方块 ID 解析 profile（自动去除 `_sapling` 后缀） |
+| `resolveFromLog(ResourceLocation logId)` | 从原木方块 ID 解析 profile（自动去除 `_log`/`_wood`/`_stem`/`stripped_` 前缀后缀） |
