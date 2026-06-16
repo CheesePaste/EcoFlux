@@ -1,5 +1,13 @@
 {
   "mod.ecoflux.name": "Ecoflux",
   "debug.ecoflux.chunk_attachment": "Ecoflux Chunk Attachment: %s",
-  "info.ecoflux.tree_already_complete": "Tree already fully grown"
+  "info.ecoflux.tree_already_complete": "Tree already fully grown",
+
+  "key.categories.ecoflux": "Ecoflux",
+  "key.ecoflux.open_panel": "Open Succession Panel",
+  "ecoflux.panel.title": "Ecoflux Succession Panel",
+  "ecoflux.panel.tab.overview": "Overview",
+  "ecoflux.panel.tab.map": "Map",
+  "ecoflux.panel.placeholder.overview": "Succession data — WIP",
+  "ecoflux.panel.placeholder.map": "Satellite map — WIP"
 }

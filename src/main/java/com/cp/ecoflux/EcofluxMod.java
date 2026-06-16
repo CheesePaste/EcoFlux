@@ -38,9 +38,10 @@ public final class EcofluxMod {
         EcofluxBiomeModifiers.register(modEventBus);
         EcofluxFeatures.register(modEventBus);
 
-        if (net.neoforged.fml.ModList.get().isLoaded("dynamictrees")) {
-            com.cp.ecoflux.compat.dynamictrees.DTCompat.init();
-        }
+        // DT compat temporarily disabled (DT jar not available)
+        // if (net.neoforged.fml.ModList.get().isLoaded("dynamictrees")) {
+        //     com.cp.ecoflux.compat.dynamictrees.DTCompat.init();
+        // }
         modContainer.registerConfig(ModConfig.Type.SERVER, EcofluxServerConfig.SPEC, "ecoflux-server.toml");
         modContainer.registerConfig(ModConfig.Type.CLIENT, VisualLifecycleClientConfig.SPEC, "ecoflux-client.toml");
         EcofluxConstants.LOGGER.info("{} 正在初始化", modContainer.getModInfo().getDisplayName());

@@ -242,8 +242,7 @@ public final class VegetationTracker {
         // Only rebuild when the tree is dying/dead — healthy trees don't need the structure.
         // Also covers DT trees (DTTreeAdapter) whose treeStructure is never captured at birth.
         boolean isTreeRecord = record.adapterType().equals(TreeStructureAdapter.TYPE_ID)
-                || record.adapterType().equals(
-                        com.cp.ecoflux.plant.adapters.dynamictrees.DTTreeAdapter.TYPE_ID);
+                || record.adapterType().equals(ResourceLocation.fromNamespaceAndPath("ecoflux", "dt_tree"));
         boolean needsTreeStructure = isTreeRecord
                 && (record.treeStructure() == null || record.treeStructure().isEmpty());
         if (needsTreeStructure && (!observation.present() || observation.stage() == VegetationLifecycleStage.DEAD)) {

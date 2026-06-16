@@ -18,7 +18,8 @@ public abstract class AbstractConfigRegistry<K, T> {
         this.store = Map.copyOf(map);
     }
 
-    public Optional<T> get(K key) {
+    public Optional<T> get(@org.jetbrains.annotations.Nullable K key) {
+        if (key == null) return Optional.empty();
         return Optional.ofNullable(store.get(key));
     }
 

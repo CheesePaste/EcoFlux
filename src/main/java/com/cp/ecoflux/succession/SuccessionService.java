@@ -174,6 +174,9 @@ public final class SuccessionService {
             String evalResult = SuccessionEvaluator.evaluate(chunkData, path, gameTime, ignoreInterval);
             messages.add(evalResult);
 
+            // Push panel delta to players with UI open
+            com.cp.ecoflux.network.ModNetworking.pushPanelDeltaToTracking(level, chunk);
+
             if (chunkData.getProgress() >= 1.0D) {
                 messages.add(BiomeTransitionService.applyTransition(level, chunk, chunkData));
             } else if (SuccessionEvaluator.shouldRegress(chunkData)) {

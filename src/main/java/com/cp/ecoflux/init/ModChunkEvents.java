@@ -238,4 +238,18 @@ public final class ModChunkEvents {
             }
         }
     }
+
+    // ── Panel data query ─────────────────────────────────────────
+
+    /**
+     * Returns a snapshot of loaded chunk positions for the given dimension.
+     * Used by {@code PanelDataHelper} to compute global average progress.
+     */
+    public static long[] snapshotLoadedChunks(ResourceKey<Level> dim) {
+        LinkedHashSet<Long> set = ALL_LOADED_CHUNKS.get(dim);
+        if (set == null || set.isEmpty()) return new long[0];
+        synchronized (set) {
+            return set.stream().mapToLong(Long::longValue).toArray();
+        }
+    }
 }

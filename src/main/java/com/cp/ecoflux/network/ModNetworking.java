@@ -38,6 +38,7 @@ public final class ModNetworking {
         modEventBus.addListener(ModNetworking::onRegisterPayloadHandlers);
         NeoForge.EVENT_BUS.addListener(ModNetworking::onChunkSent);
         NeoForge.EVENT_BUS.addListener(ModNetworking::onChunkUnwatch);
+        NeoForge.EVENT_BUS.addListener(ModNetworking::onPlayerLoggedOut);
     }
 
     public static void syncChunkToTracking(ServerLevel level, LevelChunk chunk) {
@@ -49,10 +50,24 @@ public final class ModNetworking {
 
     private static void onRegisterPayloadHandlers(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(NETWORK_VERSION);
+
+        // Existing: vegetation visual sync
         registrar.playToClient(
                 VegetationVisualChunkSyncPayload.TYPE,
                 VegetationVisualChunkSyncPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> handleClientSync(payload)));
+
+        // Panel data: S2C
+        registrar.playToClient(
+                PanelDataPayload.TYPE,
+                PanelDataPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> handlePanelData(payload)));
+
+        // Panel data request: C2S
+        registrar.playToServer(
+                RequestPanelDataPayload.TYPE,
+                RequestPanelDataPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> handlePanelRequest(payload, context)));
     }
 
     private static void onChunkSent(ChunkWatchEvent.Sent event) {
@@ -92,6 +107,43 @@ public final class ModNetworking {
         ClientHooks.handle(payload);
     }
 
+    private static void handlePanelData(PanelDataPayload payload) {
+        if (!FMLEnvironment.dist.isClient()) {
+            return;
+        }
+        ClientHooks.handlePanelData(payload);
+    }
+
+    private static void handlePanelRequest(RequestPanelDataPayload payload, net.neoforged.neoforge.network.handling.IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer sp) {
+            if (payload.open()) {
+                PanelDataHelper.markPanelOpen(sp);
+                PacketDistributor.sendToPlayer(sp, PanelDataHelper.buildFullSync(sp));
+            } else {
+                PanelDataHelper.markPanelClosed(sp);
+            }
+        }
+    }
+
+    /**
+     * Push panel delta to all players tracking the chunk if they have the panel open.
+     */
+    public static void pushPanelDeltaToTracking(ServerLevel level, LevelChunk chunk) {
+        for (ServerPlayer sp : level.getServer().getPlayerList().getPlayers()) {
+            if (sp.serverLevel() == level && PanelDataHelper.isPanelOpen(sp)) {
+                if (sp.chunkPosition().equals(chunk.getPos())) {
+                    PanelDataHelper.pushDeltaIfOpen(sp, level, chunk);
+                }
+            }
+        }
+    }
+
+    private static void onPlayerLoggedOut(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer sp) {
+            PanelDataHelper.markPanelClosed(sp);
+        }
+    }
+
     private static final class ClientHooks {
         private ClientHooks() {
         }
@@ -101,6 +153,10 @@ public final class ModNetworking {
                     payload.dimensionId(),
                     payload.chunkPos(),
                     payload.entries());
+        }
+
+        private static void handlePanelData(PanelDataPayload payload) {
+            com.cp.ecoflux.client.key.EcofluxPanelClientEvents.handlePanelData(payload);
         }
     }
 }

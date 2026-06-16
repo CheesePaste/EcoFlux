@@ -1,5 +1,13 @@
 {
   "mod.ecoflux.name": "Ecoflux",
   "debug.ecoflux.chunk_attachment": "Ecoflux 区块附件：%s",
-  "info.ecoflux.tree_already_complete": "树木已完全长成"
+  "info.ecoflux.tree_already_complete": "树木已完全长成",
+
+  "key.categories.ecoflux": "Ecoflux",
+  "key.ecoflux.open_panel": "打开演替面板",
+  "ecoflux.panel.title": "Ecoflux 演替面板",
+  "ecoflux.panel.tab.overview": "概览",
+  "ecoflux.panel.tab.map": "地图",
+  "ecoflux.panel.placeholder.overview": "演替数据 — 开发中",
+  "ecoflux.panel.placeholder.map": "卫星图 — 开发中"
 }
