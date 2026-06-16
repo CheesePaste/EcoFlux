@@ -3,7 +3,7 @@ import csv
 from collections import defaultdict
 from pathlib import Path
 
-LOG_DIR = Path(r"D:\Projects\MCMOD\Succession\run\logs")
+LOG_DIR = Path(__file__).resolve().parent / "run" / "logs"
 CSV_VIS_ON  = LOG_DIR / "ecoflux-ticks_visual.csv"
 CSV_VIS_OFF = LOG_DIR / "ecoflux-ticks_withoutvisual.csv"
 CSV_NEW     = LOG_DIR / "ecoflux-ticks.csv"
