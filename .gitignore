@@ -29,6 +29,9 @@ bin/
 ### VS Code ###
 .vscode/
 
+### Claude Code ###
+settings.local.json
+
 ### Mac OS ###
 .DS_Store
 

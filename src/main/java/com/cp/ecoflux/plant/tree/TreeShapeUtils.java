@@ -13,6 +13,7 @@ package com.cp.ecoflux.plant.tree;
  * deterministic randomness for reproducible tree shapes across server restarts.
  */
 
+import com.cp.ecoflux.EcofluxConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -87,6 +88,8 @@ public final class TreeShapeUtils {
                 if (valid) return new BlockPos(minX, pos.getY(), minZ);
             }
         }
+        EcofluxConstants.LOGGER.debug("[Ecoflux] find2x2NWCorner FAILED at pos={} type={}. " +
+                "Checked 4 possible 2x2 formations, none had 4 matching saplings.", pos, type);
         return null;
     }
 

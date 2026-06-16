@@ -327,9 +327,20 @@ public final class SpaceColonizationGenerator {
             }
         }
 
+        // Pre-compute top log Y for 2x2 envelope bypass (Phase 2) and top cap (Phase 3)
+        int topY = 0;
+        if (is2x2) {
+            for (BlockPos p : logPositions) {
+                if (p.getY() > topY) topY = p.getY();
+            }
+        }
+
         // Phase 2: Fill remaining canopy volume around non-endpoint logs with envelope check
         for (BlockPos logPos : logPositions) {
             if (endpoints.contains(logPos)) continue; // already covered by Phase 1
+            // For 2x2 trees, bypass envelope check near trunk top so Phase 2 fills
+            // leaves around the upper trunk even when envelope density is near zero.
+            boolean nearTop = is2x2 && (logPos.getY() >= topY - 2);
             for (int dx = -radius; dx <= radius; dx++) {
                 for (int dy = -radius; dy <= radius; dy++) {
                     for (int dz = -radius; dz <= radius; dz++) {
@@ -342,15 +353,72 @@ public final class SpaceColonizationGenerator {
                         if (logSet.contains(candidate) || leafSet.contains(candidate)) continue;
                         if (!isAdjacentTo(candidate, logSet)) continue;
 
-                        double envelopeDensity = envelopeDensityAt(
-                                cx + 0.5, cy + 0.5, cz + 0.5,
-                                centerX, centerY, centerZ, rXZ, rY, type);
-                        if (envelopeDensity <= 0.01) continue;
-
-                        double prob = params.leafDensity() * envelopeDensity;
+                        double prob;
+                        if (nearTop) {
+                            prob = params.leafDensity();
+                        } else {
+                            double envelopeDensity = envelopeDensityAt(
+                                    cx + 0.5, cy + 0.5, cz + 0.5,
+                                    centerX, centerY, centerZ, rXZ, rY, type);
+                            if (envelopeDensity <= 0.01) continue;
+                            prob = params.leafDensity() * envelopeDensity;
+                        }
                         double noise = TreeShapeUtils.positionNoise(seed, cx, cy, cz);
                         if (noise < prob) {
                             leafSet.add(candidate);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Phase 3: 2x2 trunk top cap
+        // For 2x2 trees the envelope top can fall below the resolved trunk height
+        // (gap up to ~4.5 blocks for spruce), leaving the 2x2 trunk platform bare.
+        // Two-pass: first pass adjacent to logs, second pass extends upward using
+        // the LIVE leafSet (NOT a stale snapshot) so leaves at dy=N anchor dy=N+1.
+        if (is2x2) {
+            // capR: generous radius — leafRadius+2, minimum 5 for spruce coverage
+            int capR = Math.max(radius + 2, 5);
+            // Pass 1: leaves adjacent to top logs (dy 0..1)
+            for (BlockPos logPos : logPositions) {
+                if (logPos.getY() != topY) continue;
+                for (int dx = -capR; dx <= capR; dx++) {
+                    for (int dy = 0; dy <= 1; dy++) {
+                        for (int dz = -capR; dz <= capR; dz++) {
+                            int cx = logPos.getX() + dx;
+                            int cy = logPos.getY() + dy;
+                            int cz = logPos.getZ() + dz;
+                            if (cy < minLeafY) continue;
+                            BlockPos candidate = new BlockPos(cx, cy, cz);
+                            if (logSet.contains(candidate) || leafSet.contains(candidate)) continue;
+                            if (!isAdjacentTo(candidate, logSet)) continue;
+                            double noise = TreeShapeUtils.positionNoise(seed, cx, cy, cz);
+                            if (noise < params.leafDensity()) {
+                                leafSet.add(candidate);
+                            }
+                        }
+                    }
+                }
+            }
+            // Pass 2: extend upward (dy 2..capR), anchoring against the LIVE
+            // leafSet so leaves placed at dy=N can serve as anchors for dy=N+1.
+            for (BlockPos logPos : logPositions) {
+                if (logPos.getY() != topY) continue;
+                for (int dx = -capR; dx <= capR; dx++) {
+                    for (int dy = 2; dy <= capR; dy++) {
+                        for (int dz = -capR; dz <= capR; dz++) {
+                            int cx = logPos.getX() + dx;
+                            int cy = logPos.getY() + dy;
+                            int cz = logPos.getZ() + dz;
+                            if (cy < minLeafY) continue;
+                            BlockPos candidate = new BlockPos(cx, cy, cz);
+                            if (logSet.contains(candidate) || leafSet.contains(candidate)) continue;
+                            if (!isAdjacentTo(candidate, logSet) && !isAdjacentTo(candidate, leafSet)) continue;
+                            double noise = TreeShapeUtils.positionNoise(seed, cx, cy, cz);
+                            if (noise < params.leafDensity()) {
+                                leafSet.add(candidate);
+                            }
                         }
                     }
                 }

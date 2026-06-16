@@ -56,7 +56,7 @@ public final class TreeGrowthHandler {
                 SpaceColonizationParams.oak(), null));
         reg(new SpaceColonizationProfile(id("birch"), 800, Blocks.BIRCH_LOG, Blocks.BIRCH_LEAVES, false,
                 SpaceColonizationParams.birch(), null));
-        reg(new SpaceColonizationProfile(id("spruce"), 1600, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, false,
+        reg(new SpaceColonizationProfile(id("spruce_1x1"), 1400, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, false,
                 SpaceColonizationParams.spruce(), null));
         reg(new SpaceColonizationProfile(id("cherry"), 1200, Blocks.CHERRY_LOG, Blocks.CHERRY_LEAVES, false,
                 SpaceColonizationParams.cherry(), null));
@@ -71,6 +71,8 @@ public final class TreeGrowthHandler {
                 SpaceColonizationParams.jungle(), null));
         reg(new SpaceColonizationProfile(id("dark_oak"), 1200, Blocks.DARK_OAK_LOG, Blocks.DARK_OAK_LEAVES, true,
                 SpaceColonizationParams.darkOak(), null));
+        reg(new SpaceColonizationProfile(id("spruce"), 2000, Blocks.SPRUCE_LOG, Blocks.SPRUCE_LEAVES, true,
+                SpaceColonizationParams.spruce(), null));
 
         reg(new MushroomGrowthProfile(id("brown_mushroom"), 4, 7, 800,
                 Blocks.BROWN_MUSHROOM_BLOCK, MushroomGrowthProfile.MushroomCapStyle.FLAT));
@@ -112,7 +114,8 @@ public final class TreeGrowthHandler {
                 sessionPos = nwCorner;
             } else {
                 // Fall back to 1x1 variant for species that support both modes
-                profile = resolveProfile(ResourceLocation.withDefaultNamespace("jungle_1x1"));
+                String treeName = profile.treeType().getPath();
+                profile = resolveProfile(ResourceLocation.withDefaultNamespace(treeName + "_1x1"));
                 if (profile == null) return;
             }
         }
