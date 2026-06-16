@@ -17,7 +17,7 @@ import com.cp.ecoflux.init.ModCommands;
 import com.cp.ecoflux.init.ModPlayerEvents;
 import com.cp.ecoflux.init.ModReloadListeners;
 import com.cp.ecoflux.network.ModNetworking;
-import com.cp.ecoflux.test.sample.SamplingBiomeSources;
+import com.cp.ecoflux.util.sample.SamplingBiomeSources;
 import com.cp.ecoflux.worldgen.EcofluxFeatures;
 import com.cp.ecoflux.worldgen.biomemodifier.EcofluxBiomeModifiers;
 import net.neoforged.bus.api.IEventBus;

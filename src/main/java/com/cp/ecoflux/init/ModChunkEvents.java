@@ -32,7 +32,7 @@ public final class ModChunkEvents {
     private static volatile boolean globalAutoEnabled;
     /** All loaded chunks (for global-auto iteration). */
     private static final Map<ResourceKey<Level>, LinkedHashSet<Long>> ALL_LOADED_CHUNKS = new HashMap<>();
-    /** Per-chunk auto set (prototype accelerate). */
+    /** Per-chunk auto set. */
     private static final Map<ResourceKey<Level>, LinkedHashSet<Long>> AUTO_CHUNKS = new HashMap<>();
     /** Chunks with tree-structure records that need lifecycle observation. */
     private static final Map<ResourceKey<Level>, LinkedHashSet<Long>> TREE_OBSERVE_CHUNKS = new HashMap<>();

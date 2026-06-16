@@ -1,4 +1,4 @@
-package com.cp.ecoflux.test.sample;
+package com.cp.ecoflux.util.sample;
 
 import net.minecraft.world.level.biome.BiomeSource;
 

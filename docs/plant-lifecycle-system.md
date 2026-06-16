@@ -1,6 +1,12 @@
 # 植物生命周期系统
 
+> 最后更新: 2026-06-16
+
 植物生命周期系统是 Ecoflux 的统一植被管理基础设施。它提供 robust 的抽象接口，使演替系统、树木生长系统和客户端视觉层可以独立于具体植物类型运作。
+
+## 相关文档
+
+修改植物系统前必读：[plant-death-system.md](plant-death-system.md) · [tree-growth-system.md](tree-growth-system.md) · [config-system.md](config-system.md)（PlantRegistry/PlantDefinition）
 
 ## 当前状态
 

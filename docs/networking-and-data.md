@@ -1,6 +1,12 @@
 # 网络同步与数据层
 
+> 最后更新: 2026-06-16
+
 数据层负责 chunk 状态的 NBT 持久化，网络层负责将服务端植被视觉状态同步到客户端。
+
+## 相关文档
+
+修改数据/网络层前必读：[architecture.md](architecture.md) · [client-visual-system.md](client-visual-system.md)
 
 ## 数据附件 (attachment/)
 

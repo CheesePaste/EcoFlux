@@ -1,6 +1,12 @@
 # 客户端视觉系统
 
+> 最后更新: 2026-06-16
+
 客户端视觉系统负责将服务端的植被生命周期状态渲染为可视效果（缩放、着色），以及生长动画的客户端接收。
+
+## 相关文档
+
+修改客户端视觉前必读：[networking-and-data.md](networking-and-data.md) · [plant-lifecycle-system.md](plant-lifecycle-system.md)
 
 ## 定位
 

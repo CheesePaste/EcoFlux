@@ -1,4 +1,4 @@
-package com.cp.ecoflux.test.sample;
+package com.cp.ecoflux.util.sample;
 
 import com.cp.ecoflux.plant.adapters.TreeStructureAdapter;
 import com.google.gson.Gson;

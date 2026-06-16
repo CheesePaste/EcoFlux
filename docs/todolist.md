@@ -1,6 +1,12 @@
 # TODO List
 
+> 最后更新: 2026-06-16
+
 以下待办基于当前代码实现状态整理。
+
+## 相关文档
+
+[refactoring-plan.md](refactoring-plan.md)（架构重构计划）
 
 ## 近期完成 (2026-06-14/15)
 
@@ -54,7 +60,7 @@
 - [x] 群系规则配置 consuming（BiomeRules）
 - [x] 低频评估调度（evaluation_interval_ticks，EcofluxServerConfig 全局配置）
 - [x] 进度增长、衰减和回退逻辑（SuccessionEvaluator）
-- [x] 调试命令 `/ecoflux prototype step/describe/evaluate`
+- [x] 调试命令 `/ecoflux lifecycle inspect/track/observe`
 
 ## P5：群系替换与边界处理
 
@@ -67,7 +73,7 @@
 ## P6：同步、调试与兼容
 
 - [x] 客户端视觉状态同步（VegetationVisualChunkSyncPayload）
-- [x] 调试命令（/ecoflux prototype / auto / visual / lifecycle / sample / profile）
+- [x] 调试命令（/ecoflux auto / visual / lifecycle / sample）
 - [x] 钠 (Sodium) 模组兼容 mixin
 - [x] Dynamic Trees 兼容
 - [ ] GameTest 或可重复验证步骤
@@ -137,8 +143,4 @@
 
 ## 性能分析 (Performance Profiler)
 
-`test/performance/PerformanceProfiler` 提供轻量级 span 性能分析，13 个 `mixin/perf/` mixin 在关键方法注入 `push/pop`：
-
-- `/ecoflux profile on` — 开启分析
-- `/ecoflux profile off` — 关闭分析
-- `/ecoflux profile report` — 输出报告到聊天栏和 `logs/ecoflux-profile.txt`
+已移除。Tick 级别性能分析现由 `TickProfiler` 提供。

@@ -1,8 +1,12 @@
 # 植物衰老死亡系统
 
-> **状态**: 已实现 (2026-06-11)
+> 最后更新: 2026-06-16 | 状态: 已实现
 
 植物在到达 `AGING` 阶段后，应在 `expireGameTime` 时死亡，经过短暂腐烂期后从世界移除。本文档描述死亡系统的设计、实现和涉及文件。
+
+## 相关文档
+
+修改死亡系统前必读：[plant-lifecycle-system.md](plant-lifecycle-system.md) · [tree-growth-system.md](tree-growth-system.md)
 
 ## 当前状态
 

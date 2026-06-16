@@ -1,6 +1,12 @@
 # 演替核心系统
 
+> 最后更新: 2026-06-16
+
 演替核心系统编排 chunk 尺度生态演替的完整循环：初始化 → 植物生成 → 生命周期观察 → 进度评估 → 群系转换/退化。
+
+## 相关文档
+
+修改演替逻辑前必读：[config-system.md](config-system.md) · [plant-lifecycle-system.md](plant-lifecycle-system.md) · [architecture.md](architecture.md)
 
 ## 核心组件
 
@@ -137,28 +143,11 @@
 - **方块放置**: 检测是否匹配 `VegetationTypeAdapter` → 自动 `VegetationTracker.trackAt()`
 - **方块破坏**: 检测是否在 `vegetationRecords` 中 → 自动移除 + 客户端同步
 
-## PrototypeChunkController（加速演示，位于 test/prototype/）
-
-10 秒加速演替模式，用于快速验证演替循环：
-
-- 每 200 tick (~10 秒) 强制执行一次完整演替循环
-- 植物生命周期阶段被加速（数秒内完成 BORN→MATURE→AGING→DEAD）
-- 调用 `SuccessionService` 和 `BiomeTransitionService` 完成实际演替操作
-- 通过 `/ecoflux prototype start/stop` 开关
-
 ## 调试命令
 
 | 命令 | 说明 |
 |------|------|
-| `/ecoflux prototype start` | 开启加速演替模式 |
-| `/ecoflux prototype stop` | 关闭加速演替模式 |
-| `/ecoflux prototype step` | 手动触发一步演替 |
-| `/ecoflux prototype describe` | 查看当前 chunk 演替状态 |
-| `/ecoflux prototype queue` | 查看植物队列分布 |
-| `/ecoflux prototype plants` | 列出当前路径所有配置植物及权重 |
-| `/ecoflux prototype refill` | 强制重新填充队列 |
 | `/ecoflux auto` | 查看/切换自动模式状态 |
 | `/ecoflux lifecycle` | 查看生命周期信息 |
 | `/ecoflux sample [radius] [apply]` | 采样原版植物分布 |
 | `/ecoflux sample batchall [radius]` | 批量采样所有群系 |
-| `/ecoflux profile on/off/report` | 性能分析开关和报告 |

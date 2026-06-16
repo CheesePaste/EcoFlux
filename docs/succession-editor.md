@@ -1,5 +1,11 @@
 # 演替路径可视化编辑器
 
+> 最后更新: 2026-06-16
+
+## 相关文档
+
+修改编辑器前必读：[config-system.md](config-system.md)（JSON schema）
+
 构建一个**综合性可视化配置编辑器**，覆盖 Ecoflux 模组所有可配置内容，取代手写 JSON。
 
 ## 设计决策：外部 web 工具 vs 游戏内 GUI
@@ -103,9 +109,10 @@ succession-editor/
 
 ### Phase 3：BiomeRules 编辑器 + 高级编排（计划中）
 
-- [ ] BiomeRules 编辑器：可视化编辑群系植物规则（maxPlantCount, consuming, plants[]）
-- [ ] 植物池（PlantLibrary）：独立面板，定义可复用的 PlantDefinition 集合
-- [ ] 路径引用植物池而非内联植物列表
+> **注意**: 2026-06-14 重构后，`plants[]` 已从路径 JSON 移至 `biome_rules/`。编辑器不再需要内联植物列表功能。
+
+- [ ] BiomeRules 编辑器：可视化编辑群系植物规则（maxPlantCount, consuming, plants[], queueFillFactor）
+- [ ] 植物列表配置：在 BiomeRules 编辑面板中按权重编辑植物列表（不再在路径中内联）
 - [ ] PriorityRouterNode
 - [ ] 全局 DAG 预览（所有路径汇总）
 - [ ] 群系覆盖分析
@@ -130,4 +137,4 @@ npm run build   # 生产构建
 - `SuccessionConfigLoader` 无需任何修改
 - 导出格式与现有 JSON 相同（schema v1，简化的 chunk_rules）
 - 编辑器项目独立于 Minecraft mod，位于 `succession-editor/`
-- **注意**: 2026-06-14 重构后，`plants[]` 已从路径 JSON 移至 `biome_rules/`。编辑器导出的 JSON 不再包含植物列表，植物配置需要单独编辑 `biome_rules/` 文件
+- 植物配置已移至 `biome_rules/`，路径 JSON 不再包含 `plants[]`（见 Phase 3 备注）

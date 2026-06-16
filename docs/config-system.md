@@ -1,6 +1,12 @@
 # 配置系统
 
+> 最后更新: 2026-06-16
+
 配置系统负责加载、缓存和匹配演替路径定义、群系植物规则和植物定义。所有演替规则由 JSON 数据驱动，不需要硬编码。
+
+## 相关文档
+
+修改配置系统前必读：[architecture.md](architecture.md) · [succession-system.md](succession-system.md) · [refactoring-plan.md](refactoring-plan.md)（Loader/Registry 重复问题）
 
 ## 核心组件
 
@@ -280,7 +286,7 @@ Chunk 加载
 3. 确保 `source_biomes` 中的群系在 `biome_rules/` 中有对应的群系规则文件
 4. 可选：添加 `climate` 限制、`fallback_biome` 退化目标、`priority` 优先级
 5. 运行 `/reload` 或重启游戏
-6. 用 `/ecoflux prototype describe` 验证路径被正确加载
+6. 运行 `/reload` 后用 `/ecoflux lifecycle inspect <x> <y> <z>` 验证路径被正确加载
 
 ## 如何添加新群系的植物规则
 

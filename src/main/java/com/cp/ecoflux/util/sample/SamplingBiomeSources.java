@@ -1,4 +1,4 @@
-package com.cp.ecoflux.test.sample;
+package com.cp.ecoflux.util.sample;
 
 import com.mojang.serialization.MapCodec;
 import com.cp.ecoflux.EcofluxConstants;

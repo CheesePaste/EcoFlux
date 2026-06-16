@@ -1,6 +1,12 @@
 # 树木生长系统
 
+> 最后更新: 2026-06-16
+
 树木生长系统拦截原版树苗/蘑菇的瞬间生长，改为多阶段渐进生长过程。使用 **空间定殖 (Space Colonization)** 算法生成所有树种的形状，灵感来自 Dynamic Trees (ferreusveritas, MIT)。
+
+## 相关文档
+
+修改树木系统前必读：[plant-lifecycle-system.md](plant-lifecycle-system.md) · [plant-death-system.md](plant-death-system.md)
 
 ## 阶段路线图
 

@@ -1,5 +1,11 @@
 # 总体架构
 
+> 最后更新: 2026-06-16
+
+## 相关文档
+
+修改架构前必读：[config-system.md](config-system.md) · [succession-system.md](succession-system.md) · [plant-lifecycle-system.md](plant-lifecycle-system.md) · [tree-growth-system.md](tree-growth-system.md) · [client-visual-system.md](client-visual-system.md) · [networking-and-data.md](networking-and-data.md) · [plant-death-system.md](plant-death-system.md) · [refactoring-plan.md](refactoring-plan.md)
+
 ## 包结构
 
 ```
@@ -122,13 +128,7 @@ com.cp.ecoflux/
 │   ├── worldgen/
 │   │   ├── ChunkGeneratorMixin         # 使 biomeSource 可变 (采样世界)
 │   │   └── ApplyBiomeDecorationMixin   # 装饰阶段集成
-│   └── perf/                    # 13 个性能分析 mixin (HEAD/RETURN 注入)
-│
 ├── test/                        # 测试 / 工具
-│   ├── prototype/
-│   │   └── PrototypeChunkController  # 10 秒加速演替演示模式
-│   ├── performance/
-│   │   └── PerformanceProfiler       # 轻量级 span 性能分析器
 │   └── sample/
 │       ├── BiomePlantSampler         # 原版世界生成植物分布采样 + BiomeRules JSON 生成
 │       ├── SamplingBiomeSource       # 可切换单群系的 BiomeSource (采样世界)
@@ -250,7 +250,7 @@ Chunk Tick (按 prune_interval_ticks 间隔，默认 120 tick)
 所有植物追踪统一到 `vegetationRecords` (`Map<BlockPos, ActiveVegetationRecord>`)，不再有单独的 `activePlants` 系统。
 
 ### 5. 中心植物注册表 (PlantRegistry)
-植物定义 (`PlantDefinition`) 与演替路径分离：路径只通过 `PathPlantEntry(plantId, weight)` 引用植物，完整定义集中在 `data/ecoflux/plant_definitions/plants.json`。群系规则 (`BiomeRules`) 也通过 `plant_id + weight` 引用植物。
+植物定义 (`PlantDefinition`) 与演替路径分离：完整定义集中在 `data/ecoflux/plant_definitions/*.json`。植物引用仅通过群系规则 (`BiomeRules`) 中的 `PathPlantEntry(plantId, weight)` 进行；演替路径 (`SuccessionPathDefinition`) 不再携带植物列表（2026-06-14 重构后移除）。
 
 ### 6. 空间定殖驱动树木生长
 树生长使用混合算法：Dynamic Trees 风格离散方向 probMap 原木生长 + 末端叶片簇 + 包络体密度衰减。支持 1x1 和 2x2 树干，9 种树种 + 2 种蘑菇。每个树种有独立的 `SpaceColonizationParams`，通过位置确定性种子保证视觉一致性。

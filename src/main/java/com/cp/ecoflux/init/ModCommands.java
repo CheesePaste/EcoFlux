@@ -4,12 +4,9 @@ package com.cp.ecoflux.init;
  * Debug and administration commands under {@code /ecoflux}.
  *
  * <p>Structure: registers a {@code /ecoflux} command tree with subcommands for
- * prototype stepping ({@code init, status, spawn, evaluate, step, accelerate,
- * transition}), per-chunk auto processing ({@code auto on/off/status}), lifecycle
- * inspection ({@code lifecycle inspect/track/observe/untrack}), and speed control
- * ({@code speed}).
- * <p>Role in Ecoflux: interactive debugging and manual control of the succession
- * pipeline for development and testing.
+ * per-chunk auto processing ({@code auto on/off/status}), lifecycle
+ * inspection ({@code lifecycle inspect/track/observe/untrack}), speed control
+ * ({@code speed}), tree testing ({@code tree}), and biome sampling ({@code sample}).
  */
 
 import com.mojang.brigadier.arguments.FloatArgumentType;
@@ -18,29 +15,20 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.cp.ecoflux.EcofluxConstants;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
-import com.cp.ecoflux.config.biome.BiomeRulesRegistry;
 import com.cp.ecoflux.config.plant.PlantRegistry;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
 import com.cp.ecoflux.config.plant.PlantDefinition;
 import com.cp.ecoflux.network.ModNetworking;
-import com.cp.ecoflux.test.sample.ChunkGeneratorAccessor;
-import com.cp.ecoflux.test.sample.BiomePlantSampler;
-import com.cp.ecoflux.test.sample.SamplingBiomeSource;
-import com.cp.ecoflux.plant.PlantSpawner;
+import com.cp.ecoflux.util.sample.ChunkGeneratorAccessor;
+import com.cp.ecoflux.util.sample.BiomePlantSampler;
+import com.cp.ecoflux.util.sample.SamplingBiomeSource;
 import com.cp.ecoflux.plant.VegetationTracker;
 import com.cp.ecoflux.plant.tree.TreeShapeUtils;
 import com.cp.ecoflux.plant.tree.spacecolonization.SpaceColonizationGenerator;
 import com.cp.ecoflux.plant.tree.spacecolonization.SpaceColonizationParams;
-import com.cp.ecoflux.test.prototype.PrototypeChunkController;
-import com.cp.ecoflux.test.performance.PerformanceProfiler;
-import com.cp.ecoflux.util.TickProfiler;
 import com.cp.ecoflux.succession.SuccessionService;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
@@ -85,9 +73,7 @@ public final class ModCommands {
                 .then(registerAutoCommands())
                 .then(registerSpeedCommand())
                 .then(registerLifecycleCommands())
-                .then(registerPrototypeCommands())
                 .then(registerTreeCommands())
-                .then(registerProfileCommands())
                 .then(registerSampleCommands()));
     }
 
@@ -119,25 +105,6 @@ public final class ModCommands {
                 .then(Commands.literal("chunk").executes(context -> runLifecycleChunk(context.getSource())));
     }
 
-    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerPrototypeCommands() {
-        return Commands.literal("prototype")
-                .then(Commands.literal("auto")
-                        .then(Commands.literal("on").executes(context -> enableAuto(context.getSource())))
-                        .then(Commands.literal("off").executes(context -> disableAuto(context.getSource())))
-                        .then(Commands.literal("status").executes(context -> autoStatus(context.getSource()))))
-                .then(Commands.literal("init").executes(context -> runPrototype(context.getSource(), PrototypeAction.INIT)))
-                .then(Commands.literal("status").executes(context -> runPrototype(context.getSource(), PrototypeAction.STATUS)))
-                .then(Commands.literal("prune").executes(context -> runPrototype(context.getSource(), PrototypeAction.PRUNE)))
-                .then(Commands.literal("spawn").executes(context -> runPrototype(context.getSource(), PrototypeAction.SPAWN)))
-                .then(Commands.literal("evaluate").executes(context -> runPrototype(context.getSource(), PrototypeAction.EVALUATE)))
-                .then(Commands.literal("step").executes(context -> runPrototype(context.getSource(), PrototypeAction.STEP)))
-                .then(Commands.literal("accelerate").executes(context -> prototypeAccelerate(context.getSource())))
-                .then(Commands.literal("transition").executes(context -> runPrototype(context.getSource(), PrototypeAction.TRANSITION)))
-                .then(Commands.literal("queue").executes(context -> runPrototype(context.getSource(), PrototypeAction.QUEUE)))
-                .then(Commands.literal("plants").executes(context -> runPrototype(context.getSource(), PrototypeAction.PLANTS)))
-                .then(Commands.literal("refill").executes(context -> runPrototype(context.getSource(), PrototypeAction.REFILL)));
-    }
-
     private static RequiredArgumentBuilder<CommandSourceStack, Integer> positionArguments(LifecycleAction action) {
         return Commands.argument("x", IntegerArgumentType.integer())
                 .then(Commands.argument("y", IntegerArgumentType.integer())
@@ -149,60 +116,6 @@ public final class ModCommands {
                                                 IntegerArgumentType.getInteger(context, "x"),
                                                 IntegerArgumentType.getInteger(context, "y"),
                                                 IntegerArgumentType.getInteger(context, "z"))))));
-    }
-
-    private static int runPrototype(CommandSourceStack source, PrototypeAction action)
-            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        ServerLevel level = player.serverLevel();
-        LevelChunk chunk = level.getChunkAt(player.blockPosition());
-        String message = switch (action) {
-            case INIT -> {
-                SuccessionService.initializeChunk(chunk);
-                yield "已重新初始化当前区块。 " + SuccessionService.describeChunk(chunk);
-            }
-            case STATUS -> SuccessionService.describeChunk(chunk);
-            case PRUNE -> SuccessionService.pruneChunk(level, chunk) + " " + SuccessionService.describeChunk(chunk);
-            case SPAWN -> SuccessionService.spawnInChunk(level, chunk) + " " + SuccessionService.describeChunk(chunk);
-            case EVALUATE -> SuccessionService.evaluateChunk(level, chunk) + " " + SuccessionService.describeChunk(chunk);
-            case STEP -> SuccessionService.step(level, chunk) + " " + SuccessionService.describeChunk(chunk);
-            case TRANSITION -> {
-                String result = SuccessionService.forceTransition(level, chunk);
-                yield result + " " + SuccessionService.describeChunk(chunk);
-            }
-            case QUEUE -> PlantSpawner.getQueueSummary(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA));
-            case PLANTS -> {
-                var rulesOpt = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA)
-                        .getActiveBiomeRulesId()
-                        .flatMap(BiomeRulesRegistry::getRules);
-                yield rulesOpt.map(rules -> {
-                    int totalWeight = rules.plants().stream().mapToInt(p -> p.weight()).sum();
-                    String list = rules.plants().stream()
-                            .map(p -> {
-                                int pts = PlantRegistry.INSTANCE.getDefinition(p.plantId())
-                                        .map(def -> def.pointValue()).orElse(0);
-                                return p.plantId() + "(w=" + p.weight() + ",pts=" + pts + ")";
-                            })
-                            .reduce((a, b) -> a + " " + b)
-                            .orElse("无");
-                    return "群系=" + rules.biomeId() + " 植物总数=" + rules.plants().size()
-                            + " 总权重=" + totalWeight + " 植物数范围=" + rules.minPlantCount() + "~" + rules.maxPlantCount()
-                            + " 消耗=" + rules.consuming() + " [" + list + "]";
-                }).orElse("当前区块没有群系规则。");
-            }
-            case REFILL -> {
-                var rulesOpt = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA)
-                        .getActiveBiomeRulesId()
-                        .flatMap(BiomeRulesRegistry::getRules);
-                yield rulesOpt.map(rules -> {
-                    PlantSpawner.forceRefillQueue(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA), rules);
-                    return "已强制重新填充队列。 " + PlantSpawner.getQueueSummary(chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA));
-                }).orElse("当前区块没有群系规则。");
-            }
-        };
-
-        source.sendSuccess(() -> Component.literal(message), false);
-        return 1;
     }
 
     private static int runLifecycle(CommandSourceStack source, LifecycleAction action, BlockPos pos)
@@ -294,16 +207,6 @@ public final class ModCommands {
         source.sendSuccess(
                 () -> Component.literal("Ecoflux 全局自动演替当前" + (enabled ? "已开启" : "已关闭") + "。"),
                 false);
-        return 1;
-    }
-
-    private static int prototypeAccelerate(CommandSourceStack source)
-            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        ServerLevel level = player.serverLevel();
-        LevelChunk chunk = level.getChunkAt(player.blockPosition());
-        String result = PrototypeChunkController.accelerate(level, chunk);
-        source.sendSuccess(() -> Component.literal(result), false);
         return 1;
     }
 
@@ -626,68 +529,6 @@ public final class ModCommands {
         };
     }
 
-    // ── Profile commands ─────────────────────────────────────────────────
-
-    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerProfileCommands() {
-        return Commands.literal("profile")
-                .then(Commands.literal("on").executes(context -> profileOn(context.getSource())))
-                .then(Commands.literal("off").executes(context -> profileOff(context.getSource())))
-                .then(Commands.literal("status").executes(context -> profileStatus(context.getSource())))
-                .then(Commands.literal("reset").executes(context -> profileReset(context.getSource())))
-                .then(Commands.literal("report")
-                        .executes(context -> profileReport(context.getSource(), 15))
-                        .then(Commands.argument("topN", IntegerArgumentType.integer(1, 50))
-                                .executes(context -> profileReport(
-                                        context.getSource(),
-                                        IntegerArgumentType.getInteger(context, "topN")))));
-    }
-
-    private static int profileOn(CommandSourceStack source) {
-        PerformanceProfiler.INSTANCE.enable();
-        TickProfiler.INSTANCE.enable();
-        source.sendSuccess(() -> Component.literal("性能追踪已启用。CSV写入 logs/ecoflux-ticks.csv。"), true);
-        return 1;
-    }
-
-    private static int profileOff(CommandSourceStack source) {
-        PerformanceProfiler.INSTANCE.disable();
-        PerformanceProfiler.INSTANCE.reset();
-        TickProfiler.INSTANCE.disable();
-        source.sendSuccess(() -> Component.literal("性能追踪已禁用，数据已清空。"), true);
-        return 1;
-    }
-
-    private static int profileStatus(CommandSourceStack source) {
-        source.sendSuccess(() -> Component.literal(PerformanceProfiler.INSTANCE.status()), false);
-        return 1;
-    }
-
-    private static int profileReset(CommandSourceStack source) {
-        PerformanceProfiler.INSTANCE.reset();
-        source.sendSuccess(() -> Component.literal("性能追踪数据已清空。"), true);
-        return 1;
-    }
-
-    private static int profileReport(CommandSourceStack source, int topN) {
-        String report = PerformanceProfiler.INSTANCE.report(topN);
-        source.sendSuccess(() -> Component.literal(report), false);
-        com.cp.ecoflux.EcofluxConstants.LOGGER.info(report);
-        saveReportToFile(report, source);
-        return 1;
-    }
-
-    private static void saveReportToFile(String report, CommandSourceStack source) {
-        try {
-            Path logsDir = source.getServer().getServerDirectory().resolve("logs");
-            Files.createDirectories(logsDir);
-            Path file = logsDir.resolve("ecoflux-profile.txt");
-            Files.writeString(file, report, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            com.cp.ecoflux.EcofluxConstants.LOGGER.info("[Ecoflux] 性能报告已保存至: {}", file.toAbsolutePath());
-        } catch (IOException e) {
-            com.cp.ecoflux.EcofluxConstants.LOGGER.warn("[Ecoflux] 无法保存性能报告到文件", e);
-        }
-    }
-
     // ── Sample commands ─────────────────────────────────────────────────
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> registerSampleCommands() {
@@ -846,19 +687,6 @@ public final class ModCommands {
         EcofluxConstants.LOGGER.info("[Ecoflux] {}", summary);
         source.sendSuccess(() -> Component.literal(summary), true);
         return 1;
-    }
-
-    private enum PrototypeAction {
-        INIT,
-        STATUS,
-        PRUNE,
-        SPAWN,
-        EVALUATE,
-        STEP,
-        TRANSITION,
-        QUEUE,
-        PLANTS,
-        REFILL
     }
 
     private enum LifecycleAction {

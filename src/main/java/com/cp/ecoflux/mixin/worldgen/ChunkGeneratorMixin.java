@@ -1,6 +1,6 @@
 package com.cp.ecoflux.mixin.worldgen;
 
-import com.cp.ecoflux.test.sample.ChunkGeneratorAccessor;
+import com.cp.ecoflux.util.sample.ChunkGeneratorAccessor;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import org.spongepowered.asm.mixin.Final;

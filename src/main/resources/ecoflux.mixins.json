@@ -6,16 +6,6 @@
   "mixins": [
     "MushroomBlockMixin",
     "SaplingBlockMixin",
-    "perf.SuccessionServiceMixin",
-    "perf.PlantSpawnerMixin",
-    "perf.ChunkSamplingHelperMixin",
-    "perf.VegetationTrackerMixin",
-    "perf.SuccessionEvaluatorMixin",
-    "perf.BiomeTransitionServiceMixin",
-    "perf.ModChunkEventsMixin",
-    "perf.TreeGrowthHandlerMixin",
-    "perf.ModNetworkingMixin",
-    "perf.SuccessionChunkDataMixin",
     "worldgen.ApplyBiomeDecorationMixin",
     "worldgen.ChunkGeneratorMixin"
   ],

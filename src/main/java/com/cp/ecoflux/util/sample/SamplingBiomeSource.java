@@ -1,4 +1,4 @@
-package com.cp.ecoflux.test.sample;
+package com.cp.ecoflux.util.sample;
 
 import com.google.common.collect.Sets;
 import com.mojang.datafixers.util.Pair;
