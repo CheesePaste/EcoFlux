@@ -1,37 +1,27 @@
 package com.cp.ecoflux.config.biome;
 
 import com.cp.ecoflux.EcofluxConstants;
+import com.cp.ecoflux.config.AbstractConfigRegistry;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.resources.ResourceLocation;
 
-public final class BiomeRulesRegistry {
-    private static volatile Map<ResourceLocation, BiomeRules> rulesByBiome = Map.of();
+public final class BiomeRulesRegistry extends AbstractConfigRegistry<ResourceLocation, BiomeRules> {
+    private static final BiomeRulesRegistry INSTANCE = new BiomeRulesRegistry();
 
     private BiomeRulesRegistry() {}
 
-    public static synchronized void replace(Collection<BiomeRules> loaded) {
-        Map<ResourceLocation, BiomeRules> map = new ConcurrentHashMap<>();
-        for (BiomeRules rules : loaded) {
-            map.put(rules.biomeId(), rules);
-        }
-        rulesByBiome = map;
-        EcofluxConstants.LOGGER.info("群系规则注册表已加载 {} 个群系。", map.size());
+    public static void replace(Collection<BiomeRules> loaded) {
+        INSTANCE.replaceAll(loaded, BiomeRules::biomeId);
+        EcofluxConstants.LOGGER.info("群系规则注册表已加载 {} 个群系。", INSTANCE.size());
     }
 
     public static Optional<BiomeRules> getRules(ResourceLocation biomeId) {
-        return Optional.ofNullable(rulesByBiome.get(biomeId));
+        return INSTANCE.get(biomeId);
     }
 
     public static Collection<BiomeRules> getAllRules() {
-        return Collections.unmodifiableCollection(rulesByBiome.values());
-    }
-
-    public static int size() {
-        return rulesByBiome.size();
+        return INSTANCE.getAll();
     }
 }

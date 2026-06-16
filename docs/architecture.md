@@ -4,7 +4,7 @@
 
 ## 相关文档
 
-修改架构前必读：[config-system.md](config-system.md) · [succession-system.md](succession-system.md) · [plant-lifecycle-system.md](plant-lifecycle-system.md) · [tree-growth-system.md](tree-growth-system.md) · [client-visual-system.md](client-visual-system.md) · [networking-and-data.md](networking-and-data.md) · [plant-death-system.md](plant-death-system.md) · [refactoring-plan.md](refactoring-plan.md)
+修改架构前必读：[config-system.md](config-system.md) · [succession-system.md](succession-system.md) · [plant-lifecycle-system.md](plant-lifecycle-system.md) · [tree-growth-system.md](tree-growth-system.md) · [client-visual-system.md](client-visual-system.md) · [networking-and-data.md](networking-and-data.md) · [plant-death-system.md](plant-death-system.md)
 
 ## 包结构
 
@@ -14,6 +14,8 @@ com.cp.ecoflux/
 ├── EcofluxConstants.java        # MOD_ID, LOGGER, ResourceLocation 工厂
 │
 ├── config/                      # 配置系统
+│   ├── AbstractConfigRegistry       # 基类：线程安全 replaceAll/get/getAll（ConcurrentHashMap + volatile）
+│   ├── AbstractJsonConfigLoader     # 基类：统一 GSON、apply() 骨架、schema_version 校验
 │   ├── EcofluxServerConfig          # 服务端 TOML 配置
 │   ├── EcofluxBlockTags             # 方块标签常量
 │   ├── SuccessionSpeedConfig        # 全局速度倍率
@@ -21,19 +23,19 @@ com.cp.ecoflux/
 │   │
 │   ├── biome/                   # 群系植物规则
 │   │   ├── BiomeRules               # Record: biomeId, maxPlantCount, consuming, plants
-│   │   ├── BiomeRulesRegistry       # 单例：按 biomeId 缓存查找
-│   │   └── BiomeRulesLoader         # SimpleJsonResourceReloadListener，监听 biome_rules/
+│   │   ├── BiomeRulesRegistry       # 单例：继承 AbstractConfigRegistry<ResourceLocation, BiomeRules>
+│   │   └── BiomeRulesLoader         # 继承 AbstractJsonConfigLoader，监听 biome_rules/
 │   │
 │   ├── plant/                   # 植物注册表
 │   │   ├── PlantDefinition          # Record: plant_id, pointValue, maxAgeTicks, spawnRules
-│   │   ├── PlantRegistry            # 单例：中心植物注册表 (ConcurrentHashMap)
-│   │   ├── PlantRegistryLoader      # SimpleJsonResourceReloadListener，监听 plant_definitions/
+│   │   ├── PlantRegistry            # 单例：继承 AbstractConfigRegistry<ResourceLocation, PlantDefinition>
+│   │   ├── PlantRegistryLoader      # 继承 AbstractJsonConfigLoader，监听 plant_definitions/
 │   │   ├── PathPlantEntry           # Record: plant_id + weight 引用
 │   │   └── PlantSpawnRules          # Record: requireSky, maxLocalDensity, allowedBaseBlocks
 │   │
 │   ├── succession/              # 演替路径配置
-│   │   ├── SuccessionConfigLoader   # SimpleJsonResourceReloadListener，加载 succession_paths/
-│   │   ├── SuccessionConfigRegistry # 线程安全缓存，findBestMatch(biome, temp, downfall)
+│   │   ├── SuccessionConfigLoader   # 继承 AbstractJsonConfigLoader，覆盖 apply() 实现 path_id 重复检测
+│   │   ├── SuccessionConfigRegistry # 继承 AbstractConfigRegistry，额外维护 bySourceBiome 多索引
 │   │   └── SuccessionPathDefinition # Record: pathId, priority, source/target/fallback, step sizes
 │   │
 │   └── math/                    # 共享数学类型
@@ -55,6 +57,7 @@ com.cp.ecoflux/
 ├── plant/                       # 植物生命周期系统
 │   ├── VegetationTypeAdapter        # 核心接口：matches/captureBirth/observe/visualState
 │   ├── VegetationTracker            # 单例：追踪/观察/同步所有植被
+│   ├── TreeStructureManager         # 树 BFS 重建 + 渐进死亡 + 批量移除（从 Tracker 提取）
 │   ├── PlantSpawner                 # 生成/修剪：trySpawnPlant/pruneInvalid/ensureQueue
 │   ├── VegetationObservation        # Record: 观察结果
 │   ├── VegetationTransformation     # Record: 转换描述 (树苗→树)
@@ -81,6 +84,8 @@ com.cp.ecoflux/
 │
 ├── worldgen/                    # 世界生成集成
 │   ├── WorldGenVegetationScanner    # Chunk 加载时扫描原版植被 → VegetationTracker
+│   ├── MushroomScanner              # 巨型蘑菇 BFS 检测（从 WorldGenVegetationScanner 提取）
+│   ├── DensityCapper                # 密度上限裁剪（从 WorldGenVegetationScanner 提取）
 │   ├── EcofluxFeatures             # DeferredRegister: Feature/ConfiguredFeature/PlacedFeature
 │   ├── biomemodifier/
 │   │   ├── EcofluxBiomeModifiers    # DeferredRegister<BiomeModifier> 注册
@@ -128,12 +133,11 @@ com.cp.ecoflux/
 │   ├── worldgen/
 │   │   ├── ChunkGeneratorMixin         # 使 biomeSource 可变 (采样世界)
 │   │   └── ApplyBiomeDecorationMixin   # 装饰阶段集成
-├── test/                        # 测试 / 工具
-│   └── sample/
-│       ├── BiomePlantSampler         # 原版世界生成植物分布采样 + BiomeRules JSON 生成
-│       ├── SamplingBiomeSource       # 可切换单群系的 BiomeSource (采样世界)
-│       ├── SamplingBiomeSources      # DeferredRegister<BiomeSource>
-│       └── ChunkGeneratorAccessor    # Duck 接口：类型安全 biomeSource 交换
+├── util/sample/                 # 开发工具（运行时 debug）
+│   ├── BiomePlantSampler             # 原版世界生成植物分布采样 + BiomeRules JSON 生成
+│   ├── SamplingBiomeSource           # 可切换单群系的 BiomeSource (采样世界)
+│   ├── SamplingBiomeSources          # DeferredRegister<BiomeSource>
+│   └── ChunkGeneratorAccessor        # Duck 接口：类型安全 biomeSource 交换
 │
 └── util/
     └── TickProfiler              # Tick 级性能分析工具
@@ -211,9 +215,9 @@ Chunk Load (ModChunkEvents)
   │
   ├─→ WorldGenVegetationScanner.scanChunk()
   │     ├─ Phase 1: 处理 PENDING_TREES (EcofluxTreeFeature 放置的 SC 树)
-  │     ├─ Phase 1b: BFS 检测巨型蘑菇
+  │     ├─ Phase 1b: MushroomScanner BFS 检测巨型蘑菇
   │     ├─ Phase 2: 扫描简单植物 (花草/蕨/蘑菇等)
-  │     ├─ Phase 3: 密度上限裁剪 (去重过度代表的植物类型)
+  │     ├─ Phase 3: DensityCapper 密度上限裁剪 (去重过度代表的植物类型)
   │     └─ 随机化植物出生时间 (±20% 寿命变化分散死亡事件)
   │
   ▼

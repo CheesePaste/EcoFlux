@@ -1,16 +1,6 @@
 package com.cp.ecoflux.config.succession;
 
-/**
- * Thread-safe cached lookup for succession path definitions.
- *
- * <p>Structure: stores all loaded {@link SuccessionPathDefinition} instances in volatile
- * collections indexed by path ID and source biome. The primary entry point
- * {@link #findBestMatch} resolves the highest-priority path for a given biome ID,
- * temperature, and downfall value.
- * <p>Role in Ecoflux: provides O(1) path lookups for the succession service layer,
- * decoupling config storage from runtime queries.
- */
-
+import com.cp.ecoflux.config.AbstractConfigRegistry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -23,27 +13,25 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.resources.ResourceKey;
 
-public final class SuccessionConfigRegistry {
+public final class SuccessionConfigRegistry extends AbstractConfigRegistry<ResourceLocation, SuccessionPathDefinition> {
     private static final Comparator<SuccessionPathDefinition> PATH_ORDER = Comparator
             .comparingInt(SuccessionPathDefinition::priority)
             .reversed()
             .thenComparing(path -> path.pathId().toString());
 
+    private static final SuccessionConfigRegistry INSTANCE = new SuccessionConfigRegistry();
+
     private static volatile List<SuccessionPathDefinition> allPaths = List.of();
-    private static volatile Map<ResourceLocation, SuccessionPathDefinition> pathsById = Map.of();
     private static volatile Map<ResourceLocation, List<SuccessionPathDefinition>> pathsBySourceBiome = Map.of();
 
-    private SuccessionConfigRegistry() {
-    }
+    private SuccessionConfigRegistry() {}
 
     public static synchronized void replace(Collection<SuccessionPathDefinition> definitions) {
         List<SuccessionPathDefinition> sortedPaths = new ArrayList<>(definitions);
         sortedPaths.sort(PATH_ORDER);
 
-        Map<ResourceLocation, SuccessionPathDefinition> byId = new LinkedHashMap<>();
         Map<ResourceLocation, List<SuccessionPathDefinition>> bySourceBiome = new LinkedHashMap<>();
         for (SuccessionPathDefinition definition : sortedPaths) {
-            byId.put(definition.pathId(), definition);
             for (ResourceLocation sourceBiome : definition.sourceBiomes()) {
                 bySourceBiome.computeIfAbsent(sourceBiome, ignored -> new ArrayList<>()).add(definition);
             }
@@ -53,8 +41,9 @@ public final class SuccessionConfigRegistry {
         bySourceBiome.forEach((key, value) -> immutableBySource.put(key, List.copyOf(value)));
 
         allPaths = List.copyOf(sortedPaths);
-        pathsById = Map.copyOf(byId);
         pathsBySourceBiome = Map.copyOf(immutableBySource);
+
+        INSTANCE.replaceAll(sortedPaths, SuccessionPathDefinition::pathId);
     }
 
     public static List<SuccessionPathDefinition> getAllPaths() {
@@ -62,7 +51,7 @@ public final class SuccessionConfigRegistry {
     }
 
     public static Optional<SuccessionPathDefinition> getPath(ResourceLocation pathId) {
-        return Optional.ofNullable(pathId).map(pathsById::get);
+        return INSTANCE.get(pathId);
     }
 
     public static List<SuccessionPathDefinition> findMatches(ResourceLocation biomeId, double temperature, double downfall) {

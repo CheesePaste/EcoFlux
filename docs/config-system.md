@@ -6,22 +6,24 @@
 
 ## 相关文档
 
-修改配置系统前必读：[architecture.md](architecture.md) · [succession-system.md](succession-system.md) · [refactoring-plan.md](refactoring-plan.md)（Loader/Registry 重复问题）
+修改配置系统前必读：[architecture.md](architecture.md) · [succession-system.md](succession-system.md)
 
 ## 核心组件
 
 | 类 | 职责 |
 |----|------|
-| `SuccessionConfigLoader` | Gson JSON 加载器，继承 `SimpleJsonResourceReloadListener`，加载演替路径定义 |
-| `SuccessionConfigRegistry` | 线程安全缓存，提供 `findBestMatch(biome, temperature, downfall)` 查找路径 |
+| `AbstractConfigRegistry<K,T>` | 基类：线程安全的 `replaceAll(entries, keyExtractor)` + `get(key)` + `getAll()`（统一 ConcurrentHashMap + volatile 策略） |
+| `AbstractJsonConfigLoader<T>` | 基类：统一 GSON 实例、`SimpleJsonResourceReloadListener` 构造、`apply()` 骨架（stream → sort → schema_version 校验 → parseFile → onLoadComplete） |
+| `SuccessionConfigLoader` | 继承 `AbstractJsonConfigLoader`，加载演替路径定义，覆盖 `apply()` 实现 path_id 重复检测 |
+| `SuccessionConfigRegistry` | 继承 `AbstractConfigRegistry<ResourceLocation, SuccessionPathDefinition>`，额外维护 sourceBiome 多索引和 `allPaths` 排序列表，提供 `findBestMatch()` |
 | `SuccessionPathDefinition` | Record: 演替路径定义（pathId, priority, source/target/fallback biomes, climate, step sizes） |
 | `BiomeRules` | Record: 群系植物生态规则（biomeId, maxPlantCount, consuming, queueFillFactor, plants） |
-| `BiomeRulesRegistry` | 线程安全单例，`getRules(biomeId)` 返回群系规则 |
-| `BiomeRulesLoader` | `SimpleJsonResourceReloadListener`，加载 `biome_rules/` 目录 |
+| `BiomeRulesRegistry` | 继承 `AbstractConfigRegistry<ResourceLocation, BiomeRules>`，线程安全静态方法 |
+| `BiomeRulesLoader` | 继承 `AbstractJsonConfigLoader`，加载 `biome_rules/` 目录 |
 | `ClimateCondition` | Record: temperature/downfall 范围匹配 |
 | `PlantDefinition` | Record: 中心植物注册表条目 (plant_id, pointValue, maxAgeTicks, spawnRules) |
-| `PlantRegistry` | 单例：中心植物注册表，`getDefinition(plantId)` 按 ID 查找 |
-| `PlantRegistryLoader` | `SimpleJsonResourceReloadListener`，加载 `plant_definitions/` 目录 |
+| `PlantRegistry` | 继承 `AbstractConfigRegistry<ResourceLocation, PlantDefinition>`，实例单例（非静态） |
+| `PlantRegistryLoader` | 继承 `AbstractJsonConfigLoader`，加载 `plant_definitions/` 目录，一个文件可含多个植物定义 |
 | `PathPlantEntry` | Record: 植物引用 (plant_id + weight)，被 BiomeRules 和旧路径共用 |
 | `PlantSpawnRules` | Record: 生成规则 (requireSky, maxLocalDensity, allowedBaseBlocks) |
 | `FloatRange` / `IntRange` | Record: 范围工具类型（min/max） |

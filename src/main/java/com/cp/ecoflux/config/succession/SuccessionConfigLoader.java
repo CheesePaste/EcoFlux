@@ -1,18 +1,5 @@
 package com.cp.ecoflux.config.succession;
 
-/**
- * Gson-based JSON loader that hot-reloads succession path definitions.
- *
- * <p>Structure: extends {@link net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener}
- * to load JSON files from {@code data/ecoflux/succession_paths/} on startup and {@code /reload}.
- * Parses each file into a {@link SuccessionPathDefinition} record and populates
- * {@link SuccessionConfigRegistry} via {@link #apply}.
- * <p>Role in Ecoflux: bridges data-pack JSON configuration into the in-memory config registry,
- * enabling the data-driven succession path system.
- */
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -24,23 +11,39 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.cp.ecoflux.config.AbstractJsonConfigLoader;
 import com.cp.ecoflux.config.math.ClimateCondition;
 import com.cp.ecoflux.config.math.FloatRange;
+import com.cp.ecoflux.EcofluxConstants;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import org.jetbrains.annotations.Nullable;
-import com.cp.ecoflux.EcofluxConstants;
 
-public final class SuccessionConfigLoader extends SimpleJsonResourceReloadListener {
+public final class SuccessionConfigLoader extends AbstractJsonConfigLoader<SuccessionPathDefinition> {
     public static final String DIRECTORY = "succession_paths";
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     public static final SuccessionConfigLoader INSTANCE = new SuccessionConfigLoader();
 
     private SuccessionConfigLoader() {
-        super(GSON, DIRECTORY);
+        super(DIRECTORY);
+    }
+
+    @Override
+    protected String configType() {
+        return "Ecoflux 演替路径";
+    }
+
+    @Override
+    protected List<SuccessionPathDefinition> parseFile(JsonObject root, ResourceLocation fileId) {
+        return List.of(parseDefinition(fileId, root));
+    }
+
+    @Override
+    protected void onLoadComplete(List<SuccessionPathDefinition> parsed) {
+        SuccessionConfigRegistry.replace(parsed);
+        EcofluxConstants.LOGGER.info("已加载 {} 条 Ecoflux 演替路径定义", parsed.size());
+        logSourceBiomeSummary(parsed);
     }
 
     @Override
@@ -50,39 +53,30 @@ public final class SuccessionConfigLoader extends SimpleJsonResourceReloadListen
 
         jsonByFileId.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(Comparator.comparing(ResourceLocation::toString)))
-                .forEach(entry -> parseFile(entry, parsedPaths, fileIdByPathId));
+                .forEach(entry -> {
+                    try {
+                        JsonObject root = GsonHelper.convertToJsonObject(entry.getValue(), entry.getKey().toString());
+                        int schemaVersion = GsonHelper.getAsInt(root, "schema_version");
+                        if (schemaVersion != 1) {
+                            throw new JsonParseException(entry.getKey() + " 中存在不支持的 schema_version " + schemaVersion);
+                        }
+                        SuccessionPathDefinition definition = parseDefinition(entry.getKey(), root);
 
-        SuccessionConfigRegistry.replace(parsedPaths);
-        EcofluxConstants.LOGGER.info("已加载 {} 条 Ecoflux 演替路径定义", parsedPaths.size());
-        logSourceBiomeSummary(parsedPaths);
-    }
+                        ResourceLocation existingFile = fileIdByPathId.putIfAbsent(definition.pathId(), entry.getKey());
+                        if (existingFile != null) {
+                            throw new JsonParseException("重复的 path_id " + definition.pathId() + "，也声明于 " + existingFile);
+                        }
 
-    private void parseFile(
-            Map.Entry<ResourceLocation, JsonElement> entry,
-            List<SuccessionPathDefinition> parsedPaths,
-            Map<ResourceLocation, ResourceLocation> fileIdByPathId) {
-        ResourceLocation fileId = entry.getKey();
-        try {
-            JsonObject root = GsonHelper.convertToJsonObject(entry.getValue(), fileId.toString());
-            SuccessionPathDefinition definition = parseDefinition(fileId, root);
+                        parsedPaths.add(definition);
+                    } catch (RuntimeException exception) {
+                        EcofluxConstants.LOGGER.error("解析{}文件 {} 失败", configType(), entry.getKey(), exception);
+                    }
+                });
 
-            ResourceLocation existingFile = fileIdByPathId.putIfAbsent(definition.pathId(), fileId);
-            if (existingFile != null) {
-                throw new JsonParseException("重复的 path_id " + definition.pathId() + "，也声明于 " + existingFile);
-            }
-
-            parsedPaths.add(definition);
-        } catch (RuntimeException exception) {
-            EcofluxConstants.LOGGER.error("解析 Ecoflux 演替路径 {} 失败", fileId, exception);
-        }
+        onLoadComplete(parsedPaths);
     }
 
     private SuccessionPathDefinition parseDefinition(ResourceLocation fileId, JsonObject root) {
-        int schemaVersion = GsonHelper.getAsInt(root, "schema_version");
-        if (schemaVersion != 1) {
-            throw new JsonParseException(fileId + " 中存在不支持的 schema_version " + schemaVersion);
-        }
-
         JsonObject chunkRulesObject = GsonHelper.getAsJsonObject(root, "chunk_rules");
 
         return new SuccessionPathDefinition(

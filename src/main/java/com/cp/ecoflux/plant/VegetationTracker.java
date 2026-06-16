@@ -247,14 +247,14 @@ public final class VegetationTracker {
         boolean needsTreeStructure = isTreeRecord
                 && (record.treeStructure() == null || record.treeStructure().isEmpty());
         if (needsTreeStructure && (!observation.present() || observation.stage() == VegetationLifecycleStage.DEAD)) {
-            TreeStructure rebuilt = rebuildTreeStructure(level, pos);
+            TreeStructure rebuilt = TreeStructureManager.rebuild(level, pos);
             record = record.withTreeStructure(rebuilt);
             chunkData.trackVegetation(record);
         }
 
         if (!observation.present()) {
             if (record.treeStructure() != null && !record.treeStructure().isEmpty()) {
-                removeAllTreeBlocks(level, chunkData, pos, record.treeStructure());
+                TreeStructureManager.removeAllBlocks(level, chunkData, pos, record.treeStructure());
                 return new ObserveResult(
                         "已观察 " + pos + "：树木结构完全腐烂，方块已移除。",
                         true, false, false);
@@ -272,7 +272,7 @@ public final class VegetationTracker {
         if (observation.stage() == VegetationLifecycleStage.DEAD
                 && record.treeStructure() != null
                 && !record.treeStructure().isEmpty()) {
-            TreeStructure reduced = processTreeDeath(level, record.treeStructure());
+            TreeStructure reduced = TreeStructureManager.processDeath(level, record.treeStructure());
             if (reduced.isEmpty()) {
                 chunkData.removeVegetation(pos);
                 return new ObserveResult(
@@ -337,113 +337,6 @@ public final class VegetationTracker {
         return removed == null
                 ? "位置 " + pos + " 跳过取消追踪：没有已追踪植被记录。"
                 : "已取消追踪位置 " + pos + " 的植被。";
-    }
-
-    /**
-     * Rebuilds a TreeStructure from world blocks via BFS from the root position.
-     * Used when TreeStructure was not persisted to NBT (on chunk reload).
-     * Traverses only LOGS and LEAVES blocks, bounded to prevent runaway in dense forests.
-     */
-    private static final int REBUILD_BFS_MAX = 3000;
-
-    private TreeStructure rebuildTreeStructure(ServerLevel level, BlockPos rootPos) {
-        Set<BlockPos> logs = new LinkedHashSet<>();
-        Set<BlockPos> leaves = new LinkedHashSet<>();
-        java.util.Queue<BlockPos> queue = new java.util.ArrayDeque<>();
-        Set<BlockPos> visited = new HashSet<>();
-
-        queue.add(rootPos);
-        visited.add(rootPos);
-
-        while (!queue.isEmpty() && visited.size() < REBUILD_BFS_MAX) {
-            BlockPos pos = queue.poll();
-            BlockState state = level.getBlockState(pos);
-
-            boolean isLog = state.is(BlockTags.LOGS);
-            boolean isLeaf = state.is(BlockTags.LEAVES);
-
-            if (isLog) {
-                logs.add(pos);
-            } else if (isLeaf) {
-                leaves.add(pos);
-            } else if (!pos.equals(rootPos)) {
-                continue;
-            }
-
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    for (int dz = -1; dz <= 1; dz++) {
-                        if (dx == 0 && dy == 0 && dz == 0) continue;
-                        BlockPos neighbor = pos.offset(dx, dy, dz);
-                        if (visited.add(neighbor)) {
-                            queue.add(neighbor);
-                        }
-                    }
-                }
-            }
-        }
-
-        if (logs.isEmpty() && leaves.isEmpty()) {
-            return new TreeStructure(new long[0], new long[0]);
-        }
-        return new TreeStructure(
-                logs.stream().mapToLong(BlockPos::asLong).toArray(),
-                leaves.stream().mapToLong(BlockPos::asLong).toArray());
-    }
-
-    private TreeStructure processTreeDeath(ServerLevel level, TreeStructure ts) {
-        long[] leaves = ts.leafPositions();
-        long[] logs = ts.logPositions();
-        int maxRemove = Math.max(1, (leaves.length + logs.length) / 48);
-
-        if (leaves.length > 0) {
-            int removeLeaves = Math.min(maxRemove, leaves.length);
-            for (int i = 0; i < removeLeaves; i++) {
-                BlockPos leafPos = BlockPos.of(leaves[i]);
-                BlockState leafState = level.getBlockState(leafPos);
-                if (leafState.is(BlockTags.LEAVES)) {
-                    level.destroyBlock(leafPos, false);
-                }
-            }
-            long[] remainingLeaves = new long[leaves.length - removeLeaves];
-            System.arraycopy(leaves, removeLeaves, remainingLeaves, 0, remainingLeaves.length);
-            return new TreeStructure(logs, remainingLeaves);
-        }
-
-        if (logs.length > 0) {
-            int removeLogs = Math.min(maxRemove, logs.length);
-            for (int i = 0; i < removeLogs; i++) {
-                BlockPos logPos = BlockPos.of(logs[i]);
-                BlockState logState = level.getBlockState(logPos);
-                if (logState.is(BlockTags.LOGS)) {
-                    level.destroyBlock(logPos, false);
-                }
-            }
-            long[] remainingLogs = new long[logs.length - removeLogs];
-            System.arraycopy(logs, removeLogs, remainingLogs, 0, remainingLogs.length);
-            return new TreeStructure(remainingLogs, new long[0]);
-        }
-
-        return ts;
-    }
-
-    private void removeAllTreeBlocks(ServerLevel level, SuccessionChunkData chunkData,
-                                      BlockPos recordPos, TreeStructure ts) {
-        for (long packed : ts.leafPositions()) {
-            BlockPos pos = BlockPos.of(packed);
-            if (!level.getBlockState(pos).isAir()) {
-                level.destroyBlock(pos, false);
-            }
-            chunkData.removeVegetation(pos);
-        }
-        for (long packed : ts.logPositions()) {
-            BlockPos pos = BlockPos.of(packed);
-            if (!level.getBlockState(pos).isAir()) {
-                level.destroyBlock(pos, false);
-            }
-            chunkData.removeVegetation(pos);
-        }
-        chunkData.removeVegetation(recordPos);
     }
 
     public String describeChunk(LevelChunk chunk) {

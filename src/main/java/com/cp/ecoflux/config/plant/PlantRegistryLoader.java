@@ -1,56 +1,42 @@
 package com.cp.ecoflux.config.plant;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.cp.ecoflux.EcofluxConstants;
+import com.cp.ecoflux.config.AbstractJsonConfigLoader;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManager;
-import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.GsonHelper;
-import net.minecraft.util.profiling.ProfilerFiller;
 
-public final class PlantRegistryLoader extends SimpleJsonResourceReloadListener {
+public final class PlantRegistryLoader extends AbstractJsonConfigLoader<PlantDefinition> {
     public static final String DIRECTORY = "plant_definitions";
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     public static final PlantRegistryLoader INSTANCE = new PlantRegistryLoader();
 
     private PlantRegistryLoader() {
-        super(GSON, DIRECTORY);
+        super(DIRECTORY);
     }
 
     @Override
-    protected void apply(Map<ResourceLocation, JsonElement> jsonByFileId, ResourceManager resourceManager, ProfilerFiller profiler) {
-        List<PlantDefinition> allPlants = new ArrayList<>();
+    protected String configType() {
+        return "植物定义";
+    }
 
-        jsonByFileId.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey(Comparator.comparing(ResourceLocation::toString)))
-                .forEach(entry -> {
-                    try {
-                        JsonObject root = GsonHelper.convertToJsonObject(entry.getValue(), entry.getKey().toString());
-                        int schemaVersion = GsonHelper.getAsInt(root, "schema_version");
-                        if (schemaVersion != 1) {
-                            throw new JsonParseException(entry.getKey() + " 中存在不支持的 schema_version " + schemaVersion);
-                        }
-                        JsonArray plantsArray = GsonHelper.getAsJsonArray(root, "plants");
-                        for (JsonElement element : plantsArray) {
-                            JsonObject plantObject = GsonHelper.convertToJsonObject(element, "plant");
-                        allPlants.add(parsePlantDefinition(plantObject));
-                        }
-                    } catch (RuntimeException exception) {
-                        EcofluxConstants.LOGGER.error("解析植物定义文件 {} 失败", entry.getKey(), exception);
-                    }
-                });
+    @Override
+    protected List<PlantDefinition> parseFile(JsonObject root, ResourceLocation fileId) {
+        JsonArray plantsArray = GsonHelper.getAsJsonArray(root, "plants");
+        List<PlantDefinition> plants = new ArrayList<>();
+        for (JsonElement element : plantsArray) {
+            JsonObject plantObject = GsonHelper.convertToJsonObject(element, "plant");
+            plants.add(parsePlantDefinition(plantObject));
+        }
+        return plants;
+    }
 
-        PlantRegistry.INSTANCE.reload(allPlants);
+    @Override
+    protected void onLoadComplete(List<PlantDefinition> parsed) {
+        PlantRegistry.INSTANCE.reload(parsed);
     }
 
     private PlantDefinition parsePlantDefinition(JsonObject plantObject) {

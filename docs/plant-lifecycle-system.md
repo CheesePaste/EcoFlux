@@ -121,6 +121,8 @@ public interface VegetationTypeAdapter {
 | `untrack(level, pos)` | 移除追踪 |
 | `syncChunkToTracking(level, chunkPos)` | 构建视觉快照同步给客户端 |
 
+树结构相关的 BFS 重建、渐进死亡和批量移除逻辑已提取到 `TreeStructureManager`。
+
 ### VegetationObservation
 
 观察结果对象，包含：
@@ -154,10 +156,17 @@ public interface VegetationTypeAdapter {
 Chunk 加载时（`ModChunkEvents.onChunkLoad`），`WorldGenVegetationScanner` 分三个阶段扫描和注册世界生成的植被：
 
 1. **Phase 1**: 消费 `EcofluxTreeFeature.PENDING_TREES`（decoration→chunk-load 桥接），将世界生成阶段放置的 SC 树注册到 VegetationTracker
-2. **Phase 1b**: BFS 检测巨型蘑菇（棕色/红色蘑菇方块连通组件）
+2. **Phase 1b**: 通过 `MushroomScanner` BFS 检测巨型蘑菇（棕色/红色蘑菇方块连通组件）
 3. **Phase 2**: 扫描小型植物（花草/蕨/小蘑菇/枯灌木/高草丛），通过 adapters 匹配并注册
-4. **Phase 3**: 密度上限裁剪，移除过度代表的植物类型，使每区块植物数不超过 `BiomeRules.maxPlantCount`
+4. **Phase 3**: 通过 `DensityCapper` 密度上限裁剪，移除过度代表的植物类型，使每区块植物数不超过 `BiomeRules.maxPlantCount`
 5. 随机化植物出生时间（±20% 寿命变化）以分散死亡事件
+
+### 提取的辅助类
+
+| 类 | 职责 |
+|----|------|
+| `MushroomScanner` | BFS 检测巨型蘑菇连通组件、蘑菇盖类型推断、最低点查找 |
+| `DensityCapper` | `buildDeviationMap()` 计算植物类型偏差 + `cap()` 权重裁剪 |
 
 ## 与树木生长系统的关系
 
@@ -211,6 +220,7 @@ AGING → DEAD → 树叶先腐烂 → 原木后消失
 plant/
 ├── VegetationTypeAdapter.java        # 核心接口
 ├── VegetationTracker.java            # 统一追踪器（单例）
+├── TreeStructureManager.java         # 树 BFS 重建 + 渐进死亡 + 批量移除
 ├── PlantSpawner.java                 # 植物生成与修剪
 ├── VegetationObservation.java        # 观察结果 record
 ├── VegetationTransformation.java     # 转换描述 record
@@ -222,16 +232,18 @@ plant/
 └── TreeStructureAdapter.java         # 成熟树适配器
 
 worldgen/
-└── WorldGenVegetationScanner.java    # 世界生成植被扫描器
+├── WorldGenVegetationScanner.java    # 世界生成植被扫描器
+├── MushroomScanner.java              # 巨型蘑菇 BFS 检测
+└── DensityCapper.java                # 密度上限裁剪
 
 init/
 ├── ModPlayerEvents.java              # 玩家放置/破坏 → VegetationTracker
 └── ModChunkEvents.java               # Chunk tick → observeChunk + prune + WorldGenScanner
 
 config/
-├── plant/PlantRegistry.java          # 中心植物注册表
-├── plant/PlantRegistryLoader.java    # 植物定义加载器
-└── biome/BiomeRulesRegistry.java     # 群系规则注册表
+├── plant/PlantRegistry.java          # 中心植物注册表（继承 AbstractConfigRegistry）
+├── plant/PlantRegistryLoader.java    # 植物定义加载器（继承 AbstractJsonConfigLoader）
+└── biome/BiomeRulesRegistry.java     # 群系规则注册表（继承 AbstractConfigRegistry）
 ```
 
 ## 当前决议

@@ -15,7 +15,7 @@
 4. **必须编译通过。** `./gradlew build` 失败 = 工作未完成。
 5. **理解目的再修改。** 返回 `0xFFFFFF` 的颜色处理器可能看起来是 bug——先搞清楚处理器为什么存在、要达成什么，再修边界情况。
 6. **读文档再编码。** 修改某子系统前，先读 `docs/` 中对应文档。文档告诉你 WHY，代码只告诉你 WHAT。
-7. **变更后立即更新 CLAUDE.md 和 docs/。** 过时文档比没有更糟。
+7. **变更后立即更新 docs/。** 过时文档比没有更糟。CLAUDE.md严格控制行数，非关键内容不加入其中。
 
 ## Build Commands
 
@@ -47,6 +47,16 @@ network/        网络同步（VegetationVisualChunkSyncPayload）
 init/           入口：ModCommands, ModChunkEvents, ModAttachments, ModReloadListeners
 ```
 
+## Service Dependencies
+```
+PlantRegistry (无依赖)
+  → SaplingAdapter, SimplePlantAdapter, TreeStructureAdapter
+    → VegetationTracker(adapters)
+      → TreeGrowthHandler
+
+DTTreeAdapter 通过 tracker.addAdapter() 动态注入，不参与静态初始化。
+```
+
 ## Doc Reading Rules
 
 **修改代码前必须读对应文档。** 这些规则优先级高于架构总览。
@@ -62,7 +72,6 @@ init/           入口：ModCommands, ModChunkEvents, ModAttachments, ModReloadL
 | 修改 NBT 序列化/网络包 | `@docs/networking-and-data.md` |
 | 修改植物死亡/腐烂 | `@docs/plant-death-system.md` |
 | 修改命令 | `@docs/architecture.md`（init 章节） |
-| 了解技术债务 | `@docs/refactoring-plan.md` |
 
 ## Key Design Decisions
 
