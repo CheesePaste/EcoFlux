@@ -27,7 +27,7 @@ sourceSets.main.resources {
 }
 
 repositories {
-    // Add here additional repositories if required by some of the dependencies below.
+    flatDir { dirs 'libs' }
 }
 
 base {
@@ -119,6 +119,9 @@ configurations {
 }
 
 dependencies {
+    // Dynamic Trees — optional compat, compileOnly
+    compileOnly "blank:dynamictrees-neoforge-1.21.1:1.7.2"
+
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
     // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"

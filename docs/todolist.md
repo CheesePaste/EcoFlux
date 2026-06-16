@@ -69,7 +69,7 @@
 - [x] 客户端视觉状态同步（VegetationVisualChunkSyncPayload）
 - [x] 调试命令（/ecoflux prototype / auto / visual / lifecycle / sample / profile）
 - [x] 钠 (Sodium) 模组兼容 mixin
-- [ ] Dynamic Trees 兼容
+- [x] Dynamic Trees 兼容
 - [ ] GameTest 或可重复验证步骤
 
 ---

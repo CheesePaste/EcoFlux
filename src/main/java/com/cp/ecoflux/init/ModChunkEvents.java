@@ -5,6 +5,7 @@ import com.cp.ecoflux.attachment.ActiveVegetationRecord;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.EcofluxServerConfig;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
+import com.cp.ecoflux.plant.adapters.TreeStructureAdapter;
 import com.cp.ecoflux.worldgen.WorldGenVegetationScanner;
 import com.cp.ecoflux.worldgen.feature.EcofluxTreeFeature;
 import com.cp.ecoflux.plant.tree.TreeGrowthHandler;
@@ -26,6 +27,8 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 public final class ModChunkEvents {
     private static final int TREE_GROWTH_TICK_INTERVAL = 20;
+    private static final net.minecraft.resources.ResourceLocation DT_TREE_TYPE_ID =
+            com.cp.ecoflux.EcofluxConstants.id("dt_tree");
     private static volatile boolean globalAutoEnabled;
     /** All loaded chunks (for global-auto iteration). */
     private static final Map<ResourceKey<Level>, LinkedHashSet<Long>> ALL_LOADED_CHUNKS = new HashMap<>();
@@ -207,7 +210,8 @@ public final class ModChunkEvents {
                 SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
                 boolean hasTreeRecords = false;
                 for (ActiveVegetationRecord record : new ArrayList<>(chunkData.getVegetationRecords().values())) {
-                    if (com.cp.ecoflux.plant.TreeStructureAdapter.TYPE_ID.equals(record.adapterType())) {
+                    if (TreeStructureAdapter.TYPE_ID.equals(record.adapterType())
+                            || DT_TREE_TYPE_ID.equals(record.adapterType())) {
                         hasTreeRecords = true;
                         com.cp.ecoflux.plant.VegetationTracker.INSTANCE.observeTracked(level, chunk, record.position());
                     }

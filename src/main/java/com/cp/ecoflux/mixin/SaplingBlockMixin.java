@@ -3,19 +3,18 @@ package com.cp.ecoflux.mixin;
 /**
  * Server-side mixin intercepting {@code SaplingBlock.advanceTree()}.
  *
- * <p>Structure: {@code @Inject} at {@code HEAD} with {@code cancellable = true}.
- * When the sapling is tracked by Ecoflux and gradual tree growth is enabled,
- * cancels vanilla instant growth and delegates to
- * {@code TreeGrowthHandler} for staged growth.
- * <p>Role in Ecoflux: replaces vanilla instant tree growth with the mod's
- * multi-stage growth system on the server side.
+ * <p>Iterates registered {@code SaplingGrowthInterceptor}s (registered by
+ * compatibility layers like DT). The first interceptor to return {@code true}
+ * cancels vanilla growth. If none match, falls through to EcoFlux's own
+ * {@code TreeGrowthHandler} for tracked saplings.
  */
 
 import com.cp.ecoflux.attachment.ActiveVegetationRecord;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.EcofluxServerConfig;
 import com.cp.ecoflux.init.ModAttachments;
-import com.cp.ecoflux.plant.SaplingAdapter;
+import com.cp.ecoflux.plant.adapters.SaplingAdapter;
+import com.cp.ecoflux.plant.SaplingGrowthInterceptors;
 import com.cp.ecoflux.plant.tree.TreeGrowthHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -43,6 +42,13 @@ public abstract class SaplingBlockMixin {
             return;
         }
 
+        // Try registered external interceptors (DT, etc.)
+        if (SaplingGrowthInterceptors.tryIntercept(level, pos, state)) {
+            ci.cancel();
+            return;
+        }
+
+        // EcoFlux gradual tree growth for tracked saplings
         LevelChunk chunk = level.getChunkAt(pos);
         SuccessionChunkData data = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
         ActiveVegetationRecord record = data.getVegetationRecords().get(pos);

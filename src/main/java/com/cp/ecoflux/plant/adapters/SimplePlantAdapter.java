@@ -1,13 +1,17 @@
-package com.cp.ecoflux.plant;
+package com.cp.ecoflux.plant.adapters;
 
 import com.cp.ecoflux.EcofluxConstants;
 import com.cp.ecoflux.attachment.ActiveVegetationRecord;
-import com.cp.ecoflux.config.EcofluxBlockTags;
+import com.cp.ecoflux.config.plant.EcofluxBlockTags;
 import com.cp.ecoflux.config.EcofluxServerConfig;
 import com.cp.ecoflux.config.plant.PlantDefinition;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
 import java.util.Random;
+
+import com.cp.ecoflux.plant.VegetationLifecycleStage;
+import com.cp.ecoflux.plant.VegetationObservation;
+import com.cp.ecoflux.plant.VegetationVisualState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;

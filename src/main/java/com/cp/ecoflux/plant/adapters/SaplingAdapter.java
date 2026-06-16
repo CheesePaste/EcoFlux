@@ -1,4 +1,4 @@
-package com.cp.ecoflux.plant;
+package com.cp.ecoflux.plant.adapters;
 
 import com.cp.ecoflux.EcofluxConstants;
 import com.cp.ecoflux.attachment.ActiveVegetationRecord;
@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.Random;
 
 import com.cp.ecoflux.config.plant.PlantSpawnRules;
+import com.cp.ecoflux.plant.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;

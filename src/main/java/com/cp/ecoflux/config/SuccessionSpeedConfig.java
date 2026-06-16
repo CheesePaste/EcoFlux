@@ -1,5 +1,7 @@
 package com.cp.ecoflux.config;
 
+import java.util.concurrent.CopyOnWriteArrayList;
+
 /**
  * Global succession speed multiplier for accelerated or slowed transitions.
  *
@@ -11,6 +13,7 @@ package com.cp.ecoflux.config;
 
 public final class SuccessionSpeedConfig {
     private static volatile float speedMultiplier = 1.0f;
+    private static final CopyOnWriteArrayList<Runnable> listeners = new CopyOnWriteArrayList<>();
 
     private SuccessionSpeedConfig() {}
 
@@ -20,5 +23,13 @@ public final class SuccessionSpeedConfig {
 
     public static void setSpeedMultiplier(float multiplier) {
         speedMultiplier = Math.max(0.1f, Math.min(1000.0f, multiplier));
+        for (Runnable listener : listeners) {
+            listener.run();
+        }
+    }
+
+    /** Register a callback invoked whenever the speed multiplier changes. */
+    public static void addListener(Runnable listener) {
+        listeners.add(listener);
     }
 }

@@ -1,4 +1,4 @@
-package com.cp.ecoflux.config;
+package com.cp.ecoflux.config.plant;
 
 import com.cp.ecoflux.EcofluxConstants;
 import net.minecraft.core.registries.Registries;

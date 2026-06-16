@@ -9,6 +9,10 @@ import com.cp.ecoflux.config.plant.PlantSpawnRules;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
 import com.cp.ecoflux.network.ModNetworking;
 import com.cp.ecoflux.network.VegetationVisualSyncEntry;
+import com.cp.ecoflux.plant.adapters.SaplingAdapter;
+import com.cp.ecoflux.plant.adapters.SimplePlantAdapter;
+import com.cp.ecoflux.plant.adapters.TreeStructureAdapter;
+import com.cp.ecoflux.plant.adapters.VegetationTypeAdapter;
 import com.cp.ecoflux.util.TickProfiler;
 
 import java.util.*;
@@ -23,15 +27,19 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class VegetationTracker {
-    public static final VegetationTracker INSTANCE = new VegetationTracker(List.of(
+    public static final VegetationTracker INSTANCE = new VegetationTracker(new ArrayList<>(List.of(
             SaplingAdapter.INSTANCE,
             TreeStructureAdapter.INSTANCE,
-            SimplePlantAdapter.INSTANCE));
+            SimplePlantAdapter.INSTANCE)));
 
     private final List<VegetationTypeAdapter> adapters;
 
     public VegetationTracker(List<VegetationTypeAdapter> adapters) {
-        this.adapters = List.copyOf(adapters);
+        this.adapters = adapters;
+    }
+
+    public void addAdapter(VegetationTypeAdapter adapter) {
+        adapters.add(adapter);
     }
 
     public List<VegetationTypeAdapter> adapters() {
@@ -203,6 +211,19 @@ public final class VegetationTracker {
         if (record.adapterType().equals(SaplingAdapter.TYPE_ID)) {
             long saplingAge = (long) ((level.getGameTime() - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
             if (saplingAge >= 1200L) {
+                BlockState currentState = level.getBlockState(pos);
+
+                // If an external interceptor (DT, etc.) handles this sapling type,
+                // trigger growth now (important at high speed multipliers).
+                // DTEventHandler.onTransitionSaplingToTree handles all record
+                // mutations synchronously — this method does NOT touch records.
+                if (SaplingGrowthInterceptors.canHandle(currentState)) {
+                    SaplingGrowthInterceptors.tryIntercept(level, pos, currentState);
+                    return new ObserveResult(
+                            "树苗成熟，已由外部拦截器接管。位置=" + pos,
+                            false, true, true);
+                }
+
                 var handler = com.cp.ecoflux.plant.tree.TreeGrowthHandler.INSTANCE;
                 if (handler.findSessionForSapling(level, pos) == null) {
                     handler.interceptGrowth(level, pos, record);
@@ -219,7 +240,10 @@ public final class VegetationTracker {
 
         // Lazily rebuild TreeStructure for tree records loaded from NBT (no longer persisted).
         // Only rebuild when the tree is dying/dead — healthy trees don't need the structure.
-        boolean isTreeRecord = record.adapterType().equals(TreeStructureAdapter.TYPE_ID);
+        // Also covers DT trees (DTTreeAdapter) whose treeStructure is never captured at birth.
+        boolean isTreeRecord = record.adapterType().equals(TreeStructureAdapter.TYPE_ID)
+                || record.adapterType().equals(
+                        com.cp.ecoflux.plant.adapters.dynamictrees.DTTreeAdapter.TYPE_ID);
         boolean needsTreeStructure = isTreeRecord
                 && (record.treeStructure() == null || record.treeStructure().isEmpty());
         if (needsTreeStructure && (!observation.present() || observation.stage() == VegetationLifecycleStage.DEAD)) {

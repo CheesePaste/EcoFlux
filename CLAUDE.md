@@ -105,7 +105,7 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 ### Mixins (`mixin/`)
 - `client/BlockRenderDispatcherMixin` — Client-side: suppresses vanilla block render for visually-tracked blocks with non-1.0 scale
-- `SaplingBlockMixin` — Server-side: intercepts `SaplingBlock.advanceTree()`, cancels vanilla instant tree growth for Ecoflux-tracked saplings (delegates to `TreeGrowthHandler`)
+- `SaplingBlockMixin` — Server-side: intercepts `SaplingBlock.advanceTree()`. Iterates registered `SaplingGrowthInterceptor`s first (compat layers), then falls back to `TreeGrowthHandler` for Ecoflux-tracked saplings. This is the **only** caller of `tryGrowSapling()` — the observation pipeline uses `canHandle()` instead (pure query, no side effects)
 - `worldgen/ChunkGeneratorMixin` — Server-side: makes `biomeSource` field mutable for batch sampling world. Implements `ChunkGeneratorAccessor` duck interface for type-safe biome source swapping at runtime
 - `perf/*` — 13 profiling mixins that inject `PerformanceProfiler.push/pop` at HEAD/RETURN of key methods. Zero-cost when profiling is disabled. All in `mixin/perf/` for easy removal
 
@@ -137,6 +137,13 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 - `EcofluxConstants` — `MOD_ID = "ecoflux"`, logger, `ResourceLocation` factory method
 - `EcofluxMod` — `@Mod` entry point, wires all subsystems in constructor
 
+### Compatibility layer (`compat/dynamictrees/`)
+- `DTCompat` — Detection + initialization. Registers `DTSaplingHandler` as a `SaplingGrowthInterceptor`. `canHandle()` checks DT config + `SAPLING_REPLACERS` map (pure query, no side effects). `tryGrowSapling()` triggers DT growth — called only from `SaplingBlockMixin`. EcoFlux record management (sapling→tree) is handled entirely by `DTEventHandler.onTransitionSaplingToTree` listening to DT's `TransitionSaplingToTreeEvent` — no record mutation in the interceptor
+- `DTEventHandler` — Listens to `SpeciesPostGenerationEvent` (worldgen trees) and `TransitionSaplingToTreeEvent` (sapling-grown trees) on NeoForge event bus, registers DT trees in `VegetationTracker`
+- `DTTreeAdapter` — `VegetationTypeAdapter` recognizing DT tree part blocks (branches, leaves, rooty dirt). Tracks lifecycle (MATURE→AGING→DEAD) based on `PlantDefinition.maxAgeTicks()`. Maps DT species to Ecoflux plant IDs via `DTSpeciesMapping`
+- `DTSpeciesMapping` — Resolves DT `Species` → Ecoflux `PlantDefinition`: (1) primitive log block ID, (2) species name heuristic, (3) common species fallback, (4) oak_log default
+- When DT is loaded: `AddEcofluxTreesBiomeModifier` / `CancelVanillaTreesBiomeModifier` / `SaplingBlockMixin` / `TreeGrowthHandler.interceptGrowth()` all return early; `WorldGenVegetationScanner` skips Phase 1
+
 ## Key Design Decisions
 
 1. **Data-driven paths + biome rules**: Succession paths define source→target biome transitions with priority, climate matching, and step sizes. Biome-level plant ecosystem config (plant list, weights, max density, consumption threshold, queue fill factor) lives in separate `biome_rules/` JSON files. Evaluation interval is global in `EcofluxServerConfig`.
@@ -151,10 +158,12 @@ The most architecturally mature subsystem. Uses an **adapter pattern**:
 
 6. **BiomeModifier-based tree generation**: Vanilla tree features are cancelled at the biome level during `Phase.REMOVE` (all decoration stages, recursive feature-config unwrapping), and custom SC trees are added during `Phase.ADD` via `EcofluxTreeFeature`. The decoration→chunk-load bridge uses a `static PENDING_TREES` map: trees are placed during decoration (`WorldGenLevel.setBlock()`), and their structures are consumed by `WorldGenVegetationScanner` during `ChunkEvent.Load` for lifecycle tracking. This eliminates the old post-hoc BFS-based tree replacement + deferred neighbor-waiting system, solving forest server performance issues and cross-chunk tree boundary problems at the correct architectural layer.
 
+7. **Dynamic Trees compatibility (2026-06-16, refactored 2026-06-16)**: Two-phase sapling interception: `SaplingGrowthInterceptor.canHandle()` is a pure query (no side effects), used by the observation pipeline to skip EcoFlux growth triggers when DT owns the sapling. `tryGrowSapling()` performs actual growth and is called only from `SaplingBlockMixin`. Record management (sapling→tree) is handled exclusively by `DTEventHandler.onTransitionSaplingToTree` via DT's `TransitionSaplingToTreeEvent`. This eliminates the previous race condition where `observeTrackedInternal` and the DT event handler both tried to modify records at the same position. DT tree lifecycle observation runs through `processTreeGrowth()` in `ModChunkEvents`, which matches both `TreeStructureAdapter.TYPE_ID` and `DTTreeAdapter.TYPE_ID`. All DT class references are confined to `compat/dynamictrees/`.
+
 ## Current Development State
 
-- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring — 2026-06-12; Tree profile refactoring (11 boilerplate → 2 parameterized) — 2026-06-12; Space Colonization tree algorithm (9 species, 1x1 + 2x2) — 2026-06-13/14; Old morphology system removed — 2026-06-14; WorldGenVegetationScanner + world-gen density capping — 2026-06-14; BiomeModifier tree replacement (CancelVanillaTrees + EcofluxTreeFeature) — 2026-06-14; BiomeRules refactoring (64 biome configs) — 2026-06-14; Sodium compatibility mixin; Docs updated — 2026-06-15
-- **In progress**: Succession integration, Dynamic Trees compatibility, chunk boundary blending
+- **Completed**: Tree lifecycle Phase 4 (death/decay) — 2026-06-11; Plant registry refactoring — 2026-06-12; Tree profile refactoring (11 boilerplate → 2 parameterized) — 2026-06-12; Space Colonization tree algorithm (9 species, 1x1 + 2x2) — 2026-06-13/14; Old morphology system removed — 2026-06-14; WorldGenVegetationScanner + world-gen density capping — 2026-06-14; BiomeModifier tree replacement (CancelVanillaTrees + EcofluxTreeFeature) — 2026-06-14; BiomeRules refactoring (64 biome configs) — 2026-06-14; Sodium compatibility mixin; Docs updated — 2026-06-15; Dynamic Trees compatibility — 2026-06-16
+- **In progress**: Succession integration, chunk boundary blending
 - **Known gap**: Non-player block change events → vegetation cleanup, chunk boundary blending, more succession path JSONs, GameTest
 
 ## Documentation
@@ -178,5 +187,5 @@ All design docs are in `docs/`, written in Chinese:
 - Resource path helper: `EcofluxConstants.id("name")` → `ResourceLocation("ecoflux", "name")`
 - Java records are preferred for data objects (see config records, attachment records)
 - Logging goes through `EcofluxConstants.LOGGER` (SLF4J via NeoForge)
-- The repo directory is still named `Succession` (historical); the mod itself is `Ecoflux`
+- The repo directory is now named `EcoFlux`
 - **CRITICAL**: After any significant code changes (new packages, extracted classes, new features, changed architecture), immediately update `CLAUDE.md` and the relevant files in `docs/` (`latest_progress.md`, `todolist.md`, etc.) to reflect the new state. Stale documentation is worse than no documentation

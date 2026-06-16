@@ -25,7 +25,7 @@ import com.cp.ecoflux.config.plant.PlantSpawnRules;
 import com.cp.ecoflux.init.ModAttachments;
 import com.cp.ecoflux.init.ModChunkEvents;
 import com.cp.ecoflux.plant.TreeStructure;
-import com.cp.ecoflux.plant.TreeStructureAdapter;
+import com.cp.ecoflux.plant.adapters.TreeStructureAdapter;
 import com.cp.ecoflux.plant.tree.spacecolonization.SpaceColonizationParams;
 import com.cp.ecoflux.plant.tree.spacecolonization.SpaceColonizationProfile;
 import com.cp.ecoflux.plant.tree.profiles.MushroomGrowthProfile;

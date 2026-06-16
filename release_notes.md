@@ -1,6 +1,6 @@
-## Ecoflux v0.2.0 — First Beta Release
+## Ecoflux v0.2.1 — First Beta Release
 
-**Minecraft 1.21.1 | NeoForge | 0.2.0 Beta | MIT License**
+**Minecraft 1.21.1 | NeoForge | 0.2.1 Beta | MIT License**
 
 ### Features
 
@@ -12,7 +12,7 @@
 
 ### Install
 
-1. Download `ecoflux-0.2.0.jar`
+1. Download `ecoflux-0.2.1.jar`
 2. Place in `.minecraft/mods/`
 3. Requires **NeoForge 21.1.227+**
 4. In-game: `/ecoflux auto on`
@@ -23,7 +23,7 @@ Beta release — public testing, may contain bugs. Feedback welcome.
 
 ### 安装
 
-1. 下载 `ecoflux-0.2.0.jar`
+1. 下载 `ecoflux-0.2.1.jar`
 2. 放入 `.minecraft/mods/` 目录
 3. 需要 **NeoForge 21.1.227+**
 4. 进入世界后执行 `/ecoflux auto on`

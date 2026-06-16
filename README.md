@@ -12,7 +12,7 @@
 |---|---|
 | **Minecraft** | 1.21.1 |
 | **Loader** | NeoForge |
-| **Version** | 0.2.0 (Beta) |
+| **Version** | 0.2.1 (Beta) |
 
 ---
 

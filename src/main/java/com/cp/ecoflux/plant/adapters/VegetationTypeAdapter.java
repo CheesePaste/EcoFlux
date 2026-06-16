@@ -1,8 +1,12 @@
-package com.cp.ecoflux.plant;
+package com.cp.ecoflux.plant.adapters;
 
 import com.cp.ecoflux.attachment.ActiveVegetationRecord;
 import com.cp.ecoflux.config.plant.PlantDefinition;
 import java.util.Optional;
+
+import com.cp.ecoflux.plant.VegetationObservation;
+import com.cp.ecoflux.plant.VegetationTransformation;
+import com.cp.ecoflux.plant.VegetationVisualState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;

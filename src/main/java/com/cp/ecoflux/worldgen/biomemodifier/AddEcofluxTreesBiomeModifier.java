@@ -15,6 +15,7 @@ public class AddEcofluxTreesBiomeModifier implements BiomeModifier {
     @Override
     public void modify(Holder<Biome> biome, Phase phase, ModifiableBiomeInfo.BiomeInfo.Builder builder) {
         if (phase != Phase.ADD) return;
+        if (net.neoforged.fml.ModList.get().isLoaded("dynamictrees")) return;
 
         var placedFeatures = ServerLifecycleHooks.getCurrentServer()
                 .registryAccess().registryOrThrow(Registries.PLACED_FEATURE);

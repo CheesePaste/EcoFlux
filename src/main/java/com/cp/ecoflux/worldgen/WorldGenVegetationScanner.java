@@ -10,6 +10,8 @@ import com.cp.ecoflux.config.plant.PlantDefinition;
 import com.cp.ecoflux.config.plant.PlantRegistry;
 import com.cp.ecoflux.init.ModAttachments;
 import com.cp.ecoflux.network.ModNetworking;
+import com.cp.ecoflux.plant.adapters.TreeStructureAdapter;
+import com.cp.ecoflux.plant.adapters.VegetationTypeAdapter;
 import com.cp.ecoflux.worldgen.feature.EcofluxTreeFeature;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -70,7 +72,10 @@ public final class WorldGenVegetationScanner {
         int plantCount = 0;
 
         // Phase 1: Consume SC trees placed by EcofluxTreeFeature during decoration
-        scTreeCount += processDecorationTrees(level, chunk, gameTime, chunkSeed, chunkData);
+        // Skip when Dynamic Trees is loaded — DT handles its own worldgen trees
+        if (!net.neoforged.fml.ModList.get().isLoaded("dynamictrees")) {
+            scTreeCount += processDecorationTrees(level, chunk, gameTime, chunkSeed, chunkData);
+        }
 
         // Phase 1b + Phase 2 merged: heightmap-bounded single pass.
         // Only scan near the surface — vegetation does not exist deep underground.

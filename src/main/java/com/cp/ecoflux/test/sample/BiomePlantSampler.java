@@ -1,5 +1,6 @@
 package com.cp.ecoflux.test.sample;
 
+import com.cp.ecoflux.plant.adapters.TreeStructureAdapter;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -268,7 +269,7 @@ public final class BiomePlantSampler {
                     BlockState state = level.getBlockState(pos);
                     var adapter = com.cp.ecoflux.plant.VegetationTracker.INSTANCE.findAdapter(state);
                     if (adapter.isEmpty()) continue;
-                    if (adapter.get() instanceof com.cp.ecoflux.plant.TreeStructureAdapter) continue;
+                    if (adapter.get() instanceof TreeStructureAdapter) continue;
 
                     ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(state.getBlock());
                     counts.merge(blockId, 1, Integer::sum);

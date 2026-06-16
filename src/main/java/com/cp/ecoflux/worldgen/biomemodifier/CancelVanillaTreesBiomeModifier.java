@@ -20,6 +20,7 @@ public class CancelVanillaTreesBiomeModifier implements BiomeModifier {
     @Override
     public void modify(Holder<Biome> biome, Phase phase, ModifiableBiomeInfo.BiomeInfo.Builder builder) {
         if (phase != Phase.REMOVE) return;
+        if (net.neoforged.fml.ModList.get().isLoaded("dynamictrees")) return;
 
         BiomeGenerationSettingsBuilder genSettings = builder.getGenerationSettings();
 
