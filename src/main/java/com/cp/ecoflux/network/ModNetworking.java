@@ -16,6 +16,9 @@ package com.cp.ecoflux.network;
  * and tint on the client side.
  */
 
+import com.cp.ecoflux.EcofluxConstants;
+import com.cp.ecoflux.attachment.SuccessionChunkData;
+import com.cp.ecoflux.init.ModAttachments;
 import com.cp.ecoflux.plant.VegetationTracker;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -68,6 +71,12 @@ public final class ModNetworking {
                 RequestPanelDataPayload.TYPE,
                 RequestPanelDataPayload.STREAM_CODEC,
                 (payload, context) -> context.enqueueWork(() -> handlePanelRequest(payload, context)));
+
+        // Chunk exclusion toggle: C2S
+        registrar.playToServer(
+                ToggleChunkExclusionPayload.TYPE,
+                ToggleChunkExclusionPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() -> handleChunkExclusionToggle(payload, context)));
     }
 
     private static void onChunkSent(ChunkWatchEvent.Sent event) {
@@ -118,24 +127,41 @@ public final class ModNetworking {
         if (context.player() instanceof ServerPlayer sp) {
             if (payload.open()) {
                 PanelDataHelper.markPanelOpen(sp);
-                PacketDistributor.sendToPlayer(sp, PanelDataHelper.buildFullSync(sp));
+                PanelDataHelper.sendFullSync(sp);
+                EcofluxConstants.LOGGER.debug("[EcofluxPanel] Player {} opened panel", sp.getGameProfile().getName());
             } else {
                 PanelDataHelper.markPanelClosed(sp);
             }
         }
     }
 
-    /**
-     * Push panel delta to all players tracking the chunk if they have the panel open.
-     */
-    public static void pushPanelDeltaToTracking(ServerLevel level, LevelChunk chunk) {
-        for (ServerPlayer sp : level.getServer().getPlayerList().getPlayers()) {
-            if (sp.serverLevel() == level && PanelDataHelper.isPanelOpen(sp)) {
-                if (sp.chunkPosition().equals(chunk.getPos())) {
-                    PanelDataHelper.pushDeltaIfOpen(sp, level, chunk);
-                }
+    private static void handleChunkExclusionToggle(ToggleChunkExclusionPayload payload, net.neoforged.neoforge.network.handling.IPayloadContext context) {
+        if (context.player() instanceof ServerPlayer sp) {
+            ServerLevel level = sp.serverLevel();
+            LevelChunk chunk = level.getChunkSource().getChunkNow(payload.chunkX(), payload.chunkZ());
+            if (chunk == null) {
+                EcofluxConstants.LOGGER.warn("[EcofluxPanel] Player {} tried to toggle exclusion for unloaded chunk ({},{})",
+                        sp.getGameProfile().getName(), payload.chunkX(), payload.chunkZ());
+                return;
+            }
+            SuccessionChunkData data = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
+            data.setSuccessionDisabled(payload.excluded());
+            EcofluxConstants.LOGGER.debug("[EcofluxPanel] Player {} set successionDisabled={} for chunk ({},{})",
+                    sp.getGameProfile().getName(), payload.excluded(), payload.chunkX(), payload.chunkZ());
+
+            // Send refreshed panel data so the client sees the change immediately
+            if (PanelDataHelper.isPanelOpen(sp)) {
+                PanelDataHelper.sendFullSync(sp);
             }
         }
+    }
+
+    /**
+     * Push refreshed global stats to all panel-open players in the level.
+     * Called from the periodic auto-tick so the panel stays live.
+     */
+    public static void pushPanelRefresh(ServerLevel level) {
+        PanelDataHelper.pushToAllOpen(level);
     }
 
     private static void onPlayerLoggedOut(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {

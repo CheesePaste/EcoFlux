@@ -9,5 +9,6 @@
   "ecoflux.panel.tab.overview": "概览",
   "ecoflux.panel.tab.map": "地图",
   "ecoflux.panel.placeholder.overview": "演替数据 — 开发中",
+  "ecoflux.panel.overview.no_data": "等待数据...",
   "ecoflux.panel.placeholder.map": "卫星图 — 开发中"
 }

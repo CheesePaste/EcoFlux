@@ -50,6 +50,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private static final String PLANT_QUEUE = "plant_queue";
     private static final String VEGETATION_RECORDS = "vegetation_records";
     private static final String TREE_GROWTH_SESSIONS = "tree_growth_sessions";
+    private static final String SUCCESSION_DISABLED = "succession_disabled";
 
     private static final Set<VegetationLifecycleStage> CONTRIBUTING_STAGES = Set.of(
             VegetationLifecycleStage.GROWING,
@@ -70,6 +71,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
     private final Deque<PlantQueueEntry> plantQueue = new ArrayDeque<>();
     private final Map<BlockPos, ActiveVegetationRecord> vegetationRecords = new LinkedHashMap<>();
     private final Map<BlockPos, TreeGrowthSession> treeGrowthSessions = new LinkedHashMap<>();
+    private boolean successionDisabled;
     private boolean needsVisualSync;
 
     public SuccessionChunkData(ChunkAccess owner) {
@@ -265,6 +267,15 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         return !treeGrowthSessions.isEmpty();
     }
 
+    public boolean isSuccessionDisabled() {
+        return successionDisabled;
+    }
+
+    public void setSuccessionDisabled(boolean disabled) {
+        this.successionDisabled = disabled;
+        markDirty();
+    }
+
     public boolean isNeedsVisualSync() {
         return needsVisualSync;
     }
@@ -289,6 +300,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         plantQueue.clear();
         vegetationRecords.clear();
         treeGrowthSessions.clear();
+        successionDisabled = false;
         markDirty();
     }
 
@@ -302,6 +314,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
         lastEvaluationGameTime = 0L;
         nextSpawnGameTime = 0L;
         plantQueue.clear();
+        successionDisabled = false;
         markDirty();
     }
 
@@ -340,6 +353,7 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
             sessionsTag.add(session.toTag());
         }
         tag.put(TREE_GROWTH_SESSIONS, sessionsTag);
+        tag.putBoolean(SUCCESSION_DISABLED, successionDisabled);
         return tag;
     }
 
@@ -377,6 +391,8 @@ public final class SuccessionChunkData implements INBTSerializable<CompoundTag> 
             TreeGrowthSession session = TreeGrowthSession.fromTag((CompoundTag) sessionTag);
             treeGrowthSessions.put(session.saplingPos(), session);
         }
+
+        successionDisabled = tag.getBoolean(SUCCESSION_DISABLED);
 
         markDirty();
     }

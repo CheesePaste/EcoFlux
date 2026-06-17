@@ -1,19 +1,14 @@
 package com.cp.ecoflux.network;
 
-/**
- * Server-side helper that builds {@link PanelDataPayload} from
- * {@link com.cp.ecoflux.attachment.SuccessionChunkData} and tracks which
- * players currently have the panel open (for push-on-evaluate).
- */
-
-import com.cp.ecoflux.EcofluxConstants;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
+import com.cp.ecoflux.config.EcofluxServerConfig;
 import com.cp.ecoflux.init.ModAttachments;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
@@ -22,12 +17,13 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class PanelDataHelper {
 
+    /** Must match {@code SatelliteMapRenderer.CHUNK_GRID}. */
+    private static final int MAP_CHUNK_GRID = 8;
+
     private static final Set<UUID> panelOpenPlayers =
             Collections.synchronizedSet(new HashSet<>());
 
     private PanelDataHelper() {}
-
-    // ── Panel-open tracking ─────────────────────────────────────────
 
     public static void markPanelOpen(ServerPlayer player) {
         panelOpenPlayers.add(player.getUUID());
@@ -41,76 +37,75 @@ public final class PanelDataHelper {
         return panelOpenPlayers.contains(player.getUUID());
     }
 
-    // ── Data builders ────────────────────────────────────────────────
-
-    /**
-     * Builds a full {@link PanelDataPayload} for the player's current chunk,
-     * computing the global average progress from all loaded chunks.
-     */
-    public static PanelDataPayload buildFullSync(ServerPlayer player) {
+    public static PanelDataPayload build(ServerPlayer player) {
         ServerLevel level = player.serverLevel();
-        ChunkPos chunkPos = player.chunkPosition();
-        LevelChunk chunk = level.getChunk(chunkPos.x, chunkPos.z);
-        SuccessionChunkData data = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
+        ChunkPos center = player.chunkPosition();
 
-        double globalAvg = computeGlobalAverage(level);
+        double totalProgress = 0;
+        int chunksWithPath = 0;
+        int totalVeg = 0;
+        List<ChunkDataEntry> entries = new ArrayList<>(9);
 
-        return buildPayload(level, chunkPos, data, globalAvg);
-    }
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                int cx = center.x + dx;
+                int cz = center.z + dz;
+                LevelChunk c = level.getChunkSource().getChunkNow(cx, cz);
+                if (c == null) continue;
+                SuccessionChunkData d = c.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
+                boolean hasPath = d.getActivePathId().isPresent();
+                if (hasPath) {
+                    totalProgress += d.getProgress();
+                    chunksWithPath++;
+                }
+                totalVeg += d.getVegetationRecords().size();
 
-    /** Computes global average progress across all loaded chunks. */
-    public static double computeGlobalAverage(ServerLevel level) {
-        long[] chunkPositions = com.cp.ecoflux.init.ModChunkEvents.snapshotLoadedChunks(level.dimension());
-        if (chunkPositions.length == 0) return 0.0;
-
-        double total = 0;
-        int count = 0;
-        for (long pos : chunkPositions) {
-            LevelChunk c = level.getChunkSource().getChunkNow(
-                    net.minecraft.world.level.ChunkPos.getX(pos),
-                    net.minecraft.world.level.ChunkPos.getZ(pos));
-            if (c == null) continue;
-            SuccessionChunkData d = c.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-            if (d.getActivePathId().isPresent()) {
-                total += d.getProgress();
-                count++;
+                entries.add(new ChunkDataEntry(
+                        cx, cz,
+                        d.getCurrentBiome().map(k -> k.location()).orElse(null),
+                        d.getTargetBiome().map(k -> k.location()).orElse(null),
+                        d.getActivePathId().orElse(null),
+                        d.getProgress(),
+                        d.getContributingVegetationPoints(),
+                        d.getConsumingValue(),
+                        (int) d.countContributingVegetation(),
+                        d.getVegetationRecords().size(),
+                        d.isSuccessionDisabled()));
             }
         }
-        return count > 0 ? total / count : 0.0;
+
+        // Scan 8×8 viewport for excluded chunks (for map tab red borders)
+        int halfGrid = MAP_CHUNK_GRID / 2;
+        List<ChunkPos> excludedChunks = new ArrayList<>();
+        for (int dx = -halfGrid; dx < halfGrid; dx++) {
+            for (int dz = -halfGrid; dz < halfGrid; dz++) {
+                int cx = center.x + dx;
+                int cz = center.z + dz;
+                LevelChunk c = level.getChunkSource().getChunkNow(cx, cz);
+                if (c == null) continue;
+                SuccessionChunkData d = c.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
+                if (d.isSuccessionDisabled()) {
+                    excludedChunks.add(new ChunkPos(cx, cz));
+                }
+            }
+        }
+
+        double avg = chunksWithPath > 0 ? totalProgress / chunksWithPath : Double.NaN;
+        boolean enabled = !EcofluxServerConfig.disablePlantSpawning();
+
+        return new PanelDataPayload(avg, chunksWithPath, totalVeg, enabled,
+                List.copyOf(entries), List.copyOf(excludedChunks));
     }
 
-    /**
-     * Builds a delta payload (no global average recalc) for the given chunk.
-     */
-    public static PanelDataPayload buildDelta(ServerLevel level, LevelChunk chunk) {
-        SuccessionChunkData data = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
-        return buildPayload(level, chunk.getPos(), data, Double.NaN);
+    public static void sendFullSync(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, build(player));
     }
 
-    private static PanelDataPayload buildPayload(
-            ServerLevel level, ChunkPos pos, SuccessionChunkData data, double globalAvg) {
-        return new PanelDataPayload(
-                globalAvg,
-                pos.x,
-                pos.z,
-                data.getCurrentBiome().map(key -> key.location()).orElse(null),
-                data.getTargetBiome().map(key -> key.location()).orElse(null),
-                data.getActivePathId().orElse(null),
-                data.getProgress(),
-                data.getContributingVegetationPoints(),
-                data.getConsumingValue(),
-                (int) data.countContributingVegetation(),
-                data.getVegetationRecords().size(),
-                false // TODO: successionDisabled field not yet added to SuccessionChunkData
-        );
-    }
-
-    // ── Push ─────────────────────────────────────────────────────────
-
-    /** Push delta to a player if they have the panel open. */
-    public static void pushDeltaIfOpen(ServerPlayer player, ServerLevel level, LevelChunk chunk) {
-        if (isPanelOpen(player)) {
-            PacketDistributor.sendToPlayer(player, buildDelta(level, chunk));
+    public static void pushToAllOpen(ServerLevel level) {
+        for (ServerPlayer sp : level.players()) {
+            if (isPanelOpen(sp)) {
+                PacketDistributor.sendToPlayer(sp, build(sp));
+            }
         }
     }
 }

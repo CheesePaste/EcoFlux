@@ -111,6 +111,9 @@ public final class SuccessionService {
 
     public static String processChunkTick(ServerLevel level, LevelChunk chunk) {
         SuccessionChunkData chunkData = chunk.getData(ModAttachments.SUCCESSION_CHUNK_DATA);
+        if (chunkData.isSuccessionDisabled()) {
+            return "自动演替跳过区块 " + chunk.getPos() + "：演替已禁用。";
+        }
         Optional<SuccessionPathDefinition> pathOptional = SuccessionConfigRegistry.getPath(
                 chunkData.getActivePathId().orElse(null));
         if (pathOptional.isEmpty()) {
@@ -173,9 +176,6 @@ public final class SuccessionService {
 
             String evalResult = SuccessionEvaluator.evaluate(chunkData, path, gameTime, ignoreInterval);
             messages.add(evalResult);
-
-            // Push panel delta to players with UI open
-            com.cp.ecoflux.network.ModNetworking.pushPanelDeltaToTracking(level, chunk);
 
             if (chunkData.getProgress() >= 1.0D) {
                 messages.add(BiomeTransitionService.applyTransition(level, chunk, chunkData));

@@ -3,21 +3,26 @@ package com.cp.ecoflux.client.key;
 import com.cp.ecoflux.EcofluxConstants;
 import com.cp.ecoflux.client.ui.EcofluxPanelScreen;
 import com.cp.ecoflux.network.PanelDataPayload;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.ChunkPos;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
- * Client-side glue: keybinding → toggle Screen, and stores the most recent
- * {@link PanelDataPayload} for the open Screen to render Tab 1.
+ * Client-side glue: keybinding toggle + stores latest {@link PanelDataPayload}.
  */
 
 @EventBusSubscriber(modid = EcofluxConstants.MOD_ID, value = Dist.CLIENT)
 public final class EcofluxPanelClientEvents {
 
     private static volatile PanelDataPayload latestPanelData;
+    private static final Set<ChunkPos> knownExcludedChunks =
+            Collections.synchronizedSet(new HashSet<>());
 
     private EcofluxPanelClientEvents() {}
 
@@ -33,13 +38,18 @@ public final class EcofluxPanelClientEvents {
         }
     }
 
-    /** Called from network thread handler; stores latest data for Screen. */
     public static void handlePanelData(PanelDataPayload payload) {
         latestPanelData = payload;
+        // Replace excluded chunk set entirely from server data (8×8 viewport)
+        knownExcludedChunks.clear();
+        knownExcludedChunks.addAll(payload.excludedChunks());
     }
 
-    /** Called from Screen render to read the most recent payload. */
     public static PanelDataPayload getLatestPanelData() {
         return latestPanelData;
+    }
+
+    public static Set<ChunkPos> getKnownExcludedChunks() {
+        return knownExcludedChunks;
     }
 }

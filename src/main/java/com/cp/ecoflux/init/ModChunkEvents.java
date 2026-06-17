@@ -149,6 +149,11 @@ public final class ModChunkEvents {
             }
         }
 
+        // Push panel data refresh every 2s (40 ticks) to open panels
+        if (serverLevel.getGameTime() % 40 == 0) {
+            com.cp.ecoflux.network.ModNetworking.pushPanelRefresh(serverLevel);
+        }
+
         TickProfiler.INSTANCE.end(spanTick);
         TickProfiler.INSTANCE.flushTick(serverLevel.getGameTime());
     }

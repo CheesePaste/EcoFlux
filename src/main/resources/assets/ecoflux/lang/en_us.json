@@ -9,5 +9,6 @@
   "ecoflux.panel.tab.overview": "Overview",
   "ecoflux.panel.tab.map": "Map",
   "ecoflux.panel.placeholder.overview": "Succession data — WIP",
+  "ecoflux.panel.overview.no_data": "Waiting for data...",
   "ecoflux.panel.placeholder.map": "Satellite map — WIP"
 }
