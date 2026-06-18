@@ -1,16 +1,22 @@
 package com.cp.ecoflux.plant.adapters;
 
 import com.cp.ecoflux.EcofluxConstants;
-import com.cp.ecoflux.attachment.ActiveVegetationRecord;
+import com.cp.ecoflux.api.VegetationAdapterCapability;
+import com.cp.ecoflux.api.adapter.VegetationTypeAdapter;
+import com.cp.ecoflux.api.data.VegetationLifecycleStage;
+import com.cp.ecoflux.api.data.VegetationObservation;
+import com.cp.ecoflux.api.data.VegetationTransformation;
+import com.cp.ecoflux.api.data.VegetationVisualState;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
 import com.cp.ecoflux.config.EcofluxServerConfig;
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.config.plant.PlantRegistry;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 
-import com.cp.ecoflux.config.plant.PlantSpawnRules;
-import com.cp.ecoflux.plant.*;
+import com.cp.ecoflux.api.config.PlantSpawnRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -29,6 +35,11 @@ public final class SaplingAdapter implements VegetationTypeAdapter {
     @Override
     public ResourceLocation typeId() {
         return TYPE_ID;
+    }
+
+    @Override
+    public Set<VegetationAdapterCapability> capabilities() {
+        return Set.of(VegetationAdapterCapability.IS_SAPLING);
     }
 
     @Override

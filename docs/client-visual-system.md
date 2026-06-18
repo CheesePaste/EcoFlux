@@ -61,7 +61,7 @@
 渲染层真正消费的结果对象：`stage`、`stageProgress`、`scale`、`tintedColor`。
 
 ### VisualLifecycleAdapter
-视觉层最核心的扩展接口：
+视觉层最核心的扩展接口，位于 `com.cp.ecoflux.api.client.VisualLifecycleAdapter`（API 包，供外部 mod 实现）：
 - `matches(BlockState)` — 决定某个方块归哪个视觉适配器管理
 - `createProfile(BlockState)` — 生成视觉 profile
 - `resolveState(...)` — 根据实例、本地时间、外部状态和颜色计算最终 render state
@@ -137,6 +137,10 @@
 ## 当前相关文件
 
 ```
+api/
+└── client/
+    └── VisualLifecycleAdapter.java        # 客户端视觉适配器接口（API 包）
+
 client/visual/
 ├── VisualLifecycleStage.java
 ├── VisualLifecycleProfile.java
@@ -144,7 +148,6 @@ client/visual/
 ├── VisualLifecycleTrackingSource.java
 ├── VisualLifecycleInstance.java
 ├── VisualLifecycleRenderState.java
-├── VisualLifecycleAdapter.java
 ├── VisualLifecycleRegistry.java
 ├── VisualLifecycleClientRuntime.java
 ├── VisualLifecycleWorldRenderer.java

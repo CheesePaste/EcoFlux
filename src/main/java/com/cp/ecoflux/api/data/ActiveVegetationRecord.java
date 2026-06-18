@@ -1,7 +1,6 @@
-package com.cp.ecoflux.attachment;
+package com.cp.ecoflux.api.data;
 
 import com.cp.ecoflux.plant.TreeStructure;
-import com.cp.ecoflux.plant.VegetationLifecycleStage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;

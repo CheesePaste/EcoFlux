@@ -14,10 +14,10 @@ package com.cp.ecoflux.world;
  * spawn positions and check density limits.
  */
 
-import com.cp.ecoflux.attachment.ActiveVegetationRecord;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
-import com.cp.ecoflux.config.plant.PlantDefinition;
-import com.cp.ecoflux.config.plant.PlantSpawnRules;
+import com.cp.ecoflux.api.config.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantSpawnRules;
 import java.util.Optional;
 import java.util.Random;
 import net.minecraft.core.BlockPos;

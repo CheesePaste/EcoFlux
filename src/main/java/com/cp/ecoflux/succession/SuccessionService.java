@@ -5,15 +5,17 @@ import com.cp.ecoflux.config.biome.BiomeRules;
 import com.cp.ecoflux.config.biome.BiomeRulesRegistry;
 import com.cp.ecoflux.config.EcofluxServerConfig;
 import com.cp.ecoflux.config.succession.SuccessionConfigRegistry;
-import com.cp.ecoflux.config.succession.SuccessionPathDefinition;
+import com.cp.ecoflux.api.config.SuccessionPathDefinition;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
 import com.cp.ecoflux.init.ModAttachments;
+import com.cp.ecoflux.api.event.SuccessionEvent;
 import com.cp.ecoflux.plant.PlantSpawner;
 import com.cp.ecoflux.plant.VegetationTracker;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import net.neoforged.neoforge.common.NeoForge;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -171,7 +173,13 @@ public final class SuccessionService {
         if (shouldObserve) {
             messages.add(VegetationTracker.INSTANCE.observeChunk(level, chunk));
 
+            double oldProgress = chunkData.getProgress();
             String evalResult = SuccessionEvaluator.evaluate(chunkData, path, gameTime, ignoreInterval);
+            NeoForge.EVENT_BUS.post(new SuccessionEvent.Evaluate(
+                    level, chunk,
+                    chunkData.getContributingVegetationPoints(),
+                    chunkData.getConsumingValue(),
+                    oldProgress, chunkData.getProgress()));
             messages.add(evalResult);
 
             if (chunkData.getProgress() >= 1.0D) {

@@ -16,6 +16,8 @@ package com.cp.ecoflux.client.visual;
 
 import com.cp.ecoflux.EcofluxConstants;
 import java.util.List;
+
+import com.cp.ecoflux.api.client.VisualLifecycleAdapter;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Block;

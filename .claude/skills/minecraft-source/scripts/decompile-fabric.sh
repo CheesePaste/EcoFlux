@@ -100,8 +100,8 @@ else
     fi
 fi
 
-# Verify file exists in jar
-if ! jar tf "$SOURCES_JAR" 2>/dev/null | grep -q "^${FILE_PATH}$"; then
+# Verify file exists in jar (avoid grep -q: SIGPIPE + pipefail = false negative)
+if ! jar tf "$SOURCES_JAR" 2>/dev/null | grep "^${FILE_PATH}$" >/dev/null; then
     # Try fallback: maybe the user provided dot notation for inner class
     # (class_to_path already strips inner class, but let's try more aggressively)
     BASE_NAME="${CLASS_INPUT##*.}"

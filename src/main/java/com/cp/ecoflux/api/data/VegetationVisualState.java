@@ -1,4 +1,4 @@
-package com.cp.ecoflux.plant;
+package com.cp.ecoflux.api.data;
 
 /**
  * Record holding visual state data for a tracked plant, synced to clients for

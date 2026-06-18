@@ -143,6 +143,23 @@
 - **方块放置**: 检测是否匹配 `VegetationTypeAdapter` → 自动 `VegetationTracker.trackAt()`
 - **方块破坏**: 检测是否在 `vegetationRecords` 中 → 自动移除 + 客户端同步
 
+## API 事件
+
+演替流程在关键节点通过 NeoForge 事件总线发射 `SuccessionEvent`，外部 mod 可订阅以干预或响应：
+
+| 事件 | 发射位置 | 时机 | 可取消 |
+|------|---------|------|--------|
+| `Evaluate` | `SuccessionEvaluator.evaluate()` | 评估完成后，写入 chunk 数据前 | 否 |
+| `PreTransition` | `BiomeTransitionService.applyTransition()` | 正向演替 fillBiomesFromNoise 前 | 是 |
+| `PreRegression` | `BiomeTransitionService.applyRegression()` | 负向退化 fillBiomesFromNoise 前 | 是 |
+| `PostTransition` | `BiomeTransitionService.applyTransition()/applyRegression()` | 群系替换完成后 | 否 |
+
+`Evaluate` 事件携带 `totalPoints`、`consuming`、`oldProgress`、`newProgress`。
+`PreTransition`/`PreRegression` 实现 `ICancellableEvent`，取消事件可阻止群系转换/退化。
+所有事件携带 `ServerLevel` 和 `LevelChunk`。
+
+事件类位于 `com.cp.ecoflux.api.event.SuccessionEvent`，包含四个静态内部类。
+
 ## 调试命令
 
 | 命令 | 说明 |

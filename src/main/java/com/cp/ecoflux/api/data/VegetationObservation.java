@@ -1,4 +1,4 @@
-package com.cp.ecoflux.plant;
+package com.cp.ecoflux.api.data;
 
 /**
  * Result record produced by {@link VegetationTypeAdapter#observe} after

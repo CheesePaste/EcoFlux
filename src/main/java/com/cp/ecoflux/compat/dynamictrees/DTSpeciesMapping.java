@@ -1,8 +1,8 @@
 package com.cp.ecoflux.compat.dynamictrees;
 
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.config.plant.PlantRegistry;
-import com.cp.ecoflux.config.plant.PlantSpawnRules;
+import com.cp.ecoflux.api.config.PlantSpawnRules;
 import com.dtteam.dynamictrees.tree.species.Species;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;

@@ -1,5 +1,6 @@
 package com.cp.ecoflux.config.succession;
 
+import com.cp.ecoflux.api.config.SuccessionPathDefinition;
 import com.cp.ecoflux.config.AbstractConfigRegistry;
 import java.util.ArrayList;
 import java.util.Collection;

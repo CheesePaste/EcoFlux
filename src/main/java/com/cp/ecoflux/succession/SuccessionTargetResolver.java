@@ -5,7 +5,7 @@ import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.biome.BiomeRules;
 import com.cp.ecoflux.config.biome.BiomeRulesRegistry;
 import com.cp.ecoflux.config.succession.SuccessionConfigRegistry;
-import com.cp.ecoflux.config.succession.SuccessionPathDefinition;
+import com.cp.ecoflux.api.config.SuccessionPathDefinition;
 import com.cp.ecoflux.init.ModAttachments;
 import com.cp.ecoflux.plant.PlantSpawner;
 import com.cp.ecoflux.world.ChunkSamplingHelper;

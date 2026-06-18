@@ -1,5 +1,7 @@
 package com.cp.ecoflux.client.visual;
 
+import com.cp.ecoflux.api.client.VisualLifecycleAdapter;
+
 /**
  * The four visual lifecycle stages that drive scale and color animation.
  *

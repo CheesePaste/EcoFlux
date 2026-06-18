@@ -1,8 +1,7 @@
-package com.cp.ecoflux.config.succession;
+package com.cp.ecoflux.api.config;
 
 import java.util.List;
 
-import com.cp.ecoflux.config.math.ClimateCondition;
 import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.Nullable;
 

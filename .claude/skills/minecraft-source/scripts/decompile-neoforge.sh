@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
-# Extract and display a Minecraft source file from a NeoForge MDG project's generated sources jar.
-# The sources jar contains decompiled Java with Mojang official (human-readable) names.
+# Extract and display a Minecraft or NeoForge source file from a NeoForge MDG project.
 #
-# Reads from build/moddev/artifacts/neoforge-{version}-sources.jar (primary, vanilla MC)
-# Auto-switches to merged jar for NeoForge classes (net.neoforged.*) or if not found in sources.
+# Source jar hierarchy (searched in priority order):
+#   1. build/moddev/artifacts/neoforge-{version}-sources.jar   — vanilla MC (Mojang)
+#   2. build/moddev/artifacts/neoforge-{version}-merged.jar    — vanilla + NeoForge patches
+#   3. ~/.gradle/caches/.../net.neoforged/**/*-sources.jar     — NeoForge library sources
+#      (event bus, registries, capabilities, coremods, etc.)
 #
 # Usage: decompile.sh <class-name>
 # Examples:
 #   decompile.sh net.minecraft.world.item.ItemStack
 #   decompile.sh net/minecraft/world/item/ItemStack
 #   decompile.sh ItemStack
-#   decompile.sh ItemStack.Builder              (inner class, extracts outer file)
+#   decompile.sh ItemStack.Builder                     (inner class, extracts outer file)
 #   decompile.sh net.neoforged.neoforge.event.Event
+#   decompile.sh net.neoforged.bus.api.Event            (event bus base class)
 
 set -euo pipefail
 
@@ -38,7 +41,6 @@ if [[ -z "$PROJECT_ROOT" ]]; then
 fi
 
 # ---------- 2. Find the jars ----------
-# Location: build/moddev/artifacts/neoforge-{version}-sources.jar
 ARTIFACTS_DIR="$PROJECT_ROOT/build/moddev/artifacts"
 
 if [[ ! -d "$ARTIFACTS_DIR" ]]; then
@@ -60,37 +62,47 @@ if [[ ! -f "$MERGED_JAR" ]]; then
     MERGED_JAR=$(find "$ARTIFACTS_DIR" -maxdepth 1 -name "neoforge-*-merged.jar" 2>/dev/null | head -1 || echo "")
 fi
 
-# Pick jar: NeoForge classes go to merged jar, everything else prefers sources
-pick_jar() {
-    local class_name="$1"
-    # NeoForge classes are only in the merged jar
-    if [[ "$class_name" == net.neoforged* ]] || [[ "$class_name" == net/neoforged* ]]; then
-        echo "merged"
-        return
-    fi
-    # Prefer sources jar for vanilla Minecraft classes
-    if [[ -f "$SOURCES_JAR" ]]; then
-        echo "sources"
-    elif [[ -f "$MERGED_JAR" ]]; then
-        echo "merged"
-    else
-        echo ""
-    fi
-}
+# ---------- 3. Collect NeoForge library source jars from Gradle cache ----------
+# MDG artifacts only contain ~950 NeoForge .java files (the patched-in classes).
+# The full NeoForge library source (event bus, registries, capabilities, coremods,
+# FML, etc.) lives in separate Gradle dependency source jars. We collect them all
+# so any net.neoforged.* class can be read.
+GRADLE_CACHE_DIR="$HOME/.gradle/caches/modules-2/files-2.1/net.neoforged"
+GRADLE_NEOFORGE_JARS=()
+if [[ -d "$GRADLE_CACHE_DIR" ]]; then
+    while IFS= read -r jar; do
+        [[ -n "$jar" ]] && GRADLE_NEOFORGE_JARS+=("$jar")
+    done < <(find "$GRADLE_CACHE_DIR" -name "*-sources.jar" 2>/dev/null)
+fi
+
+# ---------- 4. Jar selection & search helpers ----------
 
 class_in_jar() {
     local jar="$1"
     local path="$2"
-    unzip -Z1 "$jar" 2>/dev/null | grep -qxF "$path" && return 0
-    # case-insensitive fallback
-    unzip -Z1 "$jar" 2>/dev/null | grep -qi "^${path}$" && return 0
+    # grep without -q: -q exits on first match, causing SIGPIPE (exit 141) to
+    # the unzip process. With pipefail that masks a successful match as failure.
+    unzip -Z1 "$jar" 2>/dev/null | grep -xF "$path" >/dev/null && return 0
+    unzip -Z1 "$jar" 2>/dev/null | grep -xi "^${path}$" >/dev/null && return 0
     return 1
 }
 
-# ---------- 3. Convert class name to file path ----------
+# Search a list of jars for a file; prints the first jar containing it.
+find_file_in_jars() {
+    local path="$1"
+    shift
+    for jar in "$@"; do
+        if [[ -n "$jar" && -f "$jar" ]] && class_in_jar "$jar" "$path"; then
+            echo "$jar"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Convert class name → file path
 class_to_path() {
     local name="$1"
-    # Strip inner class suffix ($Foo or .Foo) for file lookup
     name="${name%%\$*}"
     name="${name//.//}"
     echo "${name}.java"
@@ -108,35 +120,89 @@ search_file() {
     find_in_jar "$jar" "$short_name"
 }
 
-# ---------- 4. Resolve file path ----------
-JAR_TYPE=$(pick_jar "$CLASS_INPUT")
-if [[ "$JAR_TYPE" == "merged" ]]; then
-    USE_JAR="$MERGED_JAR"
-else
-    USE_JAR="$SOURCES_JAR"
-fi
+# Determine primary jar for a class, considering all available sources.
+# For vanilla MC:  sources.jar → merged.jar
+# For NeoForge:    Gradle SDK sources → Gradle bus/other sources → merged.jar → sources.jar
+pick_primary_jar() {
+    local class_name="$1"
+    local file_path="$2"
 
-if [[ -z "$USE_JAR" || ! -f "$USE_JAR" ]]; then
-    echo "ERROR: No sources or merged jar found in $ARTIFACTS_DIR" >&2
-    echo "       Run './gradlew build' first." >&2
-    exit 1
-fi
+    # NeoForge classes: search all available jars
+    if [[ "$class_name" == net.neoforged* ]] || [[ "$class_name" == net/neoforged* ]]; then
+        # Try Gradle cache jars first (best source quality for NeoForge libs)
+        local found
+        found=$(find_file_in_jars "$file_path" "${GRADLE_NEOFORGE_JARS[@]}")
+        if [[ -n "$found" ]]; then
+            echo "gradle:$found"
+            return 0
+        fi
+        # Fall back to MDG merged jar
+        if [[ -f "$MERGED_JAR" ]] && class_in_jar "$MERGED_JAR" "$file_path"; then
+            echo "merged:$MERGED_JAR"
+            return 0
+        fi
+        # Last resort: MDG sources jar
+        if [[ -f "$SOURCES_JAR" ]] && class_in_jar "$SOURCES_JAR" "$file_path"; then
+            echo "sources:$SOURCES_JAR"
+            return 0
+        fi
+        echo ""
+        return 1
+    fi
 
-# Short name search
+    # Vanilla Minecraft classes: prefer sources jar
+    if [[ -f "$SOURCES_JAR" ]]; then
+        echo "sources:$SOURCES_JAR"
+    elif [[ -f "$MERGED_JAR" ]]; then
+        echo "merged:$MERGED_JAR"
+    else
+        echo ""
+    fi
+}
+
+# ---------- 5. Resolve file path ----------
+# Build initial candidate path
 if [[ "$CLASS_INPUT" != *"."* && "$CLASS_INPUT" != *"/"* && "$CLASS_INPUT" != *'$'* ]]; then
+    # Short name search — try all jars
     SHORT_NAME="$CLASS_INPUT"
-    # Search in chosen jar first
-    MATCHES=$(search_file "$SHORT_NAME" "$USE_JAR")
-    MATCH_COUNT=$(echo "$MATCHES" | grep -c . || true)
-    # If not found and we're using sources, also try merged jar
-    if [[ "$MATCH_COUNT" -eq 0 && "$JAR_TYPE" == "sources" && -f "$MERGED_JAR" ]]; then
+
+    # Search MDG jars first
+    PRIMARY_JAR="$SOURCES_JAR"
+    [[ ! -f "$PRIMARY_JAR" ]] && PRIMARY_JAR="$MERGED_JAR"
+
+    if [[ -f "$PRIMARY_JAR" ]]; then
+        MATCHES=$(search_file "$SHORT_NAME" "$PRIMARY_JAR")
+        MATCH_COUNT=$(echo "$MATCHES" | grep -c . || true)
+    else
+        MATCHES=""
+        MATCH_COUNT=0
+    fi
+
+    # If not found in MDG jars, search Gradle cache
+    if [[ "$MATCH_COUNT" -eq 0 ]]; then
+        for jar in "${GRADLE_NEOFORGE_JARS[@]}"; do
+            if [[ -f "$jar" ]]; then
+                MATCHES=$(search_file "$SHORT_NAME" "$jar")
+                MATCH_COUNT=$(echo "$MATCHES" | grep -c . || true)
+                if [[ "$MATCH_COUNT" -ge 1 ]]; then
+                    PRIMARY_JAR="$jar"
+                    break
+                fi
+            fi
+        done
+    fi
+
+    # Also try the other MDG jar
+    if [[ "$MATCH_COUNT" -eq 0 && "$PRIMARY_JAR" == "$SOURCES_JAR" && -f "$MERGED_JAR" ]]; then
         MATCHES=$(search_file "$SHORT_NAME" "$MERGED_JAR")
         MATCH_COUNT=$(echo "$MATCHES" | grep -c . || true)
-        if [[ "$MATCH_COUNT" -ge 1 ]]; then
-            USE_JAR="$MERGED_JAR"
-            JAR_TYPE="merged"
-        fi
+        [[ "$MATCH_COUNT" -ge 1 ]] && PRIMARY_JAR="$MERGED_JAR"
+    elif [[ "$MATCH_COUNT" -eq 0 && "$PRIMARY_JAR" == "$MERGED_JAR" && -f "$SOURCES_JAR" ]]; then
+        MATCHES=$(search_file "$SHORT_NAME" "$SOURCES_JAR")
+        MATCH_COUNT=$(echo "$MATCHES" | grep -c . || true)
+        [[ "$MATCH_COUNT" -ge 1 ]] && PRIMARY_JAR="$SOURCES_JAR"
     fi
+
     if [[ "$MATCH_COUNT" -eq 0 ]]; then
         echo "ERROR: No source file found with name '${SHORT_NAME}.java'" >&2
         exit 1
@@ -147,68 +213,109 @@ if [[ "$CLASS_INPUT" != *"."* && "$CLASS_INPUT" != *"/"* && "$CLASS_INPUT" != *'
         exit 1
     fi
     FILE_PATH="$MATCHES"
+    USE_JAR="$PRIMARY_JAR"
+    JAR_TYPE=""
 else
     FILE_PATH=$(class_to_path "$CLASS_INPUT")
+
     # If result has no package path (e.g. inner class dot notation "ItemStack.Builder"),
-    # search the jar for the full path
+    # search for the full path
     if [[ "$FILE_PATH" != *"/"* ]]; then
         SHORT_NAME="${FILE_PATH%.java}"
-        MATCHES=$(search_file "$SHORT_NAME" "$USE_JAR")
-        MATCH_COUNT=$(echo "$MATCHES" | grep -c . || true)
-        if [[ "$MATCH_COUNT" -eq 0 && "$JAR_TYPE" == "sources" && -f "$MERGED_JAR" ]]; then
-            MATCHES=$(search_file "$SHORT_NAME" "$MERGED_JAR")
-            MATCH_COUNT=$(echo "$MATCHES" | grep -c . || true)
-            if [[ "$MATCH_COUNT" -ge 1 ]]; then
-                USE_JAR="$MERGED_JAR"
-                JAR_TYPE="merged"
-            fi
+
+        # Determine which jar to search
+        if [[ "$CLASS_INPUT" == net.neoforged* ]] || [[ "$CLASS_INPUT" == net/neoforged* ]]; then
+            SEARCH_JAR="$MERGED_JAR"
+            [[ ! -f "$SEARCH_JAR" ]] && SEARCH_JAR="$SOURCES_JAR"
+        else
+            SEARCH_JAR="$SOURCES_JAR"
+            [[ ! -f "$SEARCH_JAR" ]] && SEARCH_JAR="$MERGED_JAR"
         fi
+
+        MATCHES=$(search_file "$SHORT_NAME" "$SEARCH_JAR")
+        MATCH_COUNT=$(echo "$MATCHES" | grep -c . || true)
+
+        # Search Gradle cache if not found
+        if [[ "$MATCH_COUNT" -eq 0 ]]; then
+            for jar in "${GRADLE_NEOFORGE_JARS[@]}"; do
+                if [[ -f "$jar" ]]; then
+                    MATCHES=$(search_file "$SHORT_NAME" "$jar")
+                    MATCH_COUNT=$(echo "$MATCHES" | grep -c . || true)
+                    if [[ "$MATCH_COUNT" -ge 1 ]]; then
+                        SEARCH_JAR="$jar"
+                        break
+                    fi
+                fi
+            done
+        fi
+
         if [[ "$MATCH_COUNT" -ge 1 ]]; then
             FILE_PATH=$(echo "$MATCHES" | head -1)
         fi
     fi
-fi
 
-# Verify file exists in chosen jar; if not, try the other jar
-if ! class_in_jar "$USE_JAR" "$FILE_PATH"; then
-    if [[ "$JAR_TYPE" == "sources" && -f "$MERGED_JAR" ]]; then
-        if class_in_jar "$MERGED_JAR" "$FILE_PATH"; then
-            USE_JAR="$MERGED_JAR"
-            JAR_TYPE="merged"
+    # Use the smart jar picker for full path resolution
+    JAR_SELECTION=$(pick_primary_jar "$CLASS_INPUT" "$FILE_PATH")
+    if [[ -z "$JAR_SELECTION" ]]; then
+        # pick_primary_jar failed — try exhaustive search across all jars
+        ALL_JARS=()
+        [[ -f "$SOURCES_JAR" ]] && ALL_JARS+=("$SOURCES_JAR")
+        [[ -f "$MERGED_JAR" ]] && ALL_JARS+=("$MERGED_JAR")
+        ALL_JARS+=("${GRADLE_NEOFORGE_JARS[@]}")
+
+        FOUND_JAR=$(find_file_in_jars "$FILE_PATH" "${ALL_JARS[@]}")
+        if [[ -z "$FOUND_JAR" ]]; then
+            # Last resort: fuzzy search in all jars
+            BASE_NAME="${CLASS_INPUT##*.}"
+            for jar in "${ALL_JARS[@]}"; do
+                FOUND=$(unzip -Z1 "$jar" 2>/dev/null | grep -i "/${BASE_NAME}\.java$" | grep -v '[$]' | head -1 || true)
+                if [[ -n "$FOUND" ]]; then
+                    FILE_PATH="$FOUND"
+                    FOUND_JAR="$jar"
+                    break
+                fi
+            done
         fi
-    elif [[ "$JAR_TYPE" == "merged" && -f "$SOURCES_JAR" ]]; then
-        if class_in_jar "$SOURCES_JAR" "$FILE_PATH"; then
-            USE_JAR="$SOURCES_JAR"
-            JAR_TYPE="sources"
+
+        if [[ -z "$FOUND_JAR" ]]; then
+            echo "ERROR: '${FILE_PATH}' not found in any jar." >&2
+            echo "       Check the class name." >&2
+            exit 1
         fi
+        USE_JAR="$FOUND_JAR"
+        JAR_TYPE=""
+    else
+        JAR_TYPE="${JAR_SELECTION%%:*}"
+        USE_JAR="${JAR_SELECTION#*:}"
     fi
 fi
 
-if ! class_in_jar "$USE_JAR" "$FILE_PATH"; then
-    # Last resort: strip inner class from dot notation
-    BASE_NAME="${CLASS_INPUT##*.}"
-    FOUND=$(unzip -Z1 "$USE_JAR" 2>/dev/null | grep -i "/${BASE_NAME}\.java$" | grep -v '[$]' | head -1 || true)
-    if [[ -z "$FOUND" && "$JAR_TYPE" == "sources" && -f "$MERGED_JAR" ]]; then
-        FOUND=$(unzip -Z1 "$MERGED_JAR" 2>/dev/null | grep -i "/${BASE_NAME}\.java$" | grep -v '[$]' | head -1 || true)
-        if [[ -n "$FOUND" ]]; then
-            USE_JAR="$MERGED_JAR"
-            JAR_TYPE="merged"
-        fi
-    fi
-    if [[ -z "$FOUND" ]]; then
-        echo "ERROR: '${FILE_PATH}' not found in any jar." >&2
-        echo "       Check the class name." >&2
-        exit 1
-    fi
-    FILE_PATH="$FOUND"
-fi
-
-# ---------- 5. Extract and print ----------
+# ---------- 6. Extract and print ----------
 MC_VERSION=$(grep -E '^minecraft_version=' "$PROJECT_ROOT/gradle.properties" | cut -d= -f2 | tr -d '[:space:]')
+
+# Determine display label for the jar
+JAR_DISPLAY=$(basename "$USE_JAR")
+if [[ "$USE_JAR" == "$SOURCES_JAR" ]]; then
+    if [[ "$CLASS_INPUT" == net.neoforged* ]] || [[ "$CLASS_INPUT" == net/neoforged* ]] || [[ "$FILE_PATH" == net/neoforged* ]]; then
+        JAR_LABEL="sources (MC + NeoForge patches)"
+    else
+        JAR_LABEL="sources (vanilla MC)"
+    fi
+elif [[ "$USE_JAR" == "$MERGED_JAR" ]]; then
+    JAR_LABEL="merged (MC + NeoForge patches)"
+elif echo "$USE_JAR" | grep -q "bus"; then
+    JAR_LABEL="NeoForge Event Bus"
+elif echo "$USE_JAR" | grep -q "/neoforge/"; then
+    JAR_LABEL="NeoForge SDK"
+elif echo "$USE_JAR" | grep -q "gradle"; then
+    JAR_LABEL="NeoForge (Gradle cache)"
+else
+    JAR_LABEL="$JAR_DISPLAY"
+fi
 
 echo "--- Minecraft ${MC_VERSION} (NeoForge ${NEO_VERSION}) ---"
 echo "Source:  ${FILE_PATH}"
-echo "Jar:     $(basename "$USE_JAR") (${JAR_TYPE})"
+echo "Jar:     ${JAR_DISPLAY} (${JAR_LABEL})"
 echo ""
 
 unzip -p "$USE_JAR" "$FILE_PATH" 2>/dev/null || {

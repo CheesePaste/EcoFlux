@@ -17,7 +17,7 @@ import com.cp.ecoflux.EcofluxConstants;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.plant.PlantRegistry;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.network.ModNetworking;
 import com.cp.ecoflux.util.sample.ChunkGeneratorAccessor;
 import com.cp.ecoflux.util.sample.BiomePlantSampler;

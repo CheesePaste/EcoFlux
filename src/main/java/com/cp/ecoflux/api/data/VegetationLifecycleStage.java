@@ -1,4 +1,4 @@
-package com.cp.ecoflux.plant;
+package com.cp.ecoflux.api.data;
 
 /**
  * Enum defining the lifecycle stages every tracked plant progresses through.

@@ -18,6 +18,8 @@ package com.cp.ecoflux.client.visual;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import com.cp.ecoflux.api.client.VisualLifecycleAdapter;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;

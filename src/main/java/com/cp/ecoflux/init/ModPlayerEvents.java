@@ -11,7 +11,7 @@ package com.cp.ecoflux.init;
  * place or destroy plants.
  */
 
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.config.plant.PlantRegistry;
 import com.cp.ecoflux.plant.VegetationTracker;
 import com.cp.ecoflux.plant.tree.TreeGrowthHandler;

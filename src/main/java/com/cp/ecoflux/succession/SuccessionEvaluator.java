@@ -3,7 +3,7 @@ package com.cp.ecoflux.succession;
 import com.cp.ecoflux.EcofluxConstants;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.EcofluxServerConfig;
-import com.cp.ecoflux.config.succession.SuccessionPathDefinition;
+import com.cp.ecoflux.api.config.SuccessionPathDefinition;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
 import net.minecraft.util.Mth;
 

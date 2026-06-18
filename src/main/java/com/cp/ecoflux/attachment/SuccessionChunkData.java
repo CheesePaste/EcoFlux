@@ -14,7 +14,8 @@ package com.cp.ecoflux.attachment;
  * pruning, biome transition -- reads from and writes to an instance of this class.
  */
 
-import com.cp.ecoflux.plant.VegetationLifecycleStage;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
+import com.cp.ecoflux.api.data.VegetationLifecycleStage;
 import com.cp.ecoflux.plant.tree.TreeGrowthSession;
 import java.util.ArrayDeque;
 import java.util.Collection;

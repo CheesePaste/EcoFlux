@@ -1,4 +1,4 @@
-package com.cp.ecoflux.client.visual;
+package com.cp.ecoflux.api.client;
 
 /**
  * Interface for visual lifecycle adapters, mirroring the server-side adapter pattern.
@@ -15,6 +15,7 @@ package com.cp.ecoflux.client.visual;
  * fallback) to have its own scale curve, timing, and color-degradation parameters.
  */
 
+import com.cp.ecoflux.client.visual.*;
 import com.cp.ecoflux.config.VisualLifecycleClientConfig;
 import java.util.List;
 import net.minecraft.resources.ResourceLocation;

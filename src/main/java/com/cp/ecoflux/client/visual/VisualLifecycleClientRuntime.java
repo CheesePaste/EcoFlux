@@ -23,6 +23,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import com.cp.ecoflux.api.client.VisualLifecycleAdapter;
+import com.cp.ecoflux.api.data.VegetationLifecycleStage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.BiomeColors;
@@ -410,7 +413,7 @@ public final class VisualLifecycleClientRuntime {
         return Minecraft.getInstance().level;
     }
 
-    private static VisualLifecycleStage mapVegetationStage(com.cp.ecoflux.plant.VegetationLifecycleStage stage) {
+    private static VisualLifecycleStage mapVegetationStage(VegetationLifecycleStage stage) {
         return switch (stage) {
             case BORN, JUVENILE -> VisualLifecycleStage.BORN;
             case GROWING -> VisualLifecycleStage.GROWING;

@@ -1,5 +1,7 @@
 package com.cp.ecoflux.client.visual;
 
+import com.cp.ecoflux.api.client.VisualLifecycleAdapter;
+
 /**
  * Timing and visual parameters for a plant category's lifecycle animation.
  *

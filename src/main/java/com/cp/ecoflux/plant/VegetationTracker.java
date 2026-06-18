@@ -1,18 +1,24 @@
 package com.cp.ecoflux.plant;
 
-import com.cp.ecoflux.attachment.ActiveVegetationRecord;
+import com.cp.ecoflux.api.data.VegetationLifecycleStage;
+import com.cp.ecoflux.api.data.VegetationObservation;
+import com.cp.ecoflux.api.data.VegetationTransformation;
+import com.cp.ecoflux.api.data.VegetationVisualState;
+import com.cp.ecoflux.api.data.ActiveVegetationRecord;
 import com.cp.ecoflux.attachment.SuccessionChunkData;
 import com.cp.ecoflux.config.EcofluxServerConfig;
-import com.cp.ecoflux.config.plant.PlantDefinition;
+import com.cp.ecoflux.api.config.PlantDefinition;
 import com.cp.ecoflux.config.plant.PlantRegistry;
-import com.cp.ecoflux.config.plant.PlantSpawnRules;
+import com.cp.ecoflux.api.config.PlantSpawnRules;
 import com.cp.ecoflux.config.SuccessionSpeedConfig;
 import com.cp.ecoflux.network.ModNetworking;
 import com.cp.ecoflux.network.VegetationVisualSyncEntry;
+import com.cp.ecoflux.api.VegetationAdapterCapability;
+import com.cp.ecoflux.api.event.VegetationLifecycleEvent;
 import com.cp.ecoflux.plant.adapters.SaplingAdapter;
 import com.cp.ecoflux.plant.adapters.SimplePlantAdapter;
 import com.cp.ecoflux.plant.adapters.TreeStructureAdapter;
-import com.cp.ecoflux.plant.adapters.VegetationTypeAdapter;
+import com.cp.ecoflux.api.adapter.VegetationTypeAdapter;
 import com.cp.ecoflux.util.TickProfiler;
 
 import java.util.*;
@@ -20,11 +26,11 @@ import java.util.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.neoforged.neoforge.common.NeoForge;
 
 public final class VegetationTracker {
     public static final VegetationTracker INSTANCE = new VegetationTracker(new ArrayList<>(List.of(
@@ -96,6 +102,7 @@ public final class VegetationTracker {
                 sourcePathId,
                 plantDefinition);
         chunk.getData(com.cp.ecoflux.init.ModAttachments.SUCCESSION_CHUNK_DATA).trackVegetation(record);
+        NeoForge.EVENT_BUS.post(new VegetationLifecycleEvent.Born(level, record, pos, state));
 
         if (state.hasProperty(DoublePlantBlock.HALF) && state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER) {
             BlockPos upperPos = pos.above();
@@ -208,7 +215,7 @@ public final class VegetationTracker {
             return ObserveResult.noop("位置 " + pos + " 观察失败：适配器 " + record.adapterType() + " 未注册。");
         }
 
-        if (record.adapterType().equals(SaplingAdapter.TYPE_ID)) {
+        if (adapter.get().capabilities().contains(VegetationAdapterCapability.IS_SAPLING)) {
             long saplingAge = (long) ((level.getGameTime() - record.birthGameTime()) * SuccessionSpeedConfig.getSpeedMultiplier());
             if (saplingAge >= 1200L) {
                 BlockState currentState = level.getBlockState(pos);
@@ -241,9 +248,7 @@ public final class VegetationTracker {
         // Lazily rebuild TreeStructure for tree records loaded from NBT (no longer persisted).
         // Only rebuild when the tree is dying/dead — healthy trees don't need the structure.
         // Also covers DT trees (DTTreeAdapter) whose treeStructure is never captured at birth.
-        boolean isTreeRecord = record.adapterType().equals(TreeStructureAdapter.TYPE_ID)
-                || record.adapterType().equals(
-                        com.cp.ecoflux.plant.adapters.dynamictrees.DTTreeAdapter.TYPE_ID);
+        boolean isTreeRecord = adapter.get().capabilities().contains(VegetationAdapterCapability.HAS_STRUCTURE);
         boolean needsTreeStructure = isTreeRecord
                 && (record.treeStructure() == null || record.treeStructure().isEmpty());
         if (needsTreeStructure && (!observation.present() || observation.stage() == VegetationLifecycleStage.DEAD)) {
@@ -255,6 +260,7 @@ public final class VegetationTracker {
         if (!observation.present()) {
             if (record.treeStructure() != null && !record.treeStructure().isEmpty()) {
                 TreeStructureManager.removeAllBlocks(level, chunkData, pos, record.treeStructure());
+                NeoForge.EVENT_BUS.post(new VegetationLifecycleEvent.Death(level, record, observation));
                 return new ObserveResult(
                         "已观察 " + pos + "：树木结构完全腐烂，方块已移除。",
                         true, false, false);
@@ -264,6 +270,7 @@ public final class VegetationTracker {
                 level.destroyBlock(pos, false);
             }
             chunkData.removeVegetation(pos);
+            NeoForge.EVENT_BUS.post(new VegetationLifecycleEvent.Death(level, record, observation));
             return new ObserveResult(
                     "已观察 " + pos + "：植被死亡或消失。详情=" + observation.detail(),
                     true, false, false);
@@ -275,6 +282,7 @@ public final class VegetationTracker {
             TreeStructure reduced = TreeStructureManager.processDeath(level, record.treeStructure());
             if (reduced.isEmpty()) {
                 chunkData.removeVegetation(pos);
+                NeoForge.EVENT_BUS.post(new VegetationLifecycleEvent.Death(level, record, observation));
                 return new ObserveResult(
                         "已观察 " + pos + "：树木结构死亡，所有方块已移除。",
                         true, false, false);
@@ -299,6 +307,7 @@ public final class VegetationTracker {
                     level.getGameTime(),
                     transformation.targetExpireGameTime());
             chunkData.trackVegetation(transformedRecord);
+            NeoForge.EVENT_BUS.post(new VegetationLifecycleEvent.Transformed(level, record, transformation));
             return new ObserveResult(
                     "已观察 " + pos + "：已转化为 " + transformation.targetVegetationId() + "。",
                     false,
@@ -308,6 +317,10 @@ public final class VegetationTracker {
 
         boolean stageChanged = record.lifeStage() != observation.stage();
         boolean pointsChanged = record.currentPointValue() != observation.currentPointValue();
+        if (stageChanged) {
+            NeoForge.EVENT_BUS.post(new VegetationLifecycleEvent.StageChange(
+                    level, record, record.lifeStage(), observation.stage()));
+        }
         if (stageChanged || pointsChanged) {
             chunkData.trackVegetation(record.withObservation(
                     observation.stage(),
@@ -406,7 +419,7 @@ public final class VegetationTracker {
                 yield "GROWING";
             }
             case GROWING -> {
-                if (record.adapterType().equals(SaplingAdapter.TYPE_ID)) {
+                if (adapter.get().capabilities().contains(VegetationAdapterCapability.IS_SAPLING)) {
                     newExpire = now - 1;
                     yield "DEAD";
                 }
@@ -414,7 +427,7 @@ public final class VegetationTracker {
                 yield "MATURE";
             }
             case MATURE -> {
-                long threshold = record.adapterType().equals(TreeStructureAdapter.TYPE_ID) ? 96000L : 48000L;
+                long threshold = adapter.get().capabilities().contains(VegetationAdapterCapability.LONG_LIFECYCLE) ? 96000L : 48000L;
                 newBirth = now - (long) (threshold / speed);
                 yield "AGING";
             }

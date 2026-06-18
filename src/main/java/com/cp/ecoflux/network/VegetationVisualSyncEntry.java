@@ -12,7 +12,7 @@ package com.cp.ecoflux.network;
  * without needing the full server-side {@code ActiveVegetationRecord}.
  */
 
-import com.cp.ecoflux.plant.VegetationLifecycleStage;
+import com.cp.ecoflux.api.data.VegetationLifecycleStage;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
